@@ -1,3 +1,25 @@
 spring:
   application:
     name: ssoss-backend
+  profiles:
+    default: local
+logging:
+  level:
+    org.zalando.logbook: TRACE
+logbook:
+  format:
+    style: http
+  write:
+    max-body-size: 2000
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
