@@ -31,6 +31,8 @@ dependencies {
     implementation("org.springframework.modulith:spring-modulith-observability-api")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     implementation("org.springframework.modulith:spring-modulith-starter-jdbc")
+    implementation("org.zalando:logbook-spring-boot-starter:4.0.4")
+
     compileOnly("org.projectlombok:lombok")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
