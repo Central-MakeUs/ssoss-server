@@ -11,12 +11,12 @@ import org.zalando.logbook.core.HeaderFilters;
 @Configuration
 public class LogbookConfig {
 
-	private static final Set<String> LOGGED_HEADERS = Set.of("content-type", "authorization");
+    private static final Set<String> LOGGED_HEADERS = Set.of("content-type", "authorization");
 
-	@Bean
-	HeaderFilter loggedHeaderFilter() {
-		HeaderFilter allowlist = HeaderFilters.removeHeaders(name -> !LOGGED_HEADERS.contains(name.toLowerCase(Locale.ROOT)));
-		return HeaderFilter.merge(allowlist, HeaderFilters.authorization());
-	}
+    @Bean
+    HeaderFilter loggedHeaderFilter() {
+        HeaderFilter allowlist = HeaderFilters.removeHeaders(name -> !LOGGED_HEADERS.contains(name.toLowerCase(Locale.ROOT)));
+        return HeaderFilter.merge(allowlist, HeaderFilters.authorization());
+    }
 }
 
