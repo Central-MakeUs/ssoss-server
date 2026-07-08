@@ -1,0 +1,108 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/central-makeus/ssoss-server
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: ./gradlew bootJar
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+
+  provision:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - run: printf '%s' "${{ secrets.APP_ENV_FILE }}" > app.env
+
+      - uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.APP_INSTANCES }}
+          username: ubuntu
+          key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          source: app.env
+          target: /tmp
+
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.APP_INSTANCES }}
+          username: ubuntu
+          key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          script: |
+            sudo install -d -m 700 /opt/ssoss-backend
+            sudo install -m 600 /tmp/app.env /opt/ssoss-backend/.env
+            rm -f /tmp/app.env
+            echo "${{ secrets.GHCR_PULL_PAT }}" | sudo docker login ghcr.io -u zxcv9203 --password-stdin
+
+  deploy:
+    needs: provision
+    runs-on: ubuntu-latest
+    env:
+      PIPELINE_ID: ocid1.devopsdeploypipeline.oc1.ap-chuncheon-1.amaaaaaaustky2yaw62wduycemnzwfkjl5bi26dugtqav6maag67a6co7hlq
+    steps:
+      - name: Trigger OCI DevOps rolling deployment
+        id: deploy
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
+        env:
+          OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+          OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+          OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+          OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+        with:
+          silent: false
+          query: 'data.\"lifecycle-state\"'
+          command: >-
+            devops deployment create-pipeline-deployment
+            --pipeline-id ${{ env.PIPELINE_ID }}
+            --display-name deploy-${{ github.sha }}
+            --deployment-arguments "{\"items\":[{\"name\":\"IMAGE_TAG\",\"value\":\"${{ github.sha }}\"}]}"
+            --wait-for-state SUCCEEDED --wait-for-state FAILED --wait-for-state CANCELED
+            --max-wait-seconds 3600
+            --raw-output
+
+      - name: Gate on deployment outcome
+        env:
+          STATE: ${{ steps.deploy.outputs.raw_output }}
+        run: |
+          state="$(printf '%s' "$STATE" | tr -d '[:space:]"')"
+          echo "deployment state: $state"
+          [ "$state" = "SUCCEEDED" ]
