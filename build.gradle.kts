@@ -19,6 +19,7 @@ repositories {
 }
 
 extra["springModulithVersion"] = "2.1.0"
+extra["archunitVersion"] = "1.4.2"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -41,6 +42,7 @@ dependencies {
     runtimeOnly("org.springframework.modulith:spring-modulith-observability-core")
     runtimeOnly("org.springframework.modulith:spring-modulith-runtime")
     annotationProcessor("org.projectlombok:lombok")
+    testImplementation("com.tngtech.archunit:archunit:${property("archunitVersion")}")
     testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
     testImplementation("org.springframework.boot:spring-boot-starter-data-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
