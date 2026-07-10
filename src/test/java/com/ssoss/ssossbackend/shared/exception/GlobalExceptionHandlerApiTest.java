@@ -2,7 +2,7 @@ package com.ssoss.ssossbackend.shared.exception;
 
 import java.util.Map;
 
-import com.ssoss.ssossbackend.IntegrationTest;
+import com.ssoss.ssossbackend.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

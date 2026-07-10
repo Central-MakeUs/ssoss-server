@@ -1,4 +1,4 @@
-package com.ssoss.ssossbackend;
+package com.ssoss.ssossbackend.support;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;

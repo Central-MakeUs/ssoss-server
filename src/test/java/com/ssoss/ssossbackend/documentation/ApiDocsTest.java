@@ -1,6 +1,6 @@
 package com.ssoss.ssossbackend.documentation;
 
-import com.ssoss.ssossbackend.IntegrationTest;
+import com.ssoss.ssossbackend.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
