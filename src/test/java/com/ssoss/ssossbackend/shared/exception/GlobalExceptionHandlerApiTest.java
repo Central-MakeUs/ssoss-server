@@ -22,7 +22,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("BusinessException 이 발생하면 ErrorCode 의 상태와 code, message 를 반환한다")
         void returnsErrorCodeStatusAndBody_whenBusinessExceptionThrown() {
-            client.get().uri("/test/exceptions/business")
+            client().get().uri("/test/exceptions/business")
                     .exchange()
                     .expectStatus().isEqualTo(HttpStatus.CONFLICT)
                     .expectBody(ErrorResponse.class)
@@ -42,7 +42,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         void returns400AndFirstMessage_whenValidationFails() {
             Map<String, String> invalidBody = Map.of("name", "");
 
-            client.post().uri("/test/exceptions/validate")
+            client().post().uri("/test/exceptions/validate")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(invalidBody)
                     .exchange()
@@ -57,7 +57,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("파라미터 @Valid 에 실패하면 400 과 C0001, 위반 메시지를 반환한다")
         void returns400AndParamMessage_whenParameterValidationFails() {
-            client.get().uri("/test/exceptions/param?name=a")
+            client().get().uri("/test/exceptions/param?name=a")
                     .exchange()
                     .expectStatus().isBadRequest()
                     .expectBody(ErrorResponse.class)
@@ -75,7 +75,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("매핑되지 않은 경로를 요청하면 404 와 C0002 code 를 반환한다")
         void returns404_whenNoHandlerMatches() {
-            client.get().uri("/test/exceptions/does-not-exist")
+            client().get().uri("/test/exceptions/does-not-exist")
                     .exchange()
                     .expectStatus().isNotFound()
                     .expectBody(ErrorResponse.class)
@@ -85,7 +85,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("지원하지 않는 메서드로 요청하면 405 와 C0003 code 를 반환한다")
         void returns405_whenMethodNotSupported() {
-            client.method(HttpMethod.DELETE).uri("/test/exceptions/business")
+            client().method(HttpMethod.DELETE).uri("/test/exceptions/business")
                     .exchange()
                     .expectStatus().isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
                     .expectBody(ErrorResponse.class)
@@ -95,7 +95,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("처리되지 않은 예외가 발생하면 500 과 C9999 code 를 반환한다")
         void returns500_whenUnexpectedExceptionThrown() {
-            client.get().uri("/test/exceptions/unexpected")
+            client().get().uri("/test/exceptions/unexpected")
                     .exchange()
                     .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
                     .expectBody(ErrorResponse.class)
@@ -110,7 +110,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("본문 JSON 이 깨지면 400 과 C0001 을 반환한다")
         void returns400_whenBodyIsMalformed() {
-            client.post().uri("/test/exceptions/validate")
+            client().post().uri("/test/exceptions/validate")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body("{")
                     .exchange()
@@ -122,7 +122,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("지원하지 않는 Content-Type 이면 415 와 C0005 를 반환한다")
         void returns415_whenMediaTypeUnsupported() {
-            client.post().uri("/test/exceptions/validate")
+            client().post().uri("/test/exceptions/validate")
                     .contentType(MediaType.TEXT_PLAIN)
                     .body("plain text")
                     .exchange()
@@ -134,7 +134,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("필수 파라미터가 없으면 400 과 C0001 을 반환한다")
         void returns400_whenRequiredParameterMissing() {
-            client.get().uri("/test/exceptions/param")
+            client().get().uri("/test/exceptions/param")
                     .exchange()
                     .expectStatus().isBadRequest()
                     .expectBody(ErrorResponse.class)
@@ -144,7 +144,7 @@ class GlobalExceptionHandlerApiTest extends IntegrationTest {
         @Test
         @DisplayName("파라미터 타입이 맞지 않으면 400 과 C0001 을 반환한다")
         void returns400_whenParameterTypeMismatch() {
-            client.get().uri("/test/exceptions/typed?number=abc")
+            client().get().uri("/test/exceptions/typed?number=abc")
                     .exchange()
                     .expectStatus().isBadRequest()
                     .expectBody(ErrorResponse.class)

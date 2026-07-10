@@ -18,7 +18,7 @@ class ApiDocsTest extends IntegrationTest {
         @Test
         @DisplayName("openapi 필드를 포함한 문서가 반환된다")
         void returnsOpenApiDocument() {
-            client.get().uri("/v3/api-docs")
+            client().get().uri("/v3/api-docs")
                     .exchange()
                     .expectStatus().isOk()
                     .expectBody(String.class)
@@ -33,7 +33,7 @@ class ApiDocsTest extends IntegrationTest {
         @Test
         @DisplayName("api-docs 를 가리키는 Scalar UI HTML 이 반환된다")
         void returnsScalarHtml() {
-            client.get().uri("/scalar")
+            client().get().uri("/scalar")
                     .exchange()
                     .expectStatus().isOk()
                     .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
