@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend;
 
+import com.ssoss.ssossbackend.support.TestcontainersConfiguration;
 import org.springframework.boot.SpringApplication;
 
 public class TestSsossBackendApplication {
