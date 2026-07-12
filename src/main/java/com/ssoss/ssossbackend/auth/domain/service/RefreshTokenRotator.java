@@ -1,5 +1,7 @@
 package com.ssoss.ssossbackend.auth.domain.service;
 
+import java.time.Clock;
+
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
 import com.ssoss.ssossbackend.auth.domain.contract.TokenGenerator;
 import com.ssoss.ssossbackend.auth.domain.contract.TokenHasher;
@@ -23,11 +25,12 @@ public class RefreshTokenRotator {
     private final RefreshTokenRepository refreshTokenRepository;
     private final TokenHasher tokenHasher;
     private final TokenGenerator tokenGenerator;
+    private final Clock clock;
 
     @Transactional
     public LoginToken rotate(RefreshToken current) {
         try {
-            refreshTokenRepository.save(current.markRotated());
+            refreshTokenRepository.save(current.markDeleted(clock.instant()));
         } catch (OptimisticLockingFailureException raced) {
             log.info("refresh token 동시 재발급 경합: memberId={}, sessionId={}",
                 current.getMemberId(), current.getSessionId());

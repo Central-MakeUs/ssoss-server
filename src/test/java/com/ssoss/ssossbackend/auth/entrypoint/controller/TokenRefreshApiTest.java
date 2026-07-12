@@ -46,7 +46,7 @@ class TokenRefreshApiTest extends IntegrationTest {
     class Refresh {
 
         @Test
-        @DisplayName("유효한 refresh token 으로 요청하면 새 토큰 쌍이 발급되고 기존 토큰은 같은 세션의 ROTATED 이력으로 남는다")
+        @DisplayName("유효한 refresh token 으로 요청하면 새 토큰 쌍이 발급되고 기존 토큰은 같은 세션의 DELETED 이력으로 남는다")
         void rotatesRefreshToken_whenValid() {
             naverApi.stubProfile("refresh-login-token", "naver-id-refresh");
             SocialLoginResponse loggedIn = fixture.socialLogin(SocialProvider.NAVER, "refresh-login-token")
@@ -71,7 +71,7 @@ class TokenRefreshApiTest extends IntegrationTest {
             List<RefreshToken> rows = refreshTokenRepository.findAllByMemberId(memberId);
             assertThat(rows).hasSize(2);
 
-            RefreshToken rotated = rows.stream()
+            RefreshToken consumed = rows.stream()
                 .filter(row -> row.getTokenHash().equals(tokenHasher.hash(loggedIn.refreshToken())))
                 .findFirst()
                 .orElseThrow();
@@ -79,10 +79,11 @@ class TokenRefreshApiTest extends IntegrationTest {
                 .filter(row -> row.getTokenHash().equals(tokenHasher.hash(refreshed.refreshToken())))
                 .findFirst()
                 .orElseThrow();
-            assertThat(rotated.getStatus()).isEqualTo(RefreshTokenStatus.ROTATED);
+            assertThat(consumed.getStatus()).isEqualTo(RefreshTokenStatus.DELETED);
+            assertThat(consumed.getDeletedAt()).isNotNull();
             assertThat(active.getStatus()).isEqualTo(RefreshTokenStatus.ACTIVE);
-            assertThat(active.getSessionId()).isEqualTo(rotated.getSessionId());
-            assertThat(active.getExpiresAt()).isEqualTo(rotated.getExpiresAt().plus(Duration.ofHours(1)));
+            assertThat(active.getSessionId()).isEqualTo(consumed.getSessionId());
+            assertThat(active.getExpiresAt()).isEqualTo(consumed.getExpiresAt().plus(Duration.ofHours(1)));
         }
 
         @Test
@@ -109,7 +110,7 @@ class TokenRefreshApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("만료 시각이 지난 ROTATED 토큰을 재제출해도 만료가 아닌 A0004 로 거부되고 세션은 유지된다")
+        @DisplayName("만료 시각이 지난 폐기(DELETED) 토큰을 재제출해도 만료가 아닌 A0004 로 거부되고 세션은 유지된다")
         void keepsSession_whenExpiredRotatedTokenIsResubmitted() {
             naverApi.stubProfile("stale-login-token", "naver-id-stale");
             SocialLoginResponse loggedIn = fixture.socialLogin(SocialProvider.NAVER, "stale-login-token")
@@ -169,8 +170,8 @@ class TokenRefreshApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("refresh TTL 이 지나 만료된 토큰으로 요청하면 401 과 A0005 를 반환하고 행은 물리 삭제되지 않는다")
-        void returns401_whenTokenExpired() {
+        @DisplayName("refresh TTL 이 지나 만료된 토큰으로 요청하면 401 과 A0005 를 반환하고 세션 전체가 DELETED 로 소프트 삭제된다")
+        void returns401AndSoftDeletesSession_whenTokenExpired() {
             naverApi.stubProfile("expired-login-token", "naver-id-expired");
             SocialLoginResponse loggedIn = fixture.socialLogin(SocialProvider.NAVER, "expired-login-token")
                 .expectStatus().isOk()
@@ -188,7 +189,16 @@ class TokenRefreshApiTest extends IntegrationTest {
             Long memberId = memberRepository.findByProviderAndSocialId(NAVER, "naver-id-expired")
                 .orElseThrow()
                 .getId();
-            assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isNotEmpty();
+            List<RefreshToken> rows = refreshTokenRepository.findAllByMemberId(memberId);
+            assertThat(rows).isNotEmpty().allSatisfy(row -> {
+                assertThat(row.getStatus()).isEqualTo(RefreshTokenStatus.DELETED);
+                assertThat(row.getDeletedAt()).isNotNull();
+            });
+
+            fixture.refreshTokens(loggedIn.refreshToken())
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_REFRESH_TOKEN.getCode()));
         }
 
         @Test
