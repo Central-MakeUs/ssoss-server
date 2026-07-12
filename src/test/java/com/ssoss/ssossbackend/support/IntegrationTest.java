@@ -6,11 +6,14 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import({TestcontainersConfiguration.class, TestSecurityConfig.class, TestFixtureConfig.class})
+@Import({TestcontainersConfiguration.class, TestSecurityConfig.class, TestFixtureConfig.class, TestNaverApiConfig.class})
 public abstract class IntegrationTest {
 
     @Autowired
     protected TestFixture fixture;
+
+    @Autowired
+    protected TestNaverApi naverApi;
 
     protected RestTestClient client() {
         return fixture.client();
