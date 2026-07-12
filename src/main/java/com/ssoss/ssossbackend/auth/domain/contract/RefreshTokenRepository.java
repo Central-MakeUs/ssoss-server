@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.auth.domain.contract;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.ssoss.ssossbackend.auth.domain.model.RefreshToken;
@@ -8,5 +9,7 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface RefreshTokenRepository extends CrudRepository<RefreshToken, Long> {
 
-    Optional<RefreshToken> findByMemberId(Long memberId);
+    List<RefreshToken> findAllByMemberId(Long memberId);
+
+    Optional<RefreshToken> findByTokenHash(String tokenHash);
 }

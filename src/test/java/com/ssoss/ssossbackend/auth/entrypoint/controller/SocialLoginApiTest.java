@@ -1,10 +1,14 @@
 package com.ssoss.ssossbackend.auth.entrypoint.controller;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
 import com.ssoss.ssossbackend.auth.domain.contract.TokenHasher;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
+import com.ssoss.ssossbackend.auth.domain.model.RefreshToken;
+import com.ssoss.ssossbackend.auth.domain.model.RefreshTokenStatus;
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
@@ -73,11 +77,15 @@ class SocialLoginApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("로그인하면 refresh token 이 회원당 하나로 저장되고 재로그인 시 교체된다")
-        void storesAndRotatesRefreshToken_whenLoggedIn() {
+        @DisplayName("로그인할 때마다 refresh token 이 별도 ACTIVE 세션으로 저장되어 멀티 디바이스 세션이 공존한다")
+        void storesActiveSessionPerLogin() {
             naverApi.stubProfile("rt-token", "naver-id-rt");
 
-            fixture.socialLogin(SocialProvider.NAVER, "rt-token").expectStatus().isOk();
+            SocialLoginResponse first = fixture.socialLogin(SocialProvider.NAVER, "rt-token")
+                .expectStatus().isOk()
+                .expectBody(SocialLoginResponse.class)
+                .returnResult()
+                .getResponseBody();
 
             SocialLoginResponse second = fixture.socialLogin(SocialProvider.NAVER, "rt-token")
                 .expectStatus().isOk()
@@ -88,8 +96,19 @@ class SocialLoginApiTest extends IntegrationTest {
             Long memberId = memberRepository.findByProviderAndSocialId(NAVER, "naver-id-rt")
                 .orElseThrow()
                 .getId();
-            assertThat(refreshTokenRepository.findByMemberId(memberId).orElseThrow().getTokenHash())
-                .isEqualTo(tokenHasher.hash(second.refreshToken()));
+            List<RefreshToken> sessions = refreshTokenRepository.findAllByMemberId(memberId);
+            assertThat(sessions).hasSize(2);
+            assertThat(sessions).allSatisfy(session -> {
+                assertThat(session.getStatus()).isEqualTo(RefreshTokenStatus.ACTIVE);
+                assertThat(session.getSessionId()).isNotBlank();
+                assertThat(session.getExpiresAt()).isAfter(Instant.now());
+            });
+            assertThat(sessions).extracting(RefreshToken::getSessionId).doesNotHaveDuplicates();
+            assertThat(sessions).extracting(RefreshToken::getTokenHash)
+                .containsExactlyInAnyOrder(
+                    tokenHasher.hash(first.refreshToken()),
+                    tokenHasher.hash(second.refreshToken())
+                );
         }
 
         @Test
