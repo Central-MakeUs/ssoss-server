@@ -51,15 +51,12 @@ public class RefreshToken {
     }
 
     public boolean isDeleted() {
-        return deletedAt != null;
+        return status == RefreshTokenStatus.DELETED;
     }
 
-    public boolean isRotated() {
-        return status == RefreshTokenStatus.ROTATED;
-    }
-
-    public RefreshToken markRotated() {
-        this.status = RefreshTokenStatus.ROTATED;
+    public RefreshToken markDeleted(Instant deletedAt) {
+        this.status = RefreshTokenStatus.DELETED;
+        this.deletedAt = deletedAt;
         return this;
     }
 
