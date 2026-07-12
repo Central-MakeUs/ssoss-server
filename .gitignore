@@ -38,3 +38,8 @@ out/
 
 ### Claude Code ###
 .claude/
+
+### Environment ###
+.env
+.env.*
+!.env.example
