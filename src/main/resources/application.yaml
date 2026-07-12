@@ -15,10 +15,10 @@ scalar:
   enabled: true
   path: /scalar
 auth:
+  access-ttl: 30m
+  refresh-ttl: 14d
   jwt:
     secret: local-only-secret-key-at-least-256-bits-long!!!!
-    access-ttl: 30m
-    refresh-ttl: 14d
   oauth:
     naver:
       profile-url: https://openapi.naver.com/v1/nid/me

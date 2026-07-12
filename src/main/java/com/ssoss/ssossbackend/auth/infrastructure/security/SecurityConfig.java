@@ -24,6 +24,7 @@ class SecurityConfig {
         return http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/v1/social-logins/*").permitAll()
+                .requestMatchers(HttpMethod.POST, "/v1/tokens").permitAll()
                 .anyRequest().authenticated())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .csrf(AbstractHttpConfigurer::disable)

@@ -26,4 +26,11 @@ public class TestFixture {
             .body(Map.of("accessToken", accessToken))
             .exchange();
     }
+
+    public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
+        return client.post().uri("/v1/tokens")
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(Map.of("refreshToken", refreshToken))
+            .exchange();
+    }
 }

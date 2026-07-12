@@ -19,19 +19,19 @@ interface SocialLoginApi {
     @Operation(
         summary = "소셜 로그인",
         description = """
-            소셜 로그인 프로바이더 SDK로 발급받은 액세스 토큰을 전달하면 서버 자체 JWT 를 발급합니다.
+            소셜 로그인 프로바이더 SDK로 발급받은 액세스 토큰을 전달하면 서버 자체 토큰을 발급합니다.
 
             **처리 순서**
             1. 앱이 프로바이더 SDK 로그인으로 액세스 토큰을 발급받습니다.
             2. 이 API 에 액세스 토큰을 전달합니다.
             3. 서버가 프로바이더에 토큰 유효성을 확인합니다. 무효한 토큰이면 401 을 응답합니다.
-            4. 검증에 성공하면 서버 자체 JWT(access/refresh)를 응답합니다.
+            4. 검증에 성공하면 서버 자체 토큰(access JWT + opaque refresh)을 응답합니다.
             """)
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "로그인에 성공해 서버 자체 발급 JWT 쌍을 반환합니다",
+        @ApiResponse(responseCode = "200", description = "로그인에 성공해 서버 자체 발급 토큰 쌍을 반환합니다",
             content = @Content(schema = @Schema(implementation = SocialLoginResponse.class),
                 examples = @ExampleObject(value = """
-                    {"accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.y"}
+                    {"accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"3q2nq0uW9kZ0m1r5c8vX2yB7dF4hJ6lN8pR0tV2xZ4A"}
                     """))),
         @ApiResponse(responseCode = "400", description = "accessToken 이 누락되었거나 공백입니다 (C0001) — 요청 본문을 확인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),

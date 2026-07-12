@@ -16,7 +16,7 @@ public class TokenIssuer {
 
     public LoginToken issue(Long memberId) {
         LoginToken loginToken = tokenGenerator.generate(memberId);
-        refreshTokenWriter.replace(memberId, loginToken.refreshToken());
+        refreshTokenWriter.issue(memberId, loginToken.refreshToken(), loginToken.refreshTokenExpiresAt());
         return loginToken;
     }
 }

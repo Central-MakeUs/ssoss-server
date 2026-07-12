@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.auth.infrastructure.token;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -10,28 +11,35 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
-class JwtTokenGenerator implements TokenGenerator {
+class LoginTokenGenerator implements TokenGenerator {
 
     private final JwtSigner jwtSigner;
+    private final OpaqueTokenGenerator opaqueTokenGenerator;
+    private final Clock clock;
     private final Duration accessTtl;
     private final Duration refreshTtl;
 
-    JwtTokenGenerator(
+    LoginTokenGenerator(
         JwtSigner jwtSigner,
-        @Value("${auth.jwt.access-ttl}") Duration accessTtl,
-        @Value("${auth.jwt.refresh-ttl}") Duration refreshTtl
+        OpaqueTokenGenerator opaqueTokenGenerator,
+        Clock clock,
+        @Value("${auth.access-ttl}") Duration accessTtl,
+        @Value("${auth.refresh-ttl}") Duration refreshTtl
     ) {
         this.jwtSigner = jwtSigner;
+        this.opaqueTokenGenerator = opaqueTokenGenerator;
+        this.clock = clock;
         this.accessTtl = accessTtl;
         this.refreshTtl = refreshTtl;
     }
 
     @Override
     public LoginToken generate(Long memberId) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         return new LoginToken(
             jwtSigner.sign(memberId, now, accessTtl),
-            jwtSigner.sign(memberId, now, refreshTtl)
+            opaqueTokenGenerator.generate(),
+            now.plus(refreshTtl)
         );
     }
 }
