@@ -1,7 +1,6 @@
 package com.ssoss.ssossbackend.auth.domain.service;
 
 import java.time.Clock;
-import java.time.Instant;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
 import com.ssoss.ssossbackend.auth.domain.contract.TokenHasher;
@@ -12,7 +11,6 @@ import com.ssoss.ssossbackend.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -32,13 +30,7 @@ public class RefreshTokenValidator {
                 current.getMemberId(), current.getSessionId());
             throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
-        Instant now = clock.instant();
-        if (current.isExpired(now)) {
-            try {
-                refreshTokenRepository.save(current.markDeleted(now));
-            } catch (OptimisticLockingFailureException markedByCompetitor) {
-                throw new BusinessException(AuthErrorCode.EXPIRED_REFRESH_TOKEN, markedByCompetitor);
-            }
+        if (current.isExpired(clock.instant())) {
             throw new BusinessException(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
         }
         return current;
