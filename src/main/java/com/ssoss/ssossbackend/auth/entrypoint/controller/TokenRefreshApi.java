@@ -37,7 +37,12 @@ interface TokenRefreshApi {
                     {"code":"C0001","message":"리프레시 토큰을 입력해 주세요"}
                     """))),
         @ApiResponse(responseCode = "401",
-            description = "리프레시 토큰이 유효하지 않거나(A0004 — 미존재/재사용 감지) 만료되었습니다 (A0005) — 다시 로그인해 주세요",
+            description = """
+                리프레시 토큰 인증에 실패했습니다 — 다시 로그인해 주세요
+
+                - `A0004` — 유효하지 않은 토큰 (미존재 또는 재사용 감지)
+                - `A0005` — 만료된 토큰
+                """,
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = {
                     @ExampleObject(name = "유효하지 않은 토큰 (A0004)", value = """
