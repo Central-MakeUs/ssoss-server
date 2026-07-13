@@ -33,4 +33,11 @@ public class TestFixture {
             .body(Map.of("refreshToken", refreshToken))
             .exchange();
     }
+
+    public RestTestClient.ResponseSpec logout(String refreshToken) {
+        return client.post().uri("/v1/logout")
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(Map.of("refreshToken", refreshToken))
+            .exchange();
+    }
 }
