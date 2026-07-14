@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "scheduling.enabled=false")
 @Import({TestcontainersConfiguration.class, TestSecurityConfig.class, TestFixtureConfig.class, TestNaverApiConfig.class,
-    TestClockConfig.class})
+    TestAppleApiConfig.class, TestClockConfig.class})
 public abstract class IntegrationTest {
 
     @Autowired
@@ -19,6 +19,9 @@ public abstract class IntegrationTest {
 
     @Autowired
     protected TestNaverApi naverApi;
+
+    @Autowired
+    protected TestAppleApi appleApi;
 
     @Autowired
     protected MutableClock clock;
