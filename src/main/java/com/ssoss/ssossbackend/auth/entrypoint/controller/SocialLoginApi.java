@@ -13,7 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-@Tag(name = "소셜 로그인", description = "소셜 프로바이더 인증 기반 로그인 API")
+@Tag(name = "인증")
 interface SocialLoginApi {
 
     @Operation(
