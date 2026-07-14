@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
+import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.APPLE;
 import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -134,6 +135,76 @@ class SocialLoginApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("신규 사용자가 애플 로그인하면 회원이 자동 생성되고 access/refresh 토큰이 발급된다")
+        void createsMemberAndIssuesTokens_whenFirstAppleLogin() {
+            appleApi.stubJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-new"))
+                .expectStatus().isOk()
+                .expectBody(SocialLoginResponse.class)
+                .value(body -> {
+                    assertThat(body.accessToken()).isNotBlank();
+                    assertThat(body.refreshToken()).isNotBlank();
+                });
+
+            assertThat(memberRepository.findByProviderAndSocialId(APPLE, "apple-sub-new")).isPresent();
+        }
+
+        @Test
+        @DisplayName("동일 애플 계정으로 재로그인하면 회원이 중복 생성되지 않고 토큰이 발급된다")
+        void reusesExistingMember_whenSameAppleAccountLogsInAgain() {
+            appleApi.stubJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-returning"))
+                .expectStatus().isOk();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-returning"))
+                .expectStatus().isOk()
+                .expectBody(SocialLoginResponse.class)
+                .value(body -> {
+                    assertThat(body.accessToken()).isNotBlank();
+                    assertThat(body.refreshToken()).isNotBlank();
+                });
+
+            assertThat(memberRepository.findAll())
+                .filteredOn(member -> member.getProvider() == APPLE)
+                .hasSize(1);
+        }
+
+        @Test
+        @DisplayName("애플 공개키로 서명을 검증할 수 없는 identity token 이면 401 과 A0001 을 반환한다")
+        void returns401AndAuthErrorCode_whenAppleIdentityTokenSignatureIsInvalid() {
+            appleApi.stubJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityTokenSignedByUnknownKey("apple-sub-forged"))
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_SOCIAL_TOKEN.getCode()));
+        }
+
+        @Test
+        @DisplayName("다른 앱(client-id)용으로 발급된 애플 identity token 이면 401 과 A0001 을 반환한다")
+        void returns401AndAuthErrorCode_whenAppleIdentityTokenAudienceMismatches() {
+            appleApi.stubJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityTokenForOtherClient("apple-sub-other-app"))
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_SOCIAL_TOKEN.getCode()));
+        }
+
+        @Test
+        @DisplayName("만료된 애플 identity token 이면 401 과 A0001 을 반환한다")
+        void returns401AndAuthErrorCode_whenAppleIdentityTokenIsExpired() {
+            appleApi.stubJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueExpiredIdentityToken("apple-sub-expired"))
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_SOCIAL_TOKEN.getCode()));
+        }
+
+        @Test
         @DisplayName("지원하지 않는 프로바이더 경로로 요청하면 404 와 A0002 를 반환한다")
         void returns404AndAuthErrorCode_whenProviderIsUnsupported() {
             fixture.client().post().uri("/v1/social-logins/kakao")
@@ -160,6 +231,28 @@ class SocialLoginApiTest extends IntegrationTest {
             naverApi.stubServerError();
 
             fixture.socialLogin(SocialProvider.NAVER, "any-token")
+                .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.SOCIAL_PROVIDER_UNAVAILABLE.getCode()));
+        }
+
+        @Test
+        @DisplayName("애플 공개키 응답이 200 이지만 본문이 비정상이면 503 과 A0003 을 반환한다")
+        void returns503_whenAppleJwksResponseIsMalformed() {
+            appleApi.stubMalformedJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-any"))
+                .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.SOCIAL_PROVIDER_UNAVAILABLE.getCode()));
+        }
+
+        @Test
+        @DisplayName("애플 공개키 조회가 5xx 로 실패하면 503 과 A0003 을 반환한다")
+        void returns503_whenAppleJwksLookupFails() {
+            appleApi.stubServerError();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-any"))
                 .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.SOCIAL_PROVIDER_UNAVAILABLE.getCode()));

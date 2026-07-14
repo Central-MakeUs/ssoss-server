@@ -6,7 +6,8 @@ import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
 public enum SocialProvider {
 
-    NAVER;
+    NAVER,
+    APPLE;
 
     public static SocialProvider from(String value) {
         return Arrays.stream(values())

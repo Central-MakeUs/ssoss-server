@@ -19,12 +19,16 @@ interface SocialLoginApi {
     @Operation(
         summary = "소셜 로그인",
         description = """
-            소셜 로그인 프로바이더 SDK로 발급받은 액세스 토큰을 전달하면 서버 자체 토큰을 발급합니다.
+            소셜 로그인 프로바이더 SDK로 발급받은 토큰을 전달하면 서버 자체 토큰을 발급합니다.
 
             **처리 순서**
-            1. 앱이 프로바이더 SDK 로그인으로 액세스 토큰을 발급받습니다.
-            2. 이 API 에 액세스 토큰을 전달합니다.
-            3. 서버가 프로바이더에 토큰 유효성을 확인합니다. 무효한 토큰이면 401 을 응답합니다.
+            1. 앱이 프로바이더 SDK 로그인으로 토큰을 발급받습니다.
+               - naver: 액세스 토큰
+               - apple: identity token (JWT)
+            2. 이 API 의 `accessToken` 필드에 발급받은 토큰을 전달합니다.
+            3. 서버가 토큰 유효성을 확인합니다. 무효한 토큰이면 401 을 응답합니다.
+               - naver: 네이버 프로필 API 호출로 확인합니다.
+               - apple: 애플 공개키(JWKS)로 identity token 서명과 클레임(iss/aud/exp)을 검증합니다.
             4. 검증에 성공하면 서버 자체 토큰(access JWT + opaque refresh)을 응답합니다.
             """)
     @ApiResponses({
@@ -56,7 +60,7 @@ interface SocialLoginApi {
     })
     SocialLoginResponse login(
         @Parameter(description = "소셜 프로바이더 (대소문자 무관)", example = "naver",
-            schema = @Schema(allowableValues = {"naver"})) String provider,
+            schema = @Schema(allowableValues = {"naver", "apple"})) String provider,
         SocialLoginRequest request
     );
 }
