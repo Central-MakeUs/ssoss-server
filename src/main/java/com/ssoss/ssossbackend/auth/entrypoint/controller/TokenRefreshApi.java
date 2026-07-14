@@ -12,7 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-@Tag(name = "토큰 재발급", description = "리프레시 토큰 회전(RTR) 기반 토큰 재발급 API")
+@Tag(name = "인증")
 interface TokenRefreshApi {
 
     @Operation(

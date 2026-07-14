@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-@Tag(name = "로그아웃", description = "현재 세션의 리프레시 토큰 폐기 API")
+@Tag(name = "인증")
 interface LogoutApi {
 
     @Operation(
