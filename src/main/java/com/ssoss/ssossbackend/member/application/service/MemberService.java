@@ -2,13 +2,18 @@ package com.ssoss.ssossbackend.member.application.service;
 
 import java.util.Optional;
 
+import com.ssoss.ssossbackend.member.domain.model.Member;
+import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
+import com.ssoss.ssossbackend.member.domain.service.MemberActivator;
 import com.ssoss.ssossbackend.member.domain.service.MemberFinder;
+import com.ssoss.ssossbackend.member.domain.service.MemberTermWriter;
 import com.ssoss.ssossbackend.member.domain.service.MemberWriter;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +21,8 @@ public class MemberService {
 
     private final MemberFinder memberFinder;
     private final MemberWriter memberWriter;
+    private final MemberActivator memberActivator;
+    private final MemberTermWriter memberTermWriter;
 
     public Optional<MemberIdentity> find(String provider, String socialId) {
         return memberFinder.find(SocialProvider.valueOf(provider), socialId)
@@ -29,5 +36,14 @@ public class MemberService {
 
     public MemberIdentity register(String provider, String socialId, String email) {
         return MemberIdentity.from(memberWriter.register(SocialProvider.valueOf(provider), socialId, email));
+    }
+
+    @Transactional
+    public MemberIdentity signup(Long memberId, boolean serviceTermsAgreed, boolean privacyPolicyAgreed,
+        boolean marketingAgreed) {
+        Member member = memberActivator.activate(memberId);
+        memberTermWriter.record(MemberTerm.record(
+            member.getId(), serviceTermsAgreed, privacyPolicyAgreed, marketingAgreed));
+        return MemberIdentity.from(member);
     }
 }
