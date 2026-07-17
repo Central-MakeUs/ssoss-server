@@ -27,6 +27,6 @@ class SocialLoginController implements SocialLoginApi {
         @Valid @RequestBody SocialLoginRequest request
     ) {
         SocialLoginResult result = socialLoginService.login(request.toCommand(provider));
-        return new SocialLoginResponse(result.accessToken(), result.refreshToken());
+        return new SocialLoginResponse(result.status(), result.accessToken(), result.refreshToken());
     }
 }

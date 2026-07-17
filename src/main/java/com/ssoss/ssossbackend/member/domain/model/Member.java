@@ -17,6 +17,7 @@ public class Member {
     private Long id;
     private SocialProvider provider;
     private String socialId;
+    private MemberStatus status;
 
     @CreatedDate
     private Instant createdAt;
@@ -24,13 +25,14 @@ public class Member {
     @LastModifiedDate
     private Instant updatedAt;
 
-    Member(Long id, SocialProvider provider, String socialId) {
+    Member(Long id, SocialProvider provider, String socialId, MemberStatus status) {
         this.id = id;
         this.provider = provider;
         this.socialId = socialId;
+        this.status = status;
     }
 
     public static Member register(SocialProvider provider, String socialId) {
-        return new Member(null, provider, socialId);
+        return new Member(null, provider, socialId, MemberStatus.PENDING);
     }
 }

@@ -6,6 +6,7 @@ import java.time.Instant;
 
 import com.ssoss.ssossbackend.auth.domain.contract.TokenGenerator;
 import com.ssoss.ssossbackend.auth.domain.model.LoginToken;
+import com.ssoss.ssossbackend.auth.domain.model.MemberStatus;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -34,10 +35,10 @@ class LoginTokenGenerator implements TokenGenerator {
     }
 
     @Override
-    public LoginToken generate(Long memberId) {
+    public LoginToken generate(Long memberId, MemberStatus status) {
         Instant now = clock.instant();
         return new LoginToken(
-            jwtSigner.sign(memberId, now, accessTtl),
+            jwtSigner.sign(memberId, status, now, accessTtl),
             opaqueTokenGenerator.generate(),
             now.plus(refreshTtl)
         );

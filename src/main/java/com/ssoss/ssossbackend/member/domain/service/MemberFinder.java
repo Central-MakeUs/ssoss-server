@@ -19,4 +19,8 @@ public class MemberFinder {
     public Optional<Member> find(SocialProvider provider, String socialId) {
         return memberRepository.findByProviderAndSocialId(provider, socialId);
     }
+
+    public Optional<Member> findById(Long memberId) {
+        return memberRepository.findById(memberId);
+    }
 }

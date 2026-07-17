@@ -1,8 +1,5 @@
 package com.ssoss.ssossbackend.support;
 
-import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
-import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,20 +24,11 @@ public abstract class IntegrationTest {
     protected MutableClock clock;
 
     @Autowired
-    private RefreshTokenRepository refreshTokenRepository;
-
-    @Autowired
-    private MemberRepository memberRepository;
+    protected JwtTestSupport jwtTestSupport;
 
     @BeforeEach
     void resetClock() {
         clock.reset();
-    }
-
-    @BeforeEach
-    void resetDatabase() {
-        refreshTokenRepository.deleteAll();
-        memberRepository.deleteAll();
     }
 
     protected RestTestClient client() {

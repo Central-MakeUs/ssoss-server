@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.support;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
@@ -16,5 +17,10 @@ class TestFixtureConfig {
                 .baseUrl("http://localhost:" + port)
                 .build();
         return new TestFixture(client);
+    }
+
+    @Bean
+    JwtTestSupport jwtTestSupport(@Value("${auth.jwt.secret}") String secret) {
+        return new JwtTestSupport(secret);
     }
 }

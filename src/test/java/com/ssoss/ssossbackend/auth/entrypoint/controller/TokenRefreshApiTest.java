@@ -21,6 +21,7 @@ import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,12 @@ class TokenRefreshApiTest extends IntegrationTest {
 
     @Autowired
     private TokenHasher tokenHasher;
+
+    @BeforeEach
+    void resetDatabase() {
+        refreshTokenRepository.deleteAll();
+        memberRepository.deleteAll();
+    }
 
     @Nested
     @DisplayName("POST /v1/tokens")
@@ -63,6 +70,7 @@ class TokenRefreshApiTest extends IntegrationTest {
                 .getResponseBody();
 
             assertThat(refreshed.accessToken()).isNotBlank();
+            assertThat(jwtTestSupport.roleOf(refreshed.accessToken())).isEqualTo("PENDING");
             assertThat(refreshed.refreshToken()).isNotBlank().isNotEqualTo(loggedIn.refreshToken());
 
             Long memberId = memberRepository.findByProviderAndSocialId(NAVER, "naver-id-refresh")
