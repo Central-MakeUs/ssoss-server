@@ -2,8 +2,10 @@ package com.ssoss.ssossbackend.documentation;
 
 import java.util.List;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.tags.Tag;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +17,11 @@ public class OpenApiConfig {
     OpenAPI ssossOpenApi() {
         return new OpenAPI()
             .info(new Info().title("SSOSS API").version("v1"))
+            .components(new Components().addSecuritySchemes("bearerAuth", new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("bearer")
+                .bearerFormat("JWT")
+                .description("소셜 로그인·토큰 재발급으로 발급받은 액세스 토큰")))
             .tags(List.of(new Tag()
                 .name("인증")
                 .description("""

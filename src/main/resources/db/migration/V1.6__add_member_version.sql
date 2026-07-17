@@ -1,0 +1,2 @@
+ALTER TABLE member
+    ADD COLUMN version BIGINT NOT NULL DEFAULT 0 COMMENT '낙관적 잠금 버전' AFTER status;
