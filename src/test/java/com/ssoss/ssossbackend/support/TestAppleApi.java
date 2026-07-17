@@ -27,6 +27,7 @@ public class TestAppleApi {
 
     private static final String ISSUER = "https://appleid.apple.com";
     private static final String KEY_ID = "test-key-id";
+    private static final String DEFAULT_EMAIL = "test@icloud.com";
 
     private final MockWebServer server = new MockWebServer();
     private KeyPair keyPair;
@@ -82,29 +83,41 @@ public class TestAppleApi {
     }
 
     public String issueIdentityToken(String sub) {
-        return identityToken(sub, keyPair, CLIENT_ID, Date.from(Instant.now().plusSeconds(3600)));
+        return issueIdentityToken(sub, DEFAULT_EMAIL);
+    }
+
+    public String issueIdentityToken(String sub, String email) {
+        return identityToken(sub, email, keyPair, CLIENT_ID, Date.from(Instant.now().plusSeconds(3600)));
+    }
+
+    public String issueIdentityTokenWithoutEmail(String sub) {
+        return identityToken(sub, null, keyPair, CLIENT_ID, Date.from(Instant.now().plusSeconds(3600)));
     }
 
     public String issueIdentityTokenSignedByUnknownKey(String sub) {
-        return identityToken(sub, unknownKeyPair, CLIENT_ID, Date.from(Instant.now().plusSeconds(3600)));
+        return identityToken(sub, DEFAULT_EMAIL, unknownKeyPair, CLIENT_ID, Date.from(Instant.now().plusSeconds(3600)));
     }
 
     public String issueIdentityTokenForOtherClient(String sub) {
-        return identityToken(sub, keyPair, "other-apple-client-id", Date.from(Instant.now().plusSeconds(3600)));
+        return identityToken(sub, DEFAULT_EMAIL, keyPair, "other-apple-client-id", Date.from(Instant.now().plusSeconds(3600)));
     }
 
     public String issueExpiredIdentityToken(String sub) {
-        return identityToken(sub, keyPair, CLIENT_ID, Date.from(Instant.now().minusSeconds(60)));
+        return identityToken(sub, DEFAULT_EMAIL, keyPair, CLIENT_ID, Date.from(Instant.now().minusSeconds(60)));
     }
 
-    private String identityToken(String sub, KeyPair signingKeyPair, String audience, Date expiration) {
-        return Jwts.builder()
+    private String identityToken(String sub, String email, KeyPair signingKeyPair, String audience, Date expiration) {
+        var builder = Jwts.builder()
             .header().keyId(KEY_ID).and()
             .issuer(ISSUER)
             .subject(sub)
             .audience().add(audience).and()
             .issuedAt(Date.from(Instant.now().minusSeconds(10)))
-            .expiration(expiration)
+            .expiration(expiration);
+        if (email != null) {
+            builder.claim("email", email);
+        }
+        return builder
             .signWith(signingKeyPair.getPrivate(), Jwts.SIG.RS256)
             .compact();
     }

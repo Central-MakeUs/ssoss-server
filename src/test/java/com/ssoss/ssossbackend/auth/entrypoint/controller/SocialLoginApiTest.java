@@ -72,6 +72,17 @@ class SocialLoginApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("네이버 첫 로그인 시 프로필의 이메일이 회원에 저장된다")
+        void storesProfileEmail_whenFirstNaverLogin() {
+            naverApi.stubProfile("naver-access-token", "naver-id-email", "hong@naver.com");
+
+            fixture.socialLogin(SocialProvider.NAVER, "naver-access-token").expectStatus().isOk();
+
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-id-email").orElseThrow();
+            assertThat(member.getEmail()).isEqualTo("hong@naver.com");
+        }
+
+        @Test
         @DisplayName("가입 대기 회원이 재로그인하면 회원이 중복 생성되지 않고 같은 회원으로 다시 PENDING 응답을 받는다")
         void reusesPendingMember_whenPendingMemberLogsInAgain() {
             naverApi.stubProfile("returning-token", "naver-id-returning");
@@ -168,6 +179,31 @@ class SocialLoginApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("애플 첫 로그인 시 identity token 의 email 클레임이 회원에 저장된다")
+        void storesEmailClaim_whenFirstAppleLogin() {
+            appleApi.stubJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-email", "kim@icloud.com"))
+                .expectStatus().isOk();
+
+            Member member = memberRepository.findByProviderAndSocialId(APPLE, "apple-sub-email").orElseThrow();
+            assertThat(member.getEmail()).isEqualTo("kim@icloud.com");
+        }
+
+        @Test
+        @DisplayName("애플 비공개 릴레이 이메일도 그대로 회원에 저장된다")
+        void storesPrivateRelayEmail_whenAppleEmailIsRelayAddress() {
+            appleApi.stubJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE,
+                    appleApi.issueIdentityToken("apple-sub-relay", "abc123def@privaterelay.appleid.com"))
+                .expectStatus().isOk();
+
+            Member member = memberRepository.findByProviderAndSocialId(APPLE, "apple-sub-relay").orElseThrow();
+            assertThat(member.getEmail()).isEqualTo("abc123def@privaterelay.appleid.com");
+        }
+
+        @Test
         @DisplayName("동일 애플 계정으로 재로그인하면 회원이 중복 생성되지 않고 다시 PENDING 응답을 받는다")
         void reusesExistingMember_whenSameAppleAccountLogsInAgain() {
             appleApi.stubJwks();
@@ -220,6 +256,45 @@ class SocialLoginApiTest extends IntegrationTest {
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_SOCIAL_TOKEN.getCode()));
+        }
+
+        @Test
+        @DisplayName("네이버 프로필에 이메일이 없으면 400 과 A0008 가입 실패를 반환한다")
+        void returns400AndSignupError_whenNaverProfileHasNoEmail() {
+            naverApi.stubProfileWithoutEmail("no-email-token", "naver-id-no-email");
+
+            fixture.socialLogin(SocialProvider.NAVER, "no-email-token")
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.SIGNUP_EMAIL_NOT_PROVIDED.getCode()));
+        }
+
+        @Test
+        @DisplayName("애플 identity token 에 email 클레임이 없으면 400 과 A0008 가입 실패를 반환한다")
+        void returns400AndSignupError_whenAppleIdentityTokenHasNoEmailClaim() {
+            appleApi.stubJwks();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityTokenWithoutEmail("apple-sub-no-email"))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.SIGNUP_EMAIL_NOT_PROVIDED.getCode()));
+        }
+
+        @Test
+        @DisplayName("이미 회원이 된 뒤에는 소셜이 이메일을 제공하지 않아도 재로그인된다")
+        void logsInExistingMember_whenSocialNoLongerProvidesEmail() {
+            naverApi.stubProfile("keep-token", "naver-id-keep", "keep@naver.com");
+            fixture.socialLogin(SocialProvider.NAVER, "keep-token").expectStatus().isOk();
+
+            naverApi.stubProfileWithoutEmail("keep-token", "naver-id-keep");
+
+            fixture.socialLogin(SocialProvider.NAVER, "keep-token")
+                .expectStatus().isOk()
+                .expectBody(SocialLoginResponse.class)
+                .value(body -> assertThat(body.status()).isEqualTo("PENDING"));
+
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-id-keep").orElseThrow();
+            assertThat(member.getEmail()).isEqualTo("keep@naver.com");
         }
 
         @Test

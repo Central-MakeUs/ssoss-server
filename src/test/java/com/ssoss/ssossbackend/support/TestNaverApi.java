@@ -37,6 +37,10 @@ public class TestNaverApi {
         });
     }
 
+    public void stubProfileWithoutEmail(String acceptedToken, String socialId) {
+        stubProfile(acceptedToken, socialId, null);
+    }
+
     public void stubServerError() {
         server.setDispatcher(new Dispatcher() {
             @Override
@@ -50,6 +54,13 @@ public class TestNaverApi {
     }
 
     public void stubProfile(String acceptedToken, String socialId) {
+        stubProfile(acceptedToken, socialId, "test@naver.com");
+    }
+
+    public void stubProfile(String acceptedToken, String socialId, String email) {
+        String profile = email == null
+                ? "{\"id\":\"%s\",\"nickname\":\"테스트\"}".formatted(socialId)
+                : "{\"id\":\"%s\",\"nickname\":\"테스트\",\"email\":\"%s\"}".formatted(socialId, email);
         server.setDispatcher(new Dispatcher() {
             @Override
             public MockResponse dispatch(RecordedRequest request) {
@@ -57,9 +68,8 @@ public class TestNaverApi {
                     return new MockResponse()
                             .setHeader("Content-Type", "application/json")
                             .setBody("""
-                                    {"resultcode":"00","message":"success",
-                                     "response":{"id":"%s","nickname":"테스트","email":"test@naver.com"}}
-                                    """.formatted(socialId));
+                                    {"resultcode":"00","message":"success","response":%s}
+                                    """.formatted(profile));
                 }
                 return new MockResponse()
                         .setResponseCode(401)

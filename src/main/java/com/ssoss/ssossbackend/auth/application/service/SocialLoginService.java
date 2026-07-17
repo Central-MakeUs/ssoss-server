@@ -26,7 +26,7 @@ public class SocialLoginService {
         SocialProfile profile = socialAuthenticator.authenticate(command.provider(), command.accessToken());
         String provider = command.provider().name();
         MemberIdentity member = memberService.find(provider, profile.socialId())
-            .orElseGet(() -> memberService.register(provider, profile.socialId()));
+            .orElseGet(() -> memberService.register(provider, profile.socialId(), profile.emailForSignup()));
         MemberStatus status = MemberStatus.valueOf(member.status());
         LoginToken loginToken = tokenIssuer.issue(member.id(), status);
         return new SocialLoginResult(status.name(), loginToken.accessToken(), loginToken.refreshToken());

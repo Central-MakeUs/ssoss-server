@@ -30,7 +30,8 @@ interface SocialLoginApi {
                - naver: 네이버 프로필 API 호출로 확인합니다.
                - apple: 애플 공개키(JWKS)로 identity token 서명과 클레임(iss/aud/exp)을 검증합니다.
             4. 검증에 성공하면 회원 상태(`status`)와 서버 자체 토큰 쌍(access + refresh)을 응답합니다.
-               - 처음 인증한 계정은 가입 대기(PENDING) 회원으로 생성됩니다.
+               - 처음 인증한 계정은 가입 대기(PENDING) 회원으로 생성되며, 이때 소셜 계정의 이메일을 수집해 보관합니다.
+                 소셜 계정이 이메일을 제공하지 않으면 400 (A0008) 을 응답합니다.
                - 토큰 형태는 상태와 무관하게 동일하며, 상태별 이용 제한은 accessToken 의 role 로 통제됩니다.
                  가입 대기 상태는 회원가입 완료 전까지 보호 API 를 호출할 수 없습니다 (403).
             """)
@@ -45,11 +46,19 @@ interface SocialLoginApi {
                         {"status":"PENDING","accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"3q2nq0uW9kZ0m1r5c8vX2yB7dF4hJ6lN8pR0tV2xZ4A"}
                         """)
                 })),
-        @ApiResponse(responseCode = "400", description = "accessToken 이 누락되었거나 공백입니다 (C0001) — 요청 본문을 확인해 주세요",
+        @ApiResponse(responseCode = "400", description = """
+            accessToken 이 누락되었거나 공백입니다 (C0001) — 요청 본문을 확인해 주세요.
+            또는 소셜 계정이 이메일을 제공하지 않아 가입할 수 없습니다 (A0008) — 프로바이더에서 이메일 제공에 동의한 뒤 다시 로그인해 주세요.
+            """,
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
-                examples = @ExampleObject(value = """
-                    {"code":"C0001","message":"소셜 액세스 토큰을 입력해 주세요"}
-                    """))),
+                examples = {
+                    @ExampleObject(name = "accessToken 누락(C0001)", value = """
+                        {"code":"C0001","message":"소셜 액세스 토큰을 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "이메일 미제공 가입 실패(A0008)", value = """
+                        {"code":"A0008","message":"소셜 계정에서 이메일을 확인할 수 없어 가입할 수 없습니다. 이메일 제공에 동의해 주세요"}
+                        """)
+                })),
         @ApiResponse(responseCode = "401", description = "프로바이더가 액세스 토큰을 거부했습니다 (A0001) — 프로바이더 SDK 재로그인 후 다시 호출해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """

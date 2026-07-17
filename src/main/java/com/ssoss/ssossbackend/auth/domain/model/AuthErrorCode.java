@@ -17,7 +17,8 @@ public enum AuthErrorCode implements ErrorCode {
     INVALID_REFRESH_TOKEN("A0004", HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다. 다시 로그인해 주세요"),
     EXPIRED_REFRESH_TOKEN("A0005", HttpStatus.UNAUTHORIZED, "리프레시 토큰이 만료되었습니다. 다시 로그인해 주세요"),
     INVALID_ACCESS_TOKEN("A0006", HttpStatus.UNAUTHORIZED, "유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"),
-    ACCESS_DENIED("A0007", HttpStatus.FORBIDDEN, "접근 권한이 없습니다");
+    ACCESS_DENIED("A0007", HttpStatus.FORBIDDEN, "접근 권한이 없습니다"),
+    SIGNUP_EMAIL_NOT_PROVIDED("A0008", HttpStatus.BAD_REQUEST, "소셜 계정에서 이메일을 확인할 수 없어 가입할 수 없습니다. 이메일 제공에 동의해 주세요");
 
     private final String code;
     private final HttpStatus status;

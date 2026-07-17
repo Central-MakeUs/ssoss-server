@@ -27,7 +27,7 @@ public class MemberService {
             .map(MemberIdentity::from);
     }
 
-    public MemberIdentity register(String provider, String socialId) {
-        return MemberIdentity.from(memberWriter.register(SocialProvider.valueOf(provider), socialId));
+    public MemberIdentity register(String provider, String socialId, String email) {
+        return MemberIdentity.from(memberWriter.register(SocialProvider.valueOf(provider), socialId, email));
     }
 }

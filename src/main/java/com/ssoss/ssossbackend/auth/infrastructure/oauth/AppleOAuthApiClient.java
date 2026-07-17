@@ -21,6 +21,6 @@ class AppleOAuthApiClient implements SocialLoginClient {
 
     @Override
     public SocialProfile fetchProfile(String accessToken) {
-        return new SocialProfile(appleIdentityTokenVerifier.verify(accessToken));
+        return appleIdentityTokenVerifier.verify(accessToken);
     }
 }
