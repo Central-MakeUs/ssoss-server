@@ -6,13 +6,13 @@ import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
 record NaverProfileResponse(String resultcode, String message, Response response) {
 
-    record Response(String id) {
+    record Response(String id, String email) {
     }
 
     SocialProfile toProfile() {
         if (response == null || response.id() == null) {
             throw new BusinessException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
         }
-        return new SocialProfile(response.id());
+        return new SocialProfile(response.id(), response.email());
     }
 }

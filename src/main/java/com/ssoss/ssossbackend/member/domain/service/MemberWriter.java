@@ -14,7 +14,7 @@ public class MemberWriter {
 
     private final MemberRepository memberRepository;
 
-    public Member register(SocialProvider provider, String socialId) {
-        return memberRepository.save(Member.register(provider, socialId));
+    public Member register(SocialProvider provider, String socialId, String email) {
+        return memberRepository.save(Member.register(provider, socialId, email));
     }
 }

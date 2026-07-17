@@ -1,8 +1,10 @@
 package com.ssoss.ssossbackend.auth.infrastructure.oauth;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
+import com.ssoss.ssossbackend.auth.domain.model.SocialProfile;
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
 
@@ -25,16 +27,16 @@ class AppleIdentityTokenVerifier {
         this.clientId = clientId;
     }
 
-    String verify(String identityToken) {
+    SocialProfile verify(String identityToken) {
         try {
-            return Jwts.parser()
+            Claims claims = Jwts.parser()
                 .keyLocator(appleSigningKeyLocator)
                 .requireIssuer(ISSUER)
                 .requireAudience(clientId)
                 .build()
                 .parseSignedClaims(identityToken)
-                .getPayload()
-                .getSubject();
+                .getPayload();
+            return new SocialProfile(claims.getSubject(), claims.get("email", String.class));
         } catch (JwtException | IllegalArgumentException e) {
             throw new BusinessException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
         }
