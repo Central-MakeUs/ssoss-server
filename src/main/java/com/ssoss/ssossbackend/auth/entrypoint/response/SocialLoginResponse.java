@@ -4,8 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "소셜 로그인 응답 — 회원 상태와 서버 자체 발급 토큰")
 public record SocialLoginResponse(
-    @Schema(description = "회원 상태 — PENDING: 가입 대기 (회원가입 전), ACTIVE: 가입 회원",
-        allowableValues = {"PENDING", "ACTIVE"}, example = "ACTIVE")
+    @Schema(description = "회원 상태 — PENDING: 가입 대기 (회원가입 전), ACTIVE: 가입 회원, WITHDRAWN: 탈퇴 대기 (복구 유예 중)",
+        allowableValues = {"PENDING", "ACTIVE", "WITHDRAWN"}, example = "ACTIVE")
     String status,
     @Schema(description = "API 인증용 액세스 토큰 (JWT, 기본 만료 30분) — role 클레임에 회원 상태를 담습니다",
         example = "eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x")

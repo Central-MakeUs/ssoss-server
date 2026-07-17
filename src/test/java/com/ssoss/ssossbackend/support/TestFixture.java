@@ -49,6 +49,12 @@ public class TestFixture {
             .exchange();
     }
 
+    public RestTestClient.ResponseSpec withdraw(String accessToken) {
+        return client.delete().uri("/v1/members/me")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
         return client.post().uri("/v1/tokens")
             .contentType(MediaType.APPLICATION_JSON)

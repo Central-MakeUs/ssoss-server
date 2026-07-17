@@ -9,7 +9,6 @@ import com.ssoss.ssossbackend.auth.domain.model.RefreshToken;
 import org.springframework.data.jdbc.repository.query.Modifying;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
-import org.springframework.data.repository.query.Param;
 
 public interface RefreshTokenRepository extends CrudRepository<RefreshToken, Long> {
 
@@ -23,5 +22,5 @@ public interface RefreshTokenRepository extends CrudRepository<RefreshToken, Lon
         SET status = 'DELETED', deleted_at = :now, version = version + 1, updated_at = :now
         WHERE status = 'ACTIVE' AND expires_at < :now
         """)
-    int expireAll(@Param("now") Instant now);
+    int expireAll(Instant now);
 }

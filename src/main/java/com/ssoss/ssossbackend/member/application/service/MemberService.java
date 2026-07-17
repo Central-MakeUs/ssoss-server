@@ -5,7 +5,6 @@ import java.util.Optional;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
-import com.ssoss.ssossbackend.member.domain.service.MemberActivator;
 import com.ssoss.ssossbackend.member.domain.service.MemberFinder;
 import com.ssoss.ssossbackend.member.domain.service.MemberTermWriter;
 import com.ssoss.ssossbackend.member.domain.service.MemberWriter;
@@ -21,7 +20,6 @@ public class MemberService {
 
     private final MemberFinder memberFinder;
     private final MemberWriter memberWriter;
-    private final MemberActivator memberActivator;
     private final MemberTermWriter memberTermWriter;
 
     public Optional<MemberIdentity> find(String provider, String socialId) {
@@ -41,9 +39,13 @@ public class MemberService {
     @Transactional
     public MemberIdentity signup(Long memberId, boolean serviceTermsAgreed, boolean privacyPolicyAgreed,
         boolean marketingAgreed) {
-        Member member = memberActivator.activate(memberId);
+        Member member = memberWriter.activate(memberId);
         memberTermWriter.record(MemberTerm.record(
             member.getId(), serviceTermsAgreed, privacyPolicyAgreed, marketingAgreed));
         return MemberIdentity.from(member);
+    }
+
+    public void withdraw(Long memberId) {
+        memberWriter.withdraw(memberId);
     }
 }

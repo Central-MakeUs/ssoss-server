@@ -30,6 +30,9 @@ public class RefreshTokenService {
         RefreshToken current = refreshTokenValidator.validate(command.refreshToken());
         MemberIdentity member = memberService.findById(current.getMemberId())
             .orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN));
+        if (member.hasWithdrawnSince(current.getCreatedAt())) {
+            throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        }
         LoginToken loginToken = refreshTokenRotator.rotate(current, MemberStatus.valueOf(member.status()));
         return new TokenRefreshResult(loginToken.accessToken(), loginToken.refreshToken());
     }

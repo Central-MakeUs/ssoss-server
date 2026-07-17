@@ -32,8 +32,9 @@ interface SocialLoginApi {
             4. 검증에 성공하면 회원 상태(`status`)와 서버 자체 토큰 쌍(access + refresh)을 응답합니다.
                - 처음 인증한 계정은 가입 대기(PENDING) 회원으로 생성되며, 이때 소셜 계정의 이메일을 수집해 보관합니다.
                  소셜 계정이 이메일을 제공하지 않으면 400 (A0008) 을 응답합니다.
-               - 토큰 형태는 상태와 무관하게 동일하며, 상태별 이용 제한은 accessToken 의 role 로 통제됩니다.
-                 가입 대기 상태는 회원가입 전까지 보호 API 를 호출할 수 없습니다 (403).
+               - 토큰 형태는 상태와 무관하게 동일하며, 호출할 수 있는 API 는 accessToken 의 role 이 결정합니다.
+                 가입 대기(PENDING) 토큰은 회원가입만 호출할 수 있고, 탈퇴 대기(WITHDRAWN) 토큰은 복구 용도 전용입니다.
+                 role 에 허용되지 않은 API 를 호출하면 403 (A0007) 을 응답합니다.
             """)
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "인증에 성공해 회원 상태와 토큰 쌍을 반환합니다",
@@ -44,6 +45,9 @@ interface SocialLoginApi {
                         """),
                     @ExampleObject(name = "가입 대기(PENDING)", value = """
                         {"status":"PENDING","accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"3q2nq0uW9kZ0m1r5c8vX2yB7dF4hJ6lN8pR0tV2xZ4A"}
+                        """),
+                    @ExampleObject(name = "탈퇴 대기(WITHDRAWN)", value = """
+                        {"status":"WITHDRAWN","accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"3q2nq0uW9kZ0m1r5c8vX2yB7dF4hJ6lN8pR0tV2xZ4A"}
                         """)
                 })),
         @ApiResponse(responseCode = "400", description = """
