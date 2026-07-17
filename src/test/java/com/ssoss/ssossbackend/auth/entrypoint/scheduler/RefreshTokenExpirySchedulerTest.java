@@ -13,6 +13,7 @@ import com.ssoss.ssossbackend.auth.entrypoint.response.TokenRefreshResponse;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,12 @@ class RefreshTokenExpirySchedulerTest extends IntegrationTest {
 
     @Autowired
     private TokenHasher tokenHasher;
+
+    @BeforeEach
+    void resetDatabase() {
+        refreshTokenRepository.deleteAll();
+        memberRepository.deleteAll();
+    }
 
     @Nested
     @DisplayName("expireRefreshTokens")

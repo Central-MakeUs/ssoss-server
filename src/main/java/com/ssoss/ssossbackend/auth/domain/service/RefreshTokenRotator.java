@@ -7,6 +7,7 @@ import com.ssoss.ssossbackend.auth.domain.contract.TokenGenerator;
 import com.ssoss.ssossbackend.auth.domain.contract.TokenHasher;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.domain.model.LoginToken;
+import com.ssoss.ssossbackend.auth.domain.model.MemberStatus;
 import com.ssoss.ssossbackend.auth.domain.model.RefreshToken;
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
@@ -28,7 +29,7 @@ public class RefreshTokenRotator {
     private final Clock clock;
 
     @Transactional
-    public LoginToken rotate(RefreshToken current) {
+    public LoginToken rotate(RefreshToken current, MemberStatus status) {
         try {
             refreshTokenRepository.save(current.markDeleted(clock.instant()));
         } catch (OptimisticLockingFailureException raced) {
@@ -36,7 +37,7 @@ public class RefreshTokenRotator {
                 current.getMemberId(), current.getSessionId());
             throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN, raced);
         }
-        LoginToken loginToken = tokenGenerator.generate(current.getMemberId());
+        LoginToken loginToken = tokenGenerator.generate(current.getMemberId(), status);
         String tokenHash = tokenHasher.hash(loginToken.refreshToken());
         refreshTokenRepository.save(current.nextInSession(tokenHash, loginToken.refreshTokenExpiresAt()));
         return loginToken;

@@ -28,4 +28,8 @@ public class JwtTestSupport {
         Claims claims = parse(token);
         return Duration.ofMillis(claims.getExpiration().getTime() - claims.getIssuedAt().getTime());
     }
+
+    public String roleOf(String token) {
+        return parse(token).get("role", String.class);
+    }
 }

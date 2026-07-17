@@ -19,7 +19,7 @@ interface SocialLoginApi {
     @Operation(
         summary = "소셜 로그인",
         description = """
-            소셜 로그인 프로바이더 SDK로 발급받은 토큰을 전달하면 서버 자체 토큰을 발급합니다.
+            소셜 로그인 프로바이더 SDK로 발급받은 토큰을 전달하면 회원 상태(`status`)와 서버 자체 토큰을 발급합니다.
 
             **처리 순서**
             1. 앱이 프로바이더 SDK 로그인으로 토큰을 발급받습니다.
@@ -29,14 +29,22 @@ interface SocialLoginApi {
             3. 서버가 토큰 유효성을 확인합니다. 무효한 토큰이면 401 을 응답합니다.
                - naver: 네이버 프로필 API 호출로 확인합니다.
                - apple: 애플 공개키(JWKS)로 identity token 서명과 클레임(iss/aud/exp)을 검증합니다.
-            4. 검증에 성공하면 서버 자체 토큰(access JWT + opaque refresh)을 응답합니다.
+            4. 검증에 성공하면 회원 상태(`status`)와 서버 자체 토큰 쌍(access + refresh)을 응답합니다.
+               - 처음 인증한 계정은 가입 대기(PENDING) 회원으로 생성됩니다.
+               - 토큰 형태는 상태와 무관하게 동일하며, 상태별 이용 제한은 accessToken 의 role 로 통제됩니다.
+                 가입 대기 상태는 회원가입 완료 전까지 보호 API 를 호출할 수 없습니다 (403).
             """)
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "로그인에 성공해 서버 자체 발급 토큰 쌍을 반환합니다",
+        @ApiResponse(responseCode = "200", description = "인증에 성공해 회원 상태와 토큰 쌍을 반환합니다",
             content = @Content(schema = @Schema(implementation = SocialLoginResponse.class),
-                examples = @ExampleObject(value = """
-                    {"accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"3q2nq0uW9kZ0m1r5c8vX2yB7dF4hJ6lN8pR0tV2xZ4A"}
-                    """))),
+                examples = {
+                    @ExampleObject(name = "가입 회원(ACTIVE)", value = """
+                        {"status":"ACTIVE","accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"3q2nq0uW9kZ0m1r5c8vX2yB7dF4hJ6lN8pR0tV2xZ4A"}
+                        """),
+                    @ExampleObject(name = "가입 대기(PENDING)", value = """
+                        {"status":"PENDING","accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"3q2nq0uW9kZ0m1r5c8vX2yB7dF4hJ6lN8pR0tV2xZ4A"}
+                        """)
+                })),
         @ApiResponse(responseCode = "400", description = "accessToken 이 누락되었거나 공백입니다 (C0001) — 요청 본문을 확인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """

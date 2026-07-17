@@ -12,10 +12,13 @@ import com.ssoss.ssossbackend.auth.domain.model.RefreshTokenStatus;
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
+import com.ssoss.ssossbackend.member.domain.model.Member;
+import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
 import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -39,29 +42,38 @@ class SocialLoginApiTest extends IntegrationTest {
     @Autowired
     private TokenHasher tokenHasher;
 
+    @BeforeEach
+    void resetDatabase() {
+        refreshTokenRepository.deleteAll();
+        memberRepository.deleteAll();
+    }
+
     @Nested
     @DisplayName("POST /v1/social-logins/{provider}")
     class Login {
 
         @Test
-        @DisplayName("신규 사용자가 네이버 로그인하면 회원이 자동 생성되고 access/refresh 토큰이 발급된다")
-        void createsMemberAndIssuesTokens_whenFirstLogin() {
+        @DisplayName("네이버 첫 로그인 시 가입 대기 회원이 생성되고 PENDING 상태와 토큰 쌍이 발급된다")
+        void createsPendingMemberAndIssuesTokenPair_whenFirstLogin() {
             naverApi.stubProfile("naver-access-token", "naver-id-new");
 
             fixture.socialLogin(SocialProvider.NAVER, "naver-access-token")
                 .expectStatus().isOk()
                 .expectBody(SocialLoginResponse.class)
                 .value(body -> {
+                    assertThat(body.status()).isEqualTo("PENDING");
                     assertThat(body.accessToken()).isNotBlank();
                     assertThat(body.refreshToken()).isNotBlank();
+                    assertThat(jwtTestSupport.roleOf(body.accessToken())).isEqualTo("PENDING");
                 });
 
-            assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-id-new")).isPresent();
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-id-new").orElseThrow();
+            assertThat(member.getStatus()).isEqualTo(MemberStatus.PENDING);
         }
 
         @Test
-        @DisplayName("동일 네이버 계정으로 재로그인하면 회원이 중복 생성되지 않고 토큰이 발급된다")
-        void reusesExistingMember_whenSameAccountLogsInAgain() {
+        @DisplayName("가입 대기 회원이 재로그인하면 회원이 중복 생성되지 않고 같은 회원으로 다시 PENDING 응답을 받는다")
+        void reusesPendingMember_whenPendingMemberLogsInAgain() {
             naverApi.stubProfile("returning-token", "naver-id-returning");
 
             fixture.socialLogin(SocialProvider.NAVER, "returning-token").expectStatus().isOk();
@@ -70,11 +82,14 @@ class SocialLoginApiTest extends IntegrationTest {
                 .expectStatus().isOk()
                 .expectBody(SocialLoginResponse.class)
                 .value(body -> {
+                    assertThat(body.status()).isEqualTo("PENDING");
                     assertThat(body.accessToken()).isNotBlank();
                     assertThat(body.refreshToken()).isNotBlank();
                 });
 
-            assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-id-returning")).isPresent();
+            assertThat(memberRepository.findAll())
+                .filteredOn(member -> member.getSocialId().equals("naver-id-returning"))
+                .hasSize(1);
         }
 
         @Test
@@ -135,23 +150,25 @@ class SocialLoginApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("신규 사용자가 애플 로그인하면 회원이 자동 생성되고 access/refresh 토큰이 발급된다")
-        void createsMemberAndIssuesTokens_whenFirstAppleLogin() {
+        @DisplayName("애플 첫 로그인 시 가입 대기 회원이 생성되고 PENDING 상태와 토큰 쌍이 발급된다")
+        void createsPendingMemberAndIssuesTokenPair_whenFirstAppleLogin() {
             appleApi.stubJwks();
 
             fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-new"))
                 .expectStatus().isOk()
                 .expectBody(SocialLoginResponse.class)
                 .value(body -> {
+                    assertThat(body.status()).isEqualTo("PENDING");
                     assertThat(body.accessToken()).isNotBlank();
                     assertThat(body.refreshToken()).isNotBlank();
                 });
 
-            assertThat(memberRepository.findByProviderAndSocialId(APPLE, "apple-sub-new")).isPresent();
+            Member member = memberRepository.findByProviderAndSocialId(APPLE, "apple-sub-new").orElseThrow();
+            assertThat(member.getStatus()).isEqualTo(MemberStatus.PENDING);
         }
 
         @Test
-        @DisplayName("동일 애플 계정으로 재로그인하면 회원이 중복 생성되지 않고 토큰이 발급된다")
+        @DisplayName("동일 애플 계정으로 재로그인하면 회원이 중복 생성되지 않고 다시 PENDING 응답을 받는다")
         void reusesExistingMember_whenSameAppleAccountLogsInAgain() {
             appleApi.stubJwks();
 
@@ -162,6 +179,7 @@ class SocialLoginApiTest extends IntegrationTest {
                 .expectStatus().isOk()
                 .expectBody(SocialLoginResponse.class)
                 .value(body -> {
+                    assertThat(body.status()).isEqualTo("PENDING");
                     assertThat(body.accessToken()).isNotBlank();
                     assertThat(body.refreshToken()).isNotBlank();
                 });

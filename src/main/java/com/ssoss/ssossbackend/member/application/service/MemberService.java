@@ -1,5 +1,7 @@
 package com.ssoss.ssossbackend.member.application.service;
 
+import java.util.Optional;
+
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.member.domain.service.MemberFinder;
 import com.ssoss.ssossbackend.member.domain.service.MemberWriter;
@@ -15,10 +17,17 @@ public class MemberService {
     private final MemberFinder memberFinder;
     private final MemberWriter memberWriter;
 
-    public Long findOrRegister(String provider, String socialId) {
-        SocialProvider socialProvider = SocialProvider.valueOf(provider);
-        return memberFinder.find(socialProvider, socialId)
-            .orElseGet(() -> memberWriter.register(socialProvider, socialId))
-            .getId();
+    public Optional<MemberIdentity> find(String provider, String socialId) {
+        return memberFinder.find(SocialProvider.valueOf(provider), socialId)
+            .map(MemberIdentity::from);
+    }
+
+    public Optional<MemberIdentity> findById(Long memberId) {
+        return memberFinder.findById(memberId)
+            .map(MemberIdentity::from);
+    }
+
+    public MemberIdentity register(String provider, String socialId) {
+        return MemberIdentity.from(memberWriter.register(SocialProvider.valueOf(provider), socialId));
     }
 }

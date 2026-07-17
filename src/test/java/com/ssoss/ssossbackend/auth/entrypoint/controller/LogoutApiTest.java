@@ -15,6 +15,7 @@ import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,11 @@ class LogoutApiTest extends IntegrationTest {
 
     @Autowired
     private TokenHasher tokenHasher;
+
+    @BeforeEach
+    void resetDatabase() {
+        refreshTokenRepository.deleteAll();
+    }
 
     @Nested
     @DisplayName("POST /v1/logout")
