@@ -73,7 +73,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NoResourceFoundException e) {
-        log.warn("리소스를 찾을 수 없음: {}", e.getMessage());
+        log.debug("리소스를 찾을 수 없음: {}", e.getMessage());
         return ResponseEntity.status(CommonErrorCode.NOT_FOUND.getStatus())
                 .body(ErrorResponse.of(CommonErrorCode.NOT_FOUND));
     }

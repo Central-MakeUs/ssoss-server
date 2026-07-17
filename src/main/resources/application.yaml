@@ -11,6 +11,14 @@ logbook:
     style: http
   write:
     max-body-size: 2000
+  predicate:
+    exclude:
+      - path: /scalar
+      - path: /scalar/**
+      - path: /v3/api-docs
+      - path: /v3/api-docs/**
+      - path: /favicon.ico
+      - path: /favicon.svg
 scalar:
   enabled: true
   path: /scalar
