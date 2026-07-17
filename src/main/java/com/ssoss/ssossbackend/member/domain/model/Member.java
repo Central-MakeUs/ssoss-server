@@ -22,6 +22,7 @@ public class Member {
     private String socialId;
     private String email;
     private MemberStatus status;
+    private Instant withdrawnAt;
 
     @Version
     private Long version;
@@ -49,6 +50,15 @@ public class Member {
             throw new BusinessException(MemberErrorCode.ALREADY_SIGNED_UP);
         }
         this.status = MemberStatus.ACTIVE;
+        return this;
+    }
+
+    public Member withdraw(Instant withdrawnAt) {
+        if (status != MemberStatus.ACTIVE) {
+            throw new BusinessException(MemberErrorCode.ALREADY_WITHDRAWN);
+        }
+        this.status = MemberStatus.WITHDRAWN;
+        this.withdrawnAt = withdrawnAt;
         return this;
     }
 }

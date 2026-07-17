@@ -29,7 +29,7 @@ interface SignupApi {
                - 서비스 이용약관·개인정보 수집·이용은 필수 — 동의하지 않으면 400 을 응답합니다.
                - 마케팅 수신은 선택 — 미동의(false)로도 회원가입이 되며, 미동의 사실과 시각이 기록됩니다.
             3. 완료되면 가입 회원(ACTIVE)으로 전환되고 role=ACTIVE 토큰 쌍(access + refresh)이 새로 발급됩니다.
-               이후 보호 API 는 새 accessToken 으로 호출합니다.
+               이후 API 는 새 accessToken 으로 호출합니다.
             """)
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "회원가입에 성공해 가입 회원 상태와 새 토큰 쌍을 반환합니다",
