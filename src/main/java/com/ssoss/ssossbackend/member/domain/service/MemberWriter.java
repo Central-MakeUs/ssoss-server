@@ -66,7 +66,7 @@ public class MemberWriter {
             throw new BusinessException(MemberErrorCode.ALREADY_WITHDRAWN, raced);
         }
         memberWithdrawalHistoryRepository.save(MemberWithdrawalHistory.record(
-            member.getProvider(), member.getSocialId(), member.getWithdrawnAt()));
+            member.getProvider(), member.getSocialId(), member.getLastWithdrawnAt()));
         return member;
     }
 }

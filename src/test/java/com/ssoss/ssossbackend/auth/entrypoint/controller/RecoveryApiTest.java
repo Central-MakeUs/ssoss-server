@@ -91,7 +91,7 @@ class RecoveryApiTest extends IntegrationTest {
 
             Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-recovery-withdrawn-at")
                 .orElseThrow();
-            assertThat(member.getWithdrawnAt()).isCloseTo(withdrawnAt, within(1, ChronoUnit.SECONDS));
+            assertThat(member.getLastWithdrawnAt()).isCloseTo(withdrawnAt, within(1, ChronoUnit.SECONDS));
         }
 
         @Test

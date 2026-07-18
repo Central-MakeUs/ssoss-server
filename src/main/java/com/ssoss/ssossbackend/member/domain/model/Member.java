@@ -22,7 +22,7 @@ public class Member {
     private String socialId;
     private String email;
     private MemberStatus status;
-    private Instant withdrawnAt;
+    private Instant lastWithdrawnAt;
 
     @Version
     private Long version;
@@ -58,7 +58,7 @@ public class Member {
             throw new BusinessException(MemberErrorCode.ALREADY_WITHDRAWN);
         }
         this.status = MemberStatus.WITHDRAWN;
-        this.withdrawnAt = withdrawnAt;
+        this.lastWithdrawnAt = withdrawnAt;
         return this;
     }
 
