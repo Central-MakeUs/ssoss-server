@@ -6,8 +6,6 @@ import java.util.Optional;
 
 import com.ssoss.ssossbackend.auth.domain.model.RefreshToken;
 
-import org.springframework.data.jdbc.repository.query.Modifying;
-import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface RefreshTokenRepository extends CrudRepository<RefreshToken, Long> {
@@ -16,11 +14,5 @@ public interface RefreshTokenRepository extends CrudRepository<RefreshToken, Lon
 
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
-    @Modifying
-    @Query("""
-        UPDATE refresh_token
-        SET status = 'DELETED', deleted_at = :now, version = version + 1, updated_at = :now
-        WHERE status = 'ACTIVE' AND expires_at < :now
-        """)
-    int expireAll(Instant now);
+    int deleteAllByExpiresAtBefore(Instant threshold);
 }
