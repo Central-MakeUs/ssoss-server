@@ -6,7 +6,7 @@ import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.domain.model.LoginToken;
 import com.ssoss.ssossbackend.auth.domain.model.MemberStatus;
 import com.ssoss.ssossbackend.auth.domain.model.RefreshToken;
-import com.ssoss.ssossbackend.auth.domain.service.RefreshTokenExpirer;
+import com.ssoss.ssossbackend.auth.domain.service.RefreshTokenCleaner;
 import com.ssoss.ssossbackend.auth.domain.service.RefreshTokenRotator;
 import com.ssoss.ssossbackend.auth.domain.service.RefreshTokenValidator;
 import com.ssoss.ssossbackend.member.application.service.MemberIdentity;
@@ -23,7 +23,7 @@ public class RefreshTokenService {
 
     private final RefreshTokenValidator refreshTokenValidator;
     private final RefreshTokenRotator refreshTokenRotator;
-    private final RefreshTokenExpirer refreshTokenExpirer;
+    private final RefreshTokenCleaner refreshTokenCleaner;
     private final MemberService memberService;
 
     public TokenRefreshResult refresh(TokenRefreshCommand command) {
@@ -37,7 +37,7 @@ public class RefreshTokenService {
         return new TokenRefreshResult(loginToken.accessToken(), loginToken.refreshToken());
     }
 
-    public int expire() {
-        return refreshTokenExpirer.expire();
+    public int clean() {
+        return refreshTokenCleaner.clean();
     }
 }

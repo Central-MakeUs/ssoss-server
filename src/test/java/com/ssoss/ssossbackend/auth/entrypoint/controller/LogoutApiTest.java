@@ -101,7 +101,7 @@ class LogoutApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("refresh TTL 이 지나 만료된 토큰으로 로그아웃해도 204 를 반환하고 폐기는 만료 배치 소관으로 남긴다")
+        @DisplayName("refresh TTL 이 지나 만료된 토큰으로 로그아웃해도 204 를 반환하고 정리는 만료 배치 소관으로 남긴다")
         void returns204WithoutRevoking_whenTokenExpired() {
             naverApi.stubProfile("expired-logout-token", "naver-id-expired-logout");
             SocialLoginResponse loggedIn = fixture.socialLogin(SocialProvider.NAVER, "expired-logout-token")

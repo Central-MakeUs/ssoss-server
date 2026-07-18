@@ -1,23 +1,24 @@
 package com.ssoss.ssossbackend.auth.domain.service;
 
 import java.time.Clock;
+import java.time.Duration;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class RefreshTokenExpirer {
+public class RefreshTokenCleaner {
+
+    private static final Duration RETENTION_AFTER_EXPIRY = Duration.ofDays(30);
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final Clock clock;
 
-    @Transactional
-    public int expire() {
-        return refreshTokenRepository.expireAll(clock.instant());
+    public int clean() {
+        return refreshTokenRepository.deleteAllByExpiresAtBefore(clock.instant().minus(RETENTION_AFTER_EXPIRY));
     }
 }

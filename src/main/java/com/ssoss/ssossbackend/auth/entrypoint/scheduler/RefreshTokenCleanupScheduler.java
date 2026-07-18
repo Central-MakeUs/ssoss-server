@@ -11,13 +11,13 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RefreshTokenExpiryScheduler {
+public class RefreshTokenCleanupScheduler {
 
     private final RefreshTokenService refreshTokenService;
 
     @Scheduled(cron = "0 0 4 * * *", zone = "Asia/Seoul")
-    public void expireRefreshTokens() {
-        int expired = refreshTokenService.expire();
-        log.info("만료 refresh token 일괄 처리: {}건", expired);
+    public void cleanUpRefreshTokens() {
+        int deleted = refreshTokenService.clean();
+        log.info("만료 refresh token 삭제: {}건", deleted);
     }
 }
