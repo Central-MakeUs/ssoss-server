@@ -4,6 +4,8 @@ import java.util.Locale;
 import java.util.Map;
 
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
+import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
+import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -51,6 +53,29 @@ public class TestFixture {
 
     public RestTestClient.ResponseSpec withdraw(String accessToken) {
         return client.delete().uri("/v1/members/me")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public SignupResponse signupActiveMember(String socialId) {
+        SocialLoginResponse login = naverLoginMember(socialId);
+        return signup(login.accessToken())
+            .expectStatus().isOk()
+            .expectBody(SignupResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public SocialLoginResponse naverLoginMember(String socialId) {
+        return naverLogin(socialId)
+            .expectStatus().isOk()
+            .expectBody(SocialLoginResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public RestTestClient.ResponseSpec recover(String accessToken) {
+        return client.post().uri("/v1/members/me/recovery")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .exchange();
     }

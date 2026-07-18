@@ -35,6 +35,7 @@ class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/v1/tokens").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/logout").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/signup").hasAuthority(MemberStatus.PENDING.name())
+                .requestMatchers(HttpMethod.POST, "/v1/members/me/recovery").hasAuthority(MemberStatus.WITHDRAWN.name())
                 .anyRequest().hasAuthority(MemberStatus.ACTIVE.name()))
             .addFilterBefore(new JwtAuthenticationFilter(accessTokenAuthenticator), UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(handling -> handling
