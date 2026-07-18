@@ -42,6 +42,18 @@ public class MemberWriter {
         }
     }
 
+    public Member recover(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+            .orElseThrow(() -> new BusinessException(MemberErrorCode.MEMBER_NOT_FOUND));
+        member.recover();
+        try {
+            return memberRepository.save(member);
+        } catch (OptimisticLockingFailureException raced) {
+            log.info("복구 동시 요청 경합: memberId={}", memberId);
+            throw new BusinessException(MemberErrorCode.ALREADY_RECOVERED, raced);
+        }
+    }
+
     @Transactional
     public Member withdraw(Long memberId) {
         Member member = memberRepository.findById(memberId)

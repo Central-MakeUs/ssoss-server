@@ -61,4 +61,12 @@ public class Member {
         this.withdrawnAt = withdrawnAt;
         return this;
     }
+
+    public Member recover() {
+        if (status != MemberStatus.WITHDRAWN) {
+            throw new BusinessException(MemberErrorCode.ALREADY_RECOVERED);
+        }
+        this.status = MemberStatus.ACTIVE;
+        return this;
+    }
 }

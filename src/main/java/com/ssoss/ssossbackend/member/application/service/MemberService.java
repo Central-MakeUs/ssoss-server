@@ -48,4 +48,8 @@ public class MemberService {
     public void withdraw(Long memberId) {
         memberWriter.withdraw(memberId);
     }
+
+    public MemberIdentity recover(Long memberId) {
+        return MemberIdentity.from(memberWriter.recover(memberId));
+    }
 }

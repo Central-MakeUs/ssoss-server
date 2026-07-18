@@ -51,19 +51,6 @@ class WithdrawalApiTest extends IntegrationTest {
         memberRepository.deleteAll();
     }
 
-    private SignupResponse signupActiveMember(String socialId) {
-        SocialLoginResponse login = fixture.naverLogin(socialId)
-            .expectStatus().isOk()
-            .expectBody(SocialLoginResponse.class)
-            .returnResult()
-            .getResponseBody();
-        return fixture.signup(login.accessToken())
-            .expectStatus().isOk()
-            .expectBody(SignupResponse.class)
-            .returnResult()
-            .getResponseBody();
-    }
-
     @Nested
     @DisplayName("DELETE /v1/members/me")
     class Withdraw {
@@ -71,7 +58,7 @@ class WithdrawalApiTest extends IntegrationTest {
         @Test
         @DisplayName("탈퇴하면 204 를 반환하고 탈퇴 대기로 전환되며 탈퇴 시각이 기록된다")
         void marksWithdrawnAndRecordsWithdrawnAt_whenActiveMemberWithdraws() {
-            SignupResponse signup = signupActiveMember("naver-withdraw");
+            SignupResponse signup = fixture.signupActiveMember("naver-withdraw");
 
             fixture.withdraw(signup.accessToken())
                 .expectStatus().isNoContent();
@@ -84,7 +71,7 @@ class WithdrawalApiTest extends IntegrationTest {
         @Test
         @DisplayName("탈퇴하면 재가입 제한 판정을 위한 탈퇴 이력이 적재된다")
         void recordsWithdrawalHistory_whenMemberWithdraws() {
-            SignupResponse signup = signupActiveMember("naver-withdraw-history");
+            SignupResponse signup = fixture.signupActiveMember("naver-withdraw-history");
 
             fixture.withdraw(signup.accessToken())
                 .expectStatus().isNoContent();
@@ -101,12 +88,8 @@ class WithdrawalApiTest extends IntegrationTest {
         @Test
         @DisplayName("탈퇴 후 모든 기기의 refresh token 으로 재발급하면 401 과 A0004 를 반환한다")
         void blocksTokenRefreshOnAllSessions_whenMemberWithdraws() {
-            SignupResponse deviceA = signupActiveMember("naver-withdraw-all");
-            SocialLoginResponse deviceB = fixture.naverLogin("naver-withdraw-all")
-                .expectStatus().isOk()
-                .expectBody(SocialLoginResponse.class)
-                .returnResult()
-                .getResponseBody();
+            SignupResponse deviceA = fixture.signupActiveMember("naver-withdraw-all");
+            SocialLoginResponse deviceB = fixture.naverLoginMember("naver-withdraw-all");
 
             fixture.withdraw(deviceA.accessToken())
                 .expectStatus().isNoContent();
@@ -124,7 +107,7 @@ class WithdrawalApiTest extends IntegrationTest {
         @Test
         @DisplayName("이미 탈퇴한 회원이 만료 전 ACTIVE 토큰으로 다시 탈퇴하면 409 와 M0003 을 반환한다")
         void returns409_whenAlreadyWithdrawnMemberWithdrawsAgain() {
-            SignupResponse signup = signupActiveMember("naver-withdraw-again");
+            SignupResponse signup = fixture.signupActiveMember("naver-withdraw-again");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             fixture.withdraw(signup.accessToken())
@@ -138,11 +121,7 @@ class WithdrawalApiTest extends IntegrationTest {
         @Test
         @DisplayName("가입 대기(PENDING) 토큰으로 탈퇴하면 403 과 A0007 을 반환한다")
         void returns403_whenPendingTokenWithdraws() {
-            SocialLoginResponse login = fixture.naverLogin("naver-withdraw-pending")
-                .expectStatus().isOk()
-                .expectBody(SocialLoginResponse.class)
-                .returnResult()
-                .getResponseBody();
+            SocialLoginResponse login = fixture.naverLoginMember("naver-withdraw-pending");
 
             fixture.withdraw(login.accessToken())
                 .expectStatus().isForbidden()
@@ -173,7 +152,7 @@ class WithdrawalApiTest extends IntegrationTest {
         @Test
         @DisplayName("탈퇴 대기 회원이 로그인하면 WITHDRAWN 상태와 복구 전용 role 토큰 쌍이 응답된다")
         void respondsWithdrawnStatusAndRecoveryRoleTokenPair_whenWithdrawnMemberLogsIn() {
-            SignupResponse signup = signupActiveMember("naver-withdrawn-login");
+            SignupResponse signup = fixture.signupActiveMember("naver-withdrawn-login");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             fixture.naverLogin("naver-withdrawn-login")
@@ -190,14 +169,10 @@ class WithdrawalApiTest extends IntegrationTest {
         @Test
         @DisplayName("탈퇴 후 새로 로그인한 세션의 refresh token 으로 재발급하면 WITHDRAWN 토큰이 발급된다")
         void refreshesWithdrawnTokens_withRefreshTokenIssuedAfterWithdrawal() {
-            SignupResponse signup = signupActiveMember("naver-withdrawn-refresh");
+            SignupResponse signup = fixture.signupActiveMember("naver-withdrawn-refresh");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
             clock.advanceBy(Duration.ofHours(1));
-            SocialLoginResponse withdrawnLogin = fixture.naverLogin("naver-withdrawn-refresh")
-                .expectStatus().isOk()
-                .expectBody(SocialLoginResponse.class)
-                .returnResult()
-                .getResponseBody();
+            SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-withdrawn-refresh");
 
             fixture.refreshTokens(withdrawnLogin.refreshToken())
                 .expectStatus().isOk()
@@ -211,13 +186,9 @@ class WithdrawalApiTest extends IntegrationTest {
         @Test
         @DisplayName("탈퇴 대기 로그인의 WITHDRAWN 토큰으로 보호 API 를 호출하면 403 과 A0007 을 반환한다")
         void returns403_whenWithdrawnTokenCallsProtectedApi() {
-            SignupResponse signup = signupActiveMember("naver-withdrawn-protected");
+            SignupResponse signup = fixture.signupActiveMember("naver-withdrawn-protected");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
-            SocialLoginResponse withdrawnLogin = fixture.naverLogin("naver-withdrawn-protected")
-                .expectStatus().isOk()
-                .expectBody(SocialLoginResponse.class)
-                .returnResult()
-                .getResponseBody();
+            SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-withdrawn-protected");
 
             fixture.withdraw(withdrawnLogin.accessToken())
                 .expectStatus().isForbidden()
