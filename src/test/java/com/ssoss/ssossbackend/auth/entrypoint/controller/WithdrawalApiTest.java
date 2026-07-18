@@ -65,7 +65,7 @@ class WithdrawalApiTest extends IntegrationTest {
 
             Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-withdraw").orElseThrow();
             assertThat(member.getStatus()).isEqualTo(MemberStatus.WITHDRAWN);
-            assertThat(member.getWithdrawnAt()).isCloseTo(clock.instant(), within(1, ChronoUnit.SECONDS));
+            assertThat(member.getLastWithdrawnAt()).isCloseTo(clock.instant(), within(1, ChronoUnit.SECONDS));
         }
 
         @Test
