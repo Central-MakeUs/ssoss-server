@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.auth.domain.contract;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,4 +16,6 @@ public interface RefreshTokenRepository extends CrudRepository<RefreshToken, Lon
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     int deleteAllByExpiresAtBefore(Instant threshold);
+
+    int deleteAllByMemberIdIn(Collection<Long> memberIds);
 }

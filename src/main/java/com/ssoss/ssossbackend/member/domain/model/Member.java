@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.member.domain.model;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
@@ -15,6 +16,8 @@ import org.springframework.data.relational.core.mapping.Table;
 @Getter
 @Table("member")
 public class Member {
+
+    public static final Duration RECOVERY_GRACE_PERIOD = Duration.ofDays(7);
 
     @Id
     private Long id;

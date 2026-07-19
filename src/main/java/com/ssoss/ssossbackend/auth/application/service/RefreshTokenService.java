@@ -1,5 +1,7 @@
 package com.ssoss.ssossbackend.auth.application.service;
 
+import java.util.Collection;
+
 import com.ssoss.ssossbackend.auth.application.command.TokenRefreshCommand;
 import com.ssoss.ssossbackend.auth.application.result.TokenRefreshResult;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
@@ -39,5 +41,9 @@ public class RefreshTokenService {
 
     public int clean() {
         return refreshTokenCleaner.clean();
+    }
+
+    public int deleteAllByMemberIds(Collection<Long> memberIds) {
+        return refreshTokenCleaner.deleteAllByMemberIds(memberIds);
     }
 }

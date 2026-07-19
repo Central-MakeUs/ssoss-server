@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.member.domain.model;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import lombok.Getter;
@@ -12,6 +13,8 @@ import org.springframework.data.relational.core.mapping.Table;
 @Getter
 @Table("member_withdrawal_history")
 public class MemberWithdrawalHistory {
+
+    public static final Duration SIGNUP_RESTRICTION_PERIOD = Duration.ofDays(60);
 
     @Id
     private Long id;

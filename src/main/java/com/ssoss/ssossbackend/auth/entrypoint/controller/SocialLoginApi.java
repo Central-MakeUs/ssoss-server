@@ -68,6 +68,14 @@ interface SocialLoginApi {
                 examples = @ExampleObject(value = """
                     {"code":"A0001","message":"소셜 인증에 실패했습니다. 다시 로그인해 주세요"}
                     """))),
+        @ApiResponse(responseCode = "403", description = """
+            탈퇴 후 재가입 제한 기간이 지나지 않았습니다 (M0005) — 탈퇴일로부터 2개월이 지나야 같은 소셜 계정으로 다시 가입할 수 있습니다.
+            안내 메시지를 그대로 노출해 주세요.
+            """,
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"M0005","message":"탈퇴 후 2개월이 지나야 다시 가입할 수 있습니다"}
+                    """))),
         @ApiResponse(responseCode = "404", description = "지원하지 않는 프로바이더입니다 (A0002) — {provider} 경로 값을 확인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """

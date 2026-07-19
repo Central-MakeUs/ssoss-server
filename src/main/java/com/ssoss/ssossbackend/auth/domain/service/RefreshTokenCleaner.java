@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.auth.domain.service;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Collection;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
 
@@ -20,5 +21,12 @@ public class RefreshTokenCleaner {
 
     public int clean() {
         return refreshTokenRepository.deleteAllByExpiresAtBefore(clock.instant().minus(RETENTION_AFTER_EXPIRY));
+    }
+
+    public int deleteAllByMemberIds(Collection<Long> memberIds) {
+        if (memberIds.isEmpty()) {
+            return 0;
+        }
+        return refreshTokenRepository.deleteAllByMemberIdIn(memberIds);
     }
 }
