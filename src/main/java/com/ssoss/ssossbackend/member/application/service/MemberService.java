@@ -1,16 +1,20 @@
 package com.ssoss.ssossbackend.member.application.service;
 
+import java.util.List;
 import java.util.Optional;
 
+import com.ssoss.ssossbackend.member.application.event.MembersDeletedEvent;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.member.domain.service.MemberFinder;
 import com.ssoss.ssossbackend.member.domain.service.MemberTermWriter;
+import com.ssoss.ssossbackend.member.domain.service.MemberWithdrawalHistoryCleaner;
 import com.ssoss.ssossbackend.member.domain.service.MemberWriter;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +25,8 @@ public class MemberService {
     private final MemberFinder memberFinder;
     private final MemberWriter memberWriter;
     private final MemberTermWriter memberTermWriter;
+    private final MemberWithdrawalHistoryCleaner memberWithdrawalHistoryCleaner;
+    private final ApplicationEventPublisher eventPublisher;
 
     public Optional<MemberIdentity> find(String provider, String socialId) {
         return memberFinder.find(SocialProvider.valueOf(provider), socialId)
@@ -51,5 +57,19 @@ public class MemberService {
 
     public MemberIdentity recover(Long memberId) {
         return MemberIdentity.from(memberWriter.recover(memberId));
+    }
+
+    @Transactional
+    public int deleteWithdrawn() {
+        List<Long> deletedMemberIds = memberWriter.deleteWithdrawn();
+        if (!deletedMemberIds.isEmpty()) {
+            memberTermWriter.deleteAllByMemberIds(deletedMemberIds);
+            eventPublisher.publishEvent(new MembersDeletedEvent(deletedMemberIds));
+        }
+        return deletedMemberIds.size();
+    }
+
+    public int cleanUpWithdrawalHistories() {
+        return memberWithdrawalHistoryCleaner.clean();
     }
 }
