@@ -55,12 +55,12 @@ public class MemberWriter {
     public Member recover(Long memberId) {
         Member member = memberRepository.findById(memberId)
             .orElseThrow(() -> new BusinessException(MemberErrorCode.MEMBER_NOT_FOUND));
-        member.recover();
+        member.recover(clock.instant());
         try {
             return memberRepository.save(member);
         } catch (OptimisticLockingFailureException raced) {
-            log.info("복구 동시 요청 경합: memberId={}", memberId);
-            throw new BusinessException(MemberErrorCode.ALREADY_RECOVERED, raced);
+            log.info("복구 요청 경합: memberId={}", memberId);
+            throw new BusinessException(MemberErrorCode.RECOVERY_CONFLICT, raced);
         }
     }
 
