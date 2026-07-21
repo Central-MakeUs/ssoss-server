@@ -59,15 +59,15 @@ class SignupRestrictionApiTest extends IntegrationTest {
     class WithinRestrictionPeriod {
 
         @Test
-        @DisplayName("삭제된 회원이 같은 소셜 계정으로 로그인하면 403 과 M0005 를 반환한다")
-        void returns403_whenDeletedSocialAccountLogsInWithinRestrictionPeriod() {
+        @DisplayName("삭제된 회원이 같은 소셜 계정으로 로그인하면 400 과 M0005 를 반환한다")
+        void returns400_whenDeletedSocialAccountLogsInWithinRestrictionPeriod() {
             SignupResponse signup = fixture.signupActiveMember("naver-signup-blocked");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
             fixture.naverLogin("naver-signup-blocked")
-                .expectStatus().isForbidden()
+                .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
                 .value(body -> {
                     assertThat(body.code()).isEqualTo(MemberErrorCode.SIGNUP_RESTRICTED.getCode());
@@ -83,7 +83,7 @@ class SignupRestrictionApiTest extends IntegrationTest {
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
-            fixture.naverLogin("naver-signup-no-row").expectStatus().isForbidden();
+            fixture.naverLogin("naver-signup-no-row").expectStatus().isBadRequest();
 
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-signup-no-row")).isEmpty();
         }
