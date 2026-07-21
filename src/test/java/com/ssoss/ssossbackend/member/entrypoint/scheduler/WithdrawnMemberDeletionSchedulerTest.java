@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.member.entrypoint.scheduler;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("탈퇴 회원 삭제 스케줄러")
 class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
@@ -181,12 +183,54 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             fixture.withdraw(rewithdrawn.accessToken()).expectStatus().isNoContent();
             Long rewithdrawnId = memberIdOf("naver-guard-rewithdrawn");
 
-            memberRepository.deleteAllByIdInAndStatusAndLastWithdrawnAtBefore(
-                List.of(dueId, rewithdrawnId), MemberStatus.WITHDRAWN,
-                clock.instant().minus(Member.RECOVERY_GRACE_PERIOD));
+            Instant threshold = clock.instant().minus(Member.RECOVERY_GRACE_PERIOD);
+            memberRepository.deleteByIdAndStatusAndLastWithdrawnAtBefore(dueId, MemberStatus.WITHDRAWN, threshold);
+            memberRepository.deleteByIdAndStatusAndLastWithdrawnAtBefore(
+                rewithdrawnId, MemberStatus.WITHDRAWN, threshold);
 
             assertThat(memberRepository.findById(dueId)).isEmpty();
             assertThat(memberRepository.findById(rewithdrawnId)).isPresent();
+        }
+    }
+
+    @Nested
+    @DisplayName("삭제 실패 시")
+    class WhenDeletionFails {
+
+        @Test
+        @DisplayName("리스너가 실패하면 예외가 전파되고 실패한 회원은 롤백되어 남는다")
+        void propagatesFailureAndRollsBackMember_whenListenerFails() {
+            SignupResponse signup = fixture.signupActiveMember("naver-failure-abort");
+            Long memberId = memberIdOf("naver-failure-abort");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            failingMemberDeletedListener.failFor(memberId);
+
+            assertThatThrownBy(withdrawnMemberDeletionScheduler::deleteWithdrawnMembers)
+                .isInstanceOf(IllegalStateException.class);
+
+            assertThat(memberRepository.findById(memberId)).isPresent();
+            assertThat(termsOf(memberId)).isNotEmpty();
+            assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isNotEmpty();
+        }
+
+        @Test
+        @DisplayName("실패로 남은 회원은 다음 배치가 마저 지운다")
+        void deletesRemainingMember_whenNextBatchRuns() {
+            SignupResponse signup = fixture.signupActiveMember("naver-failure-retry");
+            Long memberId = memberIdOf("naver-failure-retry");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            failingMemberDeletedListener.failFor(memberId);
+            assertThatThrownBy(withdrawnMemberDeletionScheduler::deleteWithdrawnMembers)
+                .isInstanceOf(IllegalStateException.class);
+
+            failingMemberDeletedListener.reset();
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(memberRepository.findById(memberId)).isEmpty();
+            assertThat(termsOf(memberId)).isEmpty();
+            assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isEmpty();
         }
     }
 

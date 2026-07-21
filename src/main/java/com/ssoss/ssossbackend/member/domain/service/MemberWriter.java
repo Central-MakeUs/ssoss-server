@@ -3,9 +3,6 @@ package com.ssoss.ssossbackend.member.domain.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepository;
@@ -80,23 +77,23 @@ public class MemberWriter {
         return member;
     }
 
-    @Transactional
-    public List<Long> deleteWithdrawn() {
+    public List<Long> findAllDueForDeletion() {
         Instant threshold = clock.instant().minus(Member.RECOVERY_GRACE_PERIOD);
-        List<Member> due = memberRepository.findAllByStatusAndLastWithdrawnAtBefore(
-            MemberStatus.WITHDRAWN, threshold);
-        if (due.isEmpty()) {
-            return List.of();
-        }
-        List<Long> candidateIds = due.stream().map(Member::getId).toList();
-        memberRepository.deleteAllByIdInAndStatusAndLastWithdrawnAtBefore(
-            candidateIds, MemberStatus.WITHDRAWN, threshold);
-        Set<Long> recoveredIds = StreamSupport.stream(memberRepository.findAllById(candidateIds).spliterator(), false)
+        return memberRepository.findAllByStatusAndLastWithdrawnAtBefore(MemberStatus.WITHDRAWN, threshold)
+            .stream()
             .map(Member::getId)
-            .collect(Collectors.toSet());
-        if (!recoveredIds.isEmpty()) {
-            log.info("삭제 직전 복구되어 건너뛴 회원: {}건", recoveredIds.size());
+            .toList();
+    }
+
+    public boolean deleteWithdrawn(Long memberId) {
+        Instant threshold = clock.instant().minus(Member.RECOVERY_GRACE_PERIOD);
+        int deleted = memberRepository.deleteByIdAndStatusAndLastWithdrawnAtBefore(
+            memberId, MemberStatus.WITHDRAWN, threshold);
+        if (deleted == 0) {
+            log.info("삭제 시점에 대상이 아니어서 건너뛴 회원: memberId={}", memberId);
+            return false;
         }
-        return candidateIds.stream().filter(id -> !recoveredIds.contains(id)).toList();
+        log.info("복구 유예 기간이 지난 탈퇴 회원 삭제: memberId={}", memberId);
+        return true;
     }
 }

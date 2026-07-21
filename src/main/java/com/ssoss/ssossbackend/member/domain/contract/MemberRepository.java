@@ -1,7 +1,6 @@
 package com.ssoss.ssossbackend.member.domain.contract;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,5 +16,5 @@ public interface MemberRepository extends CrudRepository<Member, Long> {
 
     List<Member> findAllByStatusAndLastWithdrawnAtBefore(MemberStatus status, Instant threshold);
 
-    int deleteAllByIdInAndStatusAndLastWithdrawnAtBefore(Collection<Long> ids, MemberStatus status, Instant threshold);
+    int deleteByIdAndStatusAndLastWithdrawnAtBefore(Long id, MemberStatus status, Instant threshold);
 }

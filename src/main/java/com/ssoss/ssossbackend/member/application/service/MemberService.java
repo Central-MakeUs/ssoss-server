@@ -3,7 +3,7 @@ package com.ssoss.ssossbackend.member.application.service;
 import java.util.List;
 import java.util.Optional;
 
-import com.ssoss.ssossbackend.member.application.event.MembersDeletedEvent;
+import com.ssoss.ssossbackend.member.application.event.MemberDeletedEvent;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -59,14 +60,17 @@ public class MemberService {
         return MemberIdentity.from(memberWriter.recover(memberId));
     }
 
-    @Transactional
-    public int deleteWithdrawn() {
-        List<Long> deletedMemberIds = memberWriter.deleteWithdrawn();
-        if (!deletedMemberIds.isEmpty()) {
-            memberTermWriter.deleteAllByMemberIds(deletedMemberIds);
-            eventPublisher.publishEvent(new MembersDeletedEvent(deletedMemberIds));
+    public List<Long> findAllDueForDeletion() {
+        return memberWriter.findAllDueForDeletion();
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void deleteWithdrawn(Long memberId) {
+        if (!memberWriter.deleteWithdrawn(memberId)) {
+            return;
         }
-        return deletedMemberIds.size();
+        memberTermWriter.deleteAllByMemberId(memberId);
+        eventPublisher.publishEvent(new MemberDeletedEvent(memberId));
     }
 
     public int cleanUpWithdrawalHistories() {
