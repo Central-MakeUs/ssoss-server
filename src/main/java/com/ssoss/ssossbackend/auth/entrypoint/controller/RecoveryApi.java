@@ -25,6 +25,7 @@ interface RecoveryApi {
             - 복구되면 가입 회원(ACTIVE)으로 복원되고 role=ACTIVE 정식 토큰 쌍(access + refresh)이 새로 발급됩니다.
               이후 API 는 새 accessToken 으로 호출합니다.
             - 회원 데이터는 삭제 전이므로 그대로 유지됩니다.
+            - 복구 유예 기간(7일)이 지나면 400 (M0006) 으로 거부되고, 이미 삭제된 회원이면 404 (M0002) 를 응답합니다.
             - 탈퇴 전에 발급된 리프레시 토큰은 복구 후에도 계속 무효입니다. 복구 이후 발급된 토큰만 유효합니다.
             """)
     @ApiResponses({
@@ -32,6 +33,11 @@ interface RecoveryApi {
             content = @Content(schema = @Schema(implementation = RecoveryResponse.class),
                 examples = @ExampleObject(value = """
                     {"status":"ACTIVE","accessToken":"eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiIxIn0.x","refreshToken":"3q2nq0uW9kZ0m1r5c8vX2yB7dF4hJ6lN8pR0tV2xZ4A"}
+                    """))),
+        @ApiResponse(responseCode = "400", description = "복구 유예 기간이 지났습니다 (M0006) — 유예 기간(7일)이 지난 회원은 복구할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"M0006","message":"탈퇴 후 7일이 지나 복구할 수 없습니다"}
                     """))),
         @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
@@ -43,11 +49,23 @@ interface RecoveryApi {
                 examples = @ExampleObject(value = """
                     {"code":"A0007","message":"접근 권한이 없습니다"}
                     """))),
-        @ApiResponse(responseCode = "409", description = "이미 복구된 회원입니다 (M0004) — 다시 로그인해 ACTIVE 토큰을 발급받아 주세요",
+        @ApiResponse(responseCode = "404", description = "회원 데이터가 이미 삭제되었습니다 (M0002) — 복구 유예 기간이 지나 삭제 배치가 정리한 회원입니다",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """
-                    {"code":"M0004","message":"이미 복구된 회원입니다"}
-                    """)))
+                    {"code":"M0002","message":"회원 정보를 찾을 수 없습니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "409", description = """
+            이미 복구된 회원이거나 (M0004 — 다시 로그인해 ACTIVE 토큰을 발급받아 주세요),
+            복구 처리가 다른 요청과 겹쳤습니다 (M0007 — 다시 시도하면 현재 상태에 맞는 응답을 받습니다).
+            """,
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = {
+                    @ExampleObject(name = "이미 복구된 회원 (M0004)", value = """
+                        {"code":"M0004","message":"이미 복구된 회원입니다"}
+                        """),
+                    @ExampleObject(name = "복구 요청 경합 (M0007)", value = """
+                        {"code":"M0007","message":"복구에 실패했습니다. 잠시 후 다시 시도해 주세요"}
+                        """)}))
     })
     RecoveryResponse recover(Long memberId);
 }

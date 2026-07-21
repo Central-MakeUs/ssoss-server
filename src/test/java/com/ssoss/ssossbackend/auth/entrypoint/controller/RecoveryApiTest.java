@@ -16,6 +16,7 @@ import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepo
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberErrorCode;
 import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
+import com.ssoss.ssossbackend.member.entrypoint.scheduler.WithdrawnMemberDeletionScheduler;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
@@ -44,6 +45,9 @@ class RecoveryApiTest extends IntegrationTest {
 
     @Autowired
     private MemberWithdrawalHistoryRepository memberWithdrawalHistoryRepository;
+
+    @Autowired
+    private WithdrawnMemberDeletionScheduler withdrawnMemberDeletionScheduler;
 
     @BeforeEach
     void resetDatabase() {
@@ -146,6 +150,53 @@ class RecoveryApiTest extends IntegrationTest {
                 .expectStatus().isOk()
                 .expectBody(TokenRefreshResponse.class)
                 .value(body -> assertThat(jwtTestSupport.roleOf(body.accessToken())).isEqualTo("ACTIVE"));
+        }
+
+        @Test
+        @DisplayName("복구 유예 기간이 지난 탈퇴 회원이 복구하면 400 과 M0006 을 반환하고 탈퇴 대기 상태로 남는다")
+        void returns400_whenRecoveringAfterGracePeriodPassed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-recovery-expired");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            clock.advanceBy(Member.RECOVERY_GRACE_PERIOD.plusSeconds(1));
+            SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-recovery-expired");
+
+            fixture.recover(withdrawnLogin.accessToken())
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(MemberErrorCode.RECOVERY_GRACE_EXPIRED.getCode()));
+
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-recovery-expired").orElseThrow();
+            assertThat(member.getStatus()).isEqualTo(MemberStatus.WITHDRAWN);
+        }
+
+        @Test
+        @DisplayName("복구 유예 기간이 끝나기 직전에 복구하면 복구된다")
+        void restoresMember_whenRecoveringJustBeforeGracePeriodEnds() {
+            SignupResponse signup = fixture.signupActiveMember("naver-recovery-eleventh-hour");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            clock.advanceBy(Member.RECOVERY_GRACE_PERIOD.minusSeconds(1));
+            SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-recovery-eleventh-hour");
+
+            fixture.recover(withdrawnLogin.accessToken()).expectStatus().isOk();
+
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-recovery-eleventh-hour")
+                .orElseThrow();
+            assertThat(member.getStatus()).isEqualTo(MemberStatus.ACTIVE);
+        }
+
+        @Test
+        @DisplayName("삭제 배치가 이미 삭제한 회원의 토큰으로 복구하면 404 와 M0002 를 반환한다")
+        void returns404_whenRecoveringAfterDeletionBatchRemovedMember() {
+            SignupResponse signup = fixture.signupActiveMember("naver-recovery-deleted");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            clock.advanceBy(Member.RECOVERY_GRACE_PERIOD.plusSeconds(1));
+            SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-recovery-deleted");
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            fixture.recover(withdrawnLogin.accessToken())
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(MemberErrorCode.MEMBER_NOT_FOUND.getCode()));
         }
 
         @Test

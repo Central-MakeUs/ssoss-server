@@ -65,9 +65,12 @@ public class Member {
         return this;
     }
 
-    public Member recover() {
+    public Member recover(Instant now) {
         if (status != MemberStatus.WITHDRAWN) {
             throw new BusinessException(MemberErrorCode.ALREADY_RECOVERED);
+        }
+        if (now.isAfter(lastWithdrawnAt.plus(RECOVERY_GRACE_PERIOD))) {
+            throw new BusinessException(MemberErrorCode.RECOVERY_GRACE_EXPIRED);
         }
         this.status = MemberStatus.ACTIVE;
         return this;
