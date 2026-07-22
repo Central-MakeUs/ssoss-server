@@ -113,6 +113,12 @@ public class TestFixture {
             .generationId();
     }
 
+    public RestTestClient.ResponseSpec pollGeneration(String accessToken, Long generationId) {
+        return client.get().uri("/v1/generations/" + generationId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
         return client.post().uri("/v1/tokens")
             .contentType(MediaType.APPLICATION_JSON)
