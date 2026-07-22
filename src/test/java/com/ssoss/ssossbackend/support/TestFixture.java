@@ -80,6 +80,12 @@ public class TestFixture {
             .exchange();
     }
 
+    public RestTestClient.ResponseSpec creditBalance(String accessToken) {
+        return client.get().uri("/v1/credits/me")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
         return client.post().uri("/v1/tokens")
             .contentType(MediaType.APPLICATION_JSON)
