@@ -1,7 +1,6 @@
 package com.ssoss.ssossbackend.credit.entrypoint.controller;
 
 import java.util.List;
-import java.util.stream.StreamSupport;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
@@ -110,7 +109,7 @@ class CreditBalanceApiTest extends IntegrationTest {
     }
 
     private List<CreditLedger> ledgerOf(Long memberId) {
-        return StreamSupport.stream(creditLedgerRepository.findAll().spliterator(), false)
+        return creditLedgerRepository.findAll().stream()
             .filter(entry -> entry.getMemberId().equals(memberId))
             .toList();
     }

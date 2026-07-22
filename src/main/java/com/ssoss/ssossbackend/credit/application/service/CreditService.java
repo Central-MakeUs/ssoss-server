@@ -1,5 +1,7 @@
 package com.ssoss.ssossbackend.credit.application.service;
 
+import java.util.List;
+
 import com.ssoss.ssossbackend.credit.domain.model.Credit;
 import com.ssoss.ssossbackend.credit.domain.model.CreditErrorCode;
 import com.ssoss.ssossbackend.credit.domain.service.CreditFinder;
@@ -25,6 +27,14 @@ public class CreditService {
 
     public void grant(Long memberId) {
         creditWriter.grant(memberId);
+    }
+
+    public CreditCycleRenewalResult renewCycles() {
+        List<Long> memberIds = creditFinder.findAllMemberIds();
+        long renewed = memberIds.stream()
+            .filter(creditWriter::renewCycle)
+            .count();
+        return new CreditCycleRenewalResult(memberIds.size(), renewed);
     }
 
     public void deleteAllByMemberId(Long memberId) {
