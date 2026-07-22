@@ -270,7 +270,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     }
 
     private List<CreditLedger> ledgerOf(Long memberId) {
-        return StreamSupport.stream(creditLedgerRepository.findAll().spliterator(), false)
+        return creditLedgerRepository.findAll().stream()
             .filter(entry -> entry.getMemberId().equals(memberId))
             .toList();
     }

@@ -33,4 +33,8 @@ public class CreditLedger {
     public static CreditLedger grant(Long memberId, int amount) {
         return new CreditLedger(null, memberId, CreditLedgerType.GRANT, amount, null);
     }
+
+    public static CreditLedger expire(Long memberId, int amount) {
+        return new CreditLedger(null, memberId, CreditLedgerType.EXPIRE, -amount, null);
+    }
 }

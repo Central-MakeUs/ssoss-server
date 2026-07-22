@@ -21,6 +21,7 @@ public class Credit {
     private Long memberId;
     private int freeBalance;
     private int chargedBalance;
+    private Instant grantedCycleAt;
 
     @Version
     private Long version;
@@ -31,20 +32,32 @@ public class Credit {
     @LastModifiedDate
     private Instant updatedAt;
 
-    Credit(Long id, Long memberId, int freeBalance, int chargedBalance) {
+    Credit(Long id, Long memberId, int freeBalance, int chargedBalance, Instant grantedCycleAt) {
         this.id = id;
         this.memberId = memberId;
         this.freeBalance = freeBalance;
         this.chargedBalance = chargedBalance;
+        this.grantedCycleAt = grantedCycleAt;
     }
 
     public static Credit create(Long memberId) {
-        return new Credit(null, memberId, 0, 0);
+        return new Credit(null, memberId, 0, 0, null);
     }
 
-    public Credit grant(int amount) {
+    public Credit grant(int amount, CreditCycle cycle) {
         this.freeBalance += amount;
+        this.grantedCycleAt = cycle.startsAt();
         return this;
+    }
+
+    public boolean isGrantedFor(CreditCycle cycle) {
+        return cycle.startsAt().equals(grantedCycleAt);
+    }
+
+    public int expireFree() {
+        int expired = this.freeBalance;
+        this.freeBalance = 0;
+        return expired;
     }
 
     public int balance() {

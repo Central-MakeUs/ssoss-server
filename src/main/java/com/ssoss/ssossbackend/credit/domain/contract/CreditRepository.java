@@ -4,9 +4,9 @@ import java.util.Optional;
 
 import com.ssoss.ssossbackend.credit.domain.model.Credit;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.ListCrudRepository;
 
-public interface CreditRepository extends CrudRepository<Credit, Long> {
+public interface CreditRepository extends ListCrudRepository<Credit, Long> {
 
     Optional<Credit> findByMemberId(Long memberId);
 
