@@ -18,8 +18,8 @@ class CreditBalanceController implements CreditBalanceApi {
 
     @Override
     @GetMapping("/v1/credits/me")
-    public CreditBalanceResponse readBalance(@AuthenticationPrincipal Long memberId) {
-        CreditBalanceResult result = creditService.readBalance(memberId);
-        return new CreditBalanceResponse(result.remaining(), result.limit());
+    public CreditBalanceResponse getBalance(@AuthenticationPrincipal Long memberId) {
+        CreditBalanceResult result = creditService.getBalance(memberId);
+        return new CreditBalanceResponse(result.balance());
     }
 }

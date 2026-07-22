@@ -1,13 +1,10 @@
 package com.ssoss.ssossbackend.credit.domain.contract;
 
-import java.time.Instant;
-import java.util.List;
-
-import com.ssoss.ssossbackend.credit.domain.model.CreditLedgerEntry;
+import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
 
 import org.springframework.data.repository.CrudRepository;
 
-public interface CreditLedgerRepository extends CrudRepository<CreditLedgerEntry, Long> {
+public interface CreditLedgerRepository extends CrudRepository<CreditLedger, Long> {
 
-    List<CreditLedgerEntry> findAllByMemberIdAndCreatedAtGreaterThanEqual(Long memberId, Instant cycleStartsAt);
+    void deleteAllByMemberId(Long memberId);
 }

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class MemberDeletedListener {
+public class AuthMemberDeletedListener {
 
     private final RefreshTokenService refreshTokenService;
 

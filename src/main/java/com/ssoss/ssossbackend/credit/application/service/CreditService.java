@@ -1,6 +1,10 @@
 package com.ssoss.ssossbackend.credit.application.service;
 
-import com.ssoss.ssossbackend.credit.domain.service.CreditBalanceReader;
+import com.ssoss.ssossbackend.credit.domain.model.Credit;
+import com.ssoss.ssossbackend.credit.domain.model.CreditErrorCode;
+import com.ssoss.ssossbackend.credit.domain.service.CreditFinder;
+import com.ssoss.ssossbackend.credit.domain.service.CreditWriter;
+import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -10,9 +14,20 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CreditService {
 
-    private final CreditBalanceReader creditBalanceReader;
+    private final CreditFinder creditFinder;
+    private final CreditWriter creditWriter;
 
-    public CreditBalanceResult readBalance(Long memberId) {
-        return CreditBalanceResult.from(creditBalanceReader.read(memberId));
+    public CreditBalanceResult getBalance(Long memberId) {
+        Credit credit = creditFinder.find(memberId)
+            .orElseThrow(() -> new BusinessException(CreditErrorCode.CREDIT_NOT_FOUND));
+        return new CreditBalanceResult(credit.balance());
+    }
+
+    public void grant(Long memberId) {
+        creditWriter.grant(memberId);
+    }
+
+    public void deleteAllByMemberId(Long memberId) {
+        creditWriter.deleteAllByMemberId(memberId);
     }
 }
