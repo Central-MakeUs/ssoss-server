@@ -8,7 +8,8 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "scheduling.enabled=false")
 @Import({TestcontainersConfiguration.class, TestSecurityConfig.class, TestFixtureConfig.class, TestNaverApiConfig.class,
-    TestAppleApiConfig.class, TestClockConfig.class, FailingMemberDeletedListenerConfig.class})
+    TestAppleApiConfig.class, TestClockConfig.class, FailingMemberDeletedListenerConfig.class, TestLlmApiConfig.class,
+    TestTaskExecutorConfig.class})
 public abstract class IntegrationTest {
 
     @Autowired
@@ -19,6 +20,12 @@ public abstract class IntegrationTest {
 
     @Autowired
     protected TestAppleApi appleApi;
+
+    @Autowired
+    protected TestLlmApi llmApi;
+
+    @Autowired
+    protected TestTaskExecutor taskExecutor;
 
     @Autowired
     protected MutableClock clock;
@@ -37,6 +44,16 @@ public abstract class IntegrationTest {
     @BeforeEach
     void resetFailingMemberDeletedListener() {
         failingMemberDeletedListener.reset();
+    }
+
+    @BeforeEach
+    void resetLlmApi() {
+        llmApi.reset();
+    }
+
+    @BeforeEach
+    void resetTaskExecutor() {
+        taskExecutor.reset();
     }
 
     protected RestTestClient client() {

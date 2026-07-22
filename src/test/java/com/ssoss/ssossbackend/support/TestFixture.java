@@ -1,11 +1,13 @@
 package com.ssoss.ssossbackend.support;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -84,6 +86,31 @@ public class TestFixture {
         return client.get().uri("/v1/credits/me")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .exchange();
+    }
+
+    public RestTestClient.ResponseSpec startGeneration(String accessToken, List<String> channels) {
+        return startGeneration(accessToken, Map.of(
+            "channels", channels,
+            "purpose", "INFORMATION",
+            "tone", "CASUAL",
+            "emphasis", "테스트 강조 내용"));
+    }
+
+    public RestTestClient.ResponseSpec startGeneration(String accessToken, Map<String, Object> body) {
+        return client.post().uri("/v1/generations")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public Long startedGenerationId(String accessToken, List<String> channels) {
+        return startGeneration(accessToken, channels)
+            .expectStatus().isCreated()
+            .expectBody(GenerationStartResponse.class)
+            .returnResult()
+            .getResponseBody()
+            .generationId();
     }
 
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
