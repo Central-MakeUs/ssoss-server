@@ -2,11 +2,9 @@ package com.ssoss.ssossbackend.credit.entrypoint.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "잔여 크레딧 응답 — 당사이클 잔여와 사이클 한도")
+@Schema(description = "크레딧 잔액 응답 — 현재 보유한 크레딧 잔액")
 public record CreditBalanceResponse(
-    @Schema(description = "당사이클 잔여 크레딧", example = "50")
-    int remaining,
-    @Schema(description = "사이클 한도", example = "50")
-    int limit
+    @Schema(description = "크레딧 잔액 (무료 + 충전)", example = "50")
+    int balance
 ) {
 }

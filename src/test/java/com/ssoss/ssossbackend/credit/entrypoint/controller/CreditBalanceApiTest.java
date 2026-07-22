@@ -1,37 +1,49 @@
 package com.ssoss.ssossbackend.credit.entrypoint.controller;
 
+import java.util.List;
+import java.util.stream.StreamSupport;
+
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
+import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
+import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
+import com.ssoss.ssossbackend.credit.domain.model.CreditLedgerType;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditBalanceResponse;
+import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("잔여 크레딧 조회 API")
+@DisplayName("크레딧 잔액 조회 API")
 class CreditBalanceApiTest extends IntegrationTest {
+
+    @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private CreditLedgerRepository creditLedgerRepository;
 
     @Nested
     @DisplayName("GET /v1/credits/me")
     class Balance {
 
         @Test
-        @DisplayName("가입 회원이 조회하면 원장이 비어 있어 잔여 50 과 한도 50 을 반환한다")
-        void returnsFullRemainingAndLimit_whenActiveMemberHasEmptyLedger() {
+        @DisplayName("가입 직후 조회하면 가입 지급 무료 크레딧 50 이 잔액으로 반환된다")
+        void returnsSignupGrantedBalance_whenActiveMemberQueriesRightAfterSignup() {
             SignupResponse signup = fixture.signupActiveMember("naver-credit-balance");
 
             fixture.creditBalance(signup.accessToken())
                 .expectStatus().isOk()
                 .expectBody(CreditBalanceResponse.class)
-                .value(body -> {
-                    assertThat(body.remaining()).isEqualTo(50);
-                    assertThat(body.limit()).isEqualTo(50);
-                });
+                .value(body -> assertThat(body.balance()).isEqualTo(50));
         }
 
         @Test
@@ -67,5 +79,39 @@ class CreditBalanceApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
         }
+    }
+
+    @Nested
+    @DisplayName("가입 지급의 원장 기록")
+    class SignupGrantLedger {
+
+        @Test
+        @DisplayName("가입하면 지급이 원장에 GRANT 행으로 기록되고 원장 합이 잔액과 같다")
+        void recordsGrantLedgerEntryMatchingBalance_whenMemberSignsUp() {
+            SignupResponse signup = fixture.signupActiveMember("naver-credit-ledger");
+
+            Long memberId = memberIdOf("naver-credit-ledger");
+            List<CreditLedger> entries = ledgerOf(memberId);
+
+            assertThat(entries).singleElement().satisfies(entry -> {
+                assertThat(entry.getType()).isEqualTo(CreditLedgerType.GRANT);
+                assertThat(entry.getAmount()).isEqualTo(50);
+                assertThat(entry.getGenerationResultId()).isNull();
+            });
+            int ledgerSum = entries.stream().mapToInt(CreditLedger::getAmount).sum();
+            fixture.creditBalance(signup.accessToken())
+                .expectBody(CreditBalanceResponse.class)
+                .value(body -> assertThat(body.balance()).isEqualTo(ledgerSum));
+        }
+    }
+
+    private Long memberIdOf(String socialId) {
+        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
+    }
+
+    private List<CreditLedger> ledgerOf(Long memberId) {
+        return StreamSupport.stream(creditLedgerRepository.findAll().spliterator(), false)
+            .filter(entry -> entry.getMemberId().equals(memberId))
+            .toList();
     }
 }

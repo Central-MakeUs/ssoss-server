@@ -1,0 +1,53 @@
+package com.ssoss.ssossbackend.credit.domain.model;
+
+import java.time.Instant;
+
+import lombok.Getter;
+
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.relational.core.mapping.Table;
+
+@Getter
+@Table("credit")
+public class Credit {
+
+    public static final int CYCLE_FREE_GRANT = 50;
+
+    @Id
+    private Long id;
+    private Long memberId;
+    private int freeBalance;
+    private int chargedBalance;
+
+    @Version
+    private Long version;
+
+    @CreatedDate
+    private Instant createdAt;
+
+    @LastModifiedDate
+    private Instant updatedAt;
+
+    Credit(Long id, Long memberId, int freeBalance, int chargedBalance) {
+        this.id = id;
+        this.memberId = memberId;
+        this.freeBalance = freeBalance;
+        this.chargedBalance = chargedBalance;
+    }
+
+    public static Credit create(Long memberId) {
+        return new Credit(null, memberId, 0, 0);
+    }
+
+    public Credit grant(int amount) {
+        this.freeBalance += amount;
+        return this;
+    }
+
+    public int balance() {
+        return freeBalance + chargedBalance;
+    }
+}

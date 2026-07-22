@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.member.application.service;
 import java.util.List;
 import java.util.Optional;
 
+import com.ssoss.ssossbackend.member.application.event.MemberActivatedEvent;
 import com.ssoss.ssossbackend.member.application.event.MemberDeletedEvent;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
@@ -49,6 +50,7 @@ public class MemberService {
         Member member = memberWriter.activate(memberId);
         memberTermWriter.record(MemberTerm.record(
             member.getId(), serviceTermsAgreed, privacyPolicyAgreed, marketingAgreed));
+        eventPublisher.publishEvent(new MemberActivatedEvent(member.getId()));
         return MemberIdentity.from(member);
     }
 

@@ -7,6 +7,9 @@ import java.util.stream.StreamSupport;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
+import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
+import com.ssoss.ssossbackend.credit.domain.contract.CreditRepository;
+import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberTermRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepository;
@@ -46,11 +49,19 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
+    @Autowired
+    private CreditRepository creditRepository;
+
+    @Autowired
+    private CreditLedgerRepository creditLedgerRepository;
+
     @BeforeEach
     void resetDatabase() {
         memberWithdrawalHistoryRepository.deleteAll();
         memberTermRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        creditLedgerRepository.deleteAll();
+        creditRepository.deleteAll();
         memberRepository.deleteAll();
     }
 
@@ -98,6 +109,20 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-delete-multi-recent")).isPresent();
             assertThat(termsOf(recentId)).isNotEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(recentId)).isNotEmpty();
+        }
+
+        @Test
+        @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 크레딧 잔액과 원장도 삭제된다")
+        void deletesCreditRows_whenGracePeriodHasPassed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-credit");
+            Long memberId = memberIdOf("naver-delete-credit");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(creditRepository.findByMemberId(memberId)).isEmpty();
+            assertThat(ledgerOf(memberId)).isEmpty();
         }
 
         @Test
@@ -241,6 +266,12 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     private List<MemberTerm> termsOf(Long memberId) {
         return StreamSupport.stream(memberTermRepository.findAll().spliterator(), false)
             .filter(term -> term.getMemberId().equals(memberId))
+            .toList();
+    }
+
+    private List<CreditLedger> ledgerOf(Long memberId) {
+        return StreamSupport.stream(creditLedgerRepository.findAll().spliterator(), false)
+            .filter(entry -> entry.getMemberId().equals(memberId))
             .toList();
     }
 }
