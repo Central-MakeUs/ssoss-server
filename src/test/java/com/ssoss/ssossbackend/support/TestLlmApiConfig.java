@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.support;
 
 import com.google.genai.Client;
 import com.google.genai.types.HttpOptions;
+import com.google.genai.types.HttpRetryOptions;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +21,10 @@ class TestLlmApiConfig {
     Client testGoogleGenAiClient(TestLlmApi testLlmApi) {
         return Client.builder()
             .apiKey("test-gemini-api-key")
-            .httpOptions(HttpOptions.builder().baseUrl(testLlmApi.baseUrl()).build())
+            .httpOptions(HttpOptions.builder()
+                .baseUrl(testLlmApi.baseUrl())
+                .retryOptions(HttpRetryOptions.builder().attempts(1).build())
+                .build())
             .build();
     }
 }
