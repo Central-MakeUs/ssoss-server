@@ -1,0 +1,6 @@
+spring:
+  ai:
+    retry:
+      max-attempts: 0
+scheduling:
+  enabled: false
