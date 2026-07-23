@@ -23,8 +23,4 @@ public class GenerationLock {
         this.id = id;
         this.memberId = memberId;
     }
-
-    public static GenerationLock create(Long memberId) {
-        return new GenerationLock(null, memberId);
-    }
 }

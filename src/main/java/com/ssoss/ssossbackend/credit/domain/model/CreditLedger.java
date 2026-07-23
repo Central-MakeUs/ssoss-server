@@ -34,6 +34,10 @@ public class CreditLedger {
         return new CreditLedger(null, memberId, CreditLedgerType.GRANT, amount, null);
     }
 
+    public static CreditLedger deduct(Long memberId, int amount, Long generationResultId) {
+        return new CreditLedger(null, memberId, CreditLedgerType.DEDUCT, -amount, generationResultId);
+    }
+
     public static CreditLedger expire(Long memberId, int amount) {
         return new CreditLedger(null, memberId, CreditLedgerType.EXPIRE, -amount, null);
     }
