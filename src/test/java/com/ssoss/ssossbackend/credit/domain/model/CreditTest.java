@@ -101,6 +101,73 @@ class CreditTest {
     }
 
     @Nested
+    @DisplayName("canAfford")
+    class CanAfford {
+
+        @Test
+        @DisplayName("잔액이 판정량과 같으면 차감 가능으로 본다")
+        void returnsTrue_whenBalanceEqualsAmount() {
+            Credit credit = Credit.create(1L).grant(20, CYCLE);
+
+            assertThat(credit.canAfford(20)).isTrue();
+        }
+
+        @Test
+        @DisplayName("잔액이 판정량보다 적으면 차감 불가로 본다")
+        void returnsFalse_whenBalanceLessThanAmount() {
+            Credit credit = Credit.create(1L).grant(19, CYCLE);
+
+            assertThat(credit.canAfford(20)).isFalse();
+        }
+
+        @Test
+        @DisplayName("무료 잔액과 충전 잔액의 합으로 판정한다")
+        void sumsFreeAndChargedBalances_whenJudging() {
+            Credit credit = new Credit(null, 1L, 3, 2, CYCLE.startsAt());
+
+            assertThat(credit.canAfford(5)).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("deduct")
+    class Deduct {
+
+        @Test
+        @DisplayName("무료 잔액이 충분하면 무료 잔액에서만 차감한다")
+        void deductsFromFreeBalanceOnly_whenFreeBalanceSufficient() {
+            Credit credit = new Credit(null, 1L, 50, 10, CYCLE.startsAt());
+
+            credit.deduct(5);
+
+            assertThat(credit.getFreeBalance()).isEqualTo(45);
+            assertThat(credit.getChargedBalance()).isEqualTo(10);
+        }
+
+        @Test
+        @DisplayName("무료 잔액이 모자라면 무료 잔액을 다 쓰고 남은 양을 충전 잔액에서 차감한다")
+        void deductsRemainderFromChargedBalance_whenFreeBalanceShort() {
+            Credit credit = new Credit(null, 1L, 3, 10, CYCLE.startsAt());
+
+            credit.deduct(5);
+
+            assertThat(credit.getFreeBalance()).isZero();
+            assertThat(credit.getChargedBalance()).isEqualTo(8);
+        }
+
+        @Test
+        @DisplayName("무료 잔액이 없으면 충전 잔액에서만 차감한다")
+        void deductsFromChargedBalanceOnly_whenFreeBalanceEmpty() {
+            Credit credit = new Credit(null, 1L, 0, 10, CYCLE.startsAt());
+
+            credit.deduct(5);
+
+            assertThat(credit.getFreeBalance()).isZero();
+            assertThat(credit.getChargedBalance()).isEqualTo(5);
+        }
+    }
+
+    @Nested
     @DisplayName("balance")
     class Balance {
 

@@ -31,10 +31,18 @@ public class CreditWriter {
         creditLedgerRepository.save(CreditLedger.grant(memberId, Credit.CYCLE_FREE_GRANT));
     }
 
+    @Transactional
+    public void deduct(Long memberId, Long generationResultId) {
+        Credit credit = creditRepository.findWithLockByMemberId(memberId)
+            .orElseThrow(() -> new BusinessException(CreditErrorCode.CREDIT_NOT_FOUND));
+        creditRepository.save(credit.deduct(Credit.RESULT_DEDUCTION));
+        creditLedgerRepository.save(CreditLedger.deduct(memberId, Credit.RESULT_DEDUCTION, generationResultId));
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean renewCycle(Long memberId) {
         CreditCycle cycle = CreditCycle.current(clock.instant());
-        Credit credit = creditRepository.findByMemberId(memberId)
+        Credit credit = creditRepository.findWithLockByMemberId(memberId)
             .orElseThrow(() -> new BusinessException(CreditErrorCode.CREDIT_NOT_FOUND));
         if (credit.isGrantedFor(cycle)) {
             return false;

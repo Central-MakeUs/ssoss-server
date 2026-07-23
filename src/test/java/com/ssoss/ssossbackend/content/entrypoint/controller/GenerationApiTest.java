@@ -1,11 +1,17 @@
 package com.ssoss.ssossbackend.content.entrypoint.controller;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
+import com.ssoss.ssossbackend.content.domain.contract.GenerationRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationResultRepository;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
@@ -14,6 +20,13 @@ import com.ssoss.ssossbackend.content.domain.model.GenerationResultStatus;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationChannelResultResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationPollResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
+import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
+import com.ssoss.ssossbackend.credit.domain.model.CreditErrorCode;
+import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
+import com.ssoss.ssossbackend.credit.domain.model.CreditLedgerType;
+import com.ssoss.ssossbackend.credit.entrypoint.response.CreditBalanceResponse;
+import com.ssoss.ssossbackend.credit.entrypoint.scheduler.CreditCycleScheduler;
+import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
@@ -25,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 
+import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("생성 작업 API")
@@ -32,6 +46,18 @@ class GenerationApiTest extends IntegrationTest {
 
     @Autowired
     private GenerationResultRepository generationResultRepository;
+
+    @Autowired
+    private GenerationRepository generationRepository;
+
+    @Autowired
+    private CreditLedgerRepository creditLedgerRepository;
+
+    @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private CreditCycleScheduler creditCycleScheduler;
 
     @Nested
     @DisplayName("POST /v1/generations")
@@ -132,6 +158,39 @@ class GenerationApiTest extends IntegrationTest {
                 .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("같은 회원이 동시에 요청하면 하나만 생성되고 나머지는 409 로 거부된다")
+        void createsOnlyOne_whenSameMemberRequestsConcurrently() throws Exception {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-concurrent");
+            taskExecutor.hold();
+            CyclicBarrier barrier = new CyclicBarrier(2);
+            Callable<Integer> attempt = () -> {
+                barrier.await();
+                return fixture.startGeneration(signup.accessToken(), List.of("BLOG"))
+                    .expectBody(String.class)
+                    .returnResult()
+                    .getStatus()
+                    .value();
+            };
+
+            List<Integer> statuses;
+            try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+                statuses = executor.invokeAll(List.of(attempt, attempt)).stream()
+                    .map(future -> {
+                        try {
+                            return future.get();
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+                    })
+                    .toList();
+            }
+
+            assertThat(statuses).containsExactlyInAnyOrder(
+                HttpStatus.CREATED.value(), HttpStatus.CONFLICT.value());
+            assertThat(generationsOf(memberIdOf("naver-gen-concurrent"))).hasSize(1);
         }
 
         @Test
@@ -450,7 +509,172 @@ class GenerationApiTest extends IntegrationTest {
         }
     }
 
+    @Nested
+    @DisplayName("크레딧 차감")
+    class Deduction {
+
+        @Test
+        @DisplayName("성공 결과 수만큼 차감되어 잔액이 50 − 5N 으로 조회된다")
+        void deductsPerSucceededResult_whenChannelsSucceed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-deduct");
+
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(40);
+            List<Long> succeededResultIds = resultsOf(generationId).stream()
+                .filter(GenerationResult::isSucceeded)
+                .map(GenerationResult::getId)
+                .toList();
+            assertThat(deductionsOf(memberIdOf("naver-gen-credit-deduct")))
+                .hasSize(2)
+                .allSatisfy(entry -> assertThat(entry.getAmount()).isEqualTo(-5))
+                .extracting(CreditLedger::getGenerationResultId)
+                .containsExactlyInAnyOrderElementsOf(succeededResultIds);
+        }
+
+        @Test
+        @DisplayName("여러 채널이 동시에 확정되어도 차감이 유실 없이 전부 반영된다")
+        void deductsAllResults_whenChannelsSettleConcurrently() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-fanout");
+
+            fixture.startedGenerationId(signup.accessToken(),
+                List.of("BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"));
+
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(30);
+            assertThat(deductionsOf(memberIdOf("naver-gen-credit-fanout")))
+                .hasSize(4)
+                .allSatisfy(entry -> assertThat(entry.getAmount()).isEqualTo(-5));
+        }
+
+        @Test
+        @DisplayName("일부 채널만 성공하면 성공한 결과만 차감된다")
+        void deductsOnlySucceededResults_whenPartiallySucceeded() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-partial");
+            llmApi.stubEmptyBodyForUntitled();
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(45);
+            assertThat(deductionsOf(memberIdOf("naver-gen-credit-partial"))).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("전 채널이 실패하면 차감되지 않는다")
+        void doesNotDeduct_whenAllChannelsFail() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-fail");
+            llmApi.stubFailure(429);
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(50);
+            assertThat(deductionsOf(memberIdOf("naver-gen-credit-fail"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("같은 입력으로 다시 만들어도 같은 규칙으로 차감된다")
+        void deductsAgain_whenRegeneratedWithSameInput() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-again");
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(40);
+            assertThat(deductionsOf(memberIdOf("naver-gen-credit-again"))).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("deadline 이 지나도록 결과가 확정되지 않은 작업은 차감되지 않는다")
+        void doesNotDeduct_whenGenerationExpiredWithoutSettledResult() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-late");
+            taskExecutor.hold();
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            clock.advanceBy(Generation.DEADLINE.plusSeconds(1));
+            taskExecutor.release();
+
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(50);
+            assertThat(deductionsOf(memberIdOf("naver-gen-credit-late"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("사이클 경계를 넘겨 배치가 돌면 잔액이 50 으로 돌아온다")
+        void returnsFullBalance_whenCycleBoundaryPassedAndBatchRan() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-cycle");
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(40);
+
+            clock.advanceBy(Duration.ofDays(31));
+            creditCycleScheduler.renewCycles();
+
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(50);
+        }
+    }
+
+    @Nested
+    @DisplayName("크레딧 부족 판정")
+    class InsufficiencyCheck {
+
+        private static final List<String> ALL_CHANNELS = List.of("BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS");
+
+        @Test
+        @DisplayName("잔액이 차감량 × 선택 채널 수보다 적으면 400 으로 거부되고 작업이 생성되지 않는다")
+        void returns400AndCreatesNoGeneration_whenBalanceInsufficient() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-short");
+            fixture.startedGenerationId(signup.accessToken(), ALL_CHANNELS);
+            fixture.startedGenerationId(signup.accessToken(), ALL_CHANNELS);
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(10);
+
+            fixture.startGeneration(signup.accessToken(), ALL_CHANNELS)
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CreditErrorCode.CREDIT_INSUFFICIENT.getCode()));
+
+            assertThat(generationsOf(memberIdOf("naver-gen-credit-short"))).hasSize(2);
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(10);
+        }
+
+        @Test
+        @DisplayName("잔액을 소진할 때까지 생성하면 다음 생성이 거부된다")
+        void rejectsNextGeneration_whenBalanceExhausted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-credit-exhaust");
+            fixture.startedGenerationId(signup.accessToken(), ALL_CHANNELS);
+            fixture.startedGenerationId(signup.accessToken(), ALL_CHANNELS);
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            assertThat(balanceOf(signup.accessToken())).isEqualTo(0);
+
+            fixture.startGeneration(signup.accessToken(), List.of("BLOG"))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CreditErrorCode.CREDIT_INSUFFICIENT.getCode()));
+        }
+    }
+
     private List<GenerationResult> resultsOf(Long generationId) {
         return generationResultRepository.findAllByGenerationIdOrderById(generationId);
+    }
+
+    private List<Generation> generationsOf(Long memberId) {
+        return generationRepository.findAll().stream()
+            .filter(generation -> generation.getMemberId().equals(memberId))
+            .toList();
+    }
+
+    private List<CreditLedger> deductionsOf(Long memberId) {
+        return creditLedgerRepository.findAll().stream()
+            .filter(entry -> entry.getMemberId().equals(memberId) && entry.getType() == CreditLedgerType.DEDUCT)
+            .toList();
+    }
+
+    private Long memberIdOf(String socialId) {
+        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
+    }
+
+    private int balanceOf(String accessToken) {
+        return fixture.creditBalance(accessToken)
+            .expectStatus().isOk()
+            .expectBody(CreditBalanceResponse.class)
+            .returnResult()
+            .getResponseBody()
+            .balance();
     }
 }

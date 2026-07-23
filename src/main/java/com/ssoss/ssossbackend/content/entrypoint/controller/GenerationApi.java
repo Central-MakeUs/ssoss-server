@@ -28,15 +28,21 @@ interface GenerationApi {
             - 가입 회원(ACTIVE) accessToken 전용 API 입니다.
             - 콘텐츠는 비동기로 생성됩니다. 반환된 작업 id 로 폴링 API 를 호출해 채널별 결과를 확인하세요.
             - 회원당 진행 중 작업은 1건으로 제한됩니다. 진행 중 작업이 있으면 409 로 거부됩니다.
+            - 크레딧 잔액이 차감량(5) × 선택 채널 수보다 적으면 400 으로 거부됩니다. 성공한 채널 결과 1건마다 5 가 차감됩니다.
             - 작업은 생성 시각부터 60초가 지나면 더 이상 결과가 더해지지 않습니다.
             """)
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "생성 작업이 만들어졌습니다. Location 헤더와 본문의 작업 id 로 폴링할 수 있습니다"),
-        @ApiResponse(responseCode = "400", description = "입력값이 잘못되었습니다 (C0001) — 채널 0개·중복 채널·목적/톤/강조 내용 누락 등",
+        @ApiResponse(responseCode = "400",
+            description = "입력값이 잘못되었거나 (C0001 — 채널 0개·중복 채널·목적/톤/강조 내용 누락 등) 크레딧이 부족합니다 (CR0002)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
-                examples = @ExampleObject(value = """
-                    {"code":"C0001","message":"강조 내용을 입력해 주세요"}
-                    """))),
+                examples = {
+                    @ExampleObject(name = "입력값 오류", value = """
+                        {"code":"C0001","message":"강조 내용을 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "크레딧 부족", value = """
+                        {"code":"CR0002","message":"크레딧이 부족합니다"}
+                        """)})),
         @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """

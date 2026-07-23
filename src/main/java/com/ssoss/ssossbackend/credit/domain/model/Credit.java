@@ -15,6 +15,7 @@ import org.springframework.data.relational.core.mapping.Table;
 public class Credit {
 
     public static final int CYCLE_FREE_GRANT = 50;
+    public static final int RESULT_DEDUCTION = 5;
 
     @Id
     private Long id;
@@ -52,6 +53,17 @@ public class Credit {
 
     public boolean isGrantedFor(CreditCycle cycle) {
         return cycle.startsAt().equals(grantedCycleAt);
+    }
+
+    public boolean canAfford(int amount) {
+        return balance() >= amount;
+    }
+
+    public Credit deduct(int amount) {
+        int fromFree = Math.min(freeBalance, amount);
+        this.freeBalance -= fromFree;
+        this.chargedBalance -= amount - fromFree;
+        return this;
     }
 
     public int expireFree() {

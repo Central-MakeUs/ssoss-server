@@ -11,7 +11,8 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum CreditErrorCode implements ErrorCode {
 
-    CREDIT_NOT_FOUND("CR0001", HttpStatus.INTERNAL_SERVER_ERROR, "크레딧 정보를 찾을 수 없습니다. 잠시 후 다시 시도해 주세요");
+    CREDIT_NOT_FOUND("CR0001", HttpStatus.INTERNAL_SERVER_ERROR, "크레딧 정보를 찾을 수 없습니다. 잠시 후 다시 시도해 주세요"),
+    CREDIT_INSUFFICIENT("CR0002", HttpStatus.BAD_REQUEST, "크레딧이 부족합니다");
 
     private final String code;
     private final HttpStatus status;
