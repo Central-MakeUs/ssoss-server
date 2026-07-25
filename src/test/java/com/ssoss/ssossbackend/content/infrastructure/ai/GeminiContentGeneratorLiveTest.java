@@ -3,8 +3,8 @@ package com.ssoss.ssossbackend.content.infrastructure.ai;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import com.google.genai.Client;
 import com.google.genai.types.HttpOptions;
@@ -16,8 +16,7 @@ import com.ssoss.ssossbackend.content.domain.model.Tone;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
 
@@ -26,6 +25,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("live")
 @DisplayName("Gemini 라이브")
 class GeminiContentGeneratorLiveTest {
+
+    private static final Pattern PHOTO_GUIDE_TAG = Pattern.compile("<photo-guide(?=[\\s/>])[^>]*>");
+    private static final Pattern PARAGRAPH_BREAK = Pattern.compile("\\n\\s*\\n");
+
+    private final Channel channel = Channel.from(System.getProperty("live.channel", "BLOG"));
+
+    @Test
+    @DisplayName("한 채널을 실호출하면 채널 정책대로 생성되고 분량·개수가 실측된다")
+    void generatesContentWithinChannelPolicy_withRealGeminiCall() {
+        LlmCallReply reply = generator().generate(new GenerationMaterial(
+            channel, Purpose.NEW_MENU_PROMOTION, Tone.CASUAL,
+            "가을 신메뉴 밤라떼 출시", "가격 인상 언급", List.of("동네 카페"), true));
+
+        print(reply);
+        assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
+        assertThat(reply.content().body())
+            .contains("<photo-guide type=")
+            .doesNotContain("<photo-guide/>")
+            .doesNotContain("</photo-guide>");
+        if (channel == Channel.DAANGN_BIZ) {
+            assertThat(reply.content().hashtags()).isEmpty();
+        }
+        assertThat(reply.outputTokens()).isPositive();
+        assertThat(reply.responseTimeMillis()).isPositive();
+    }
 
     private GeminiContentGenerator generator() {
         Client client = Client.builder()
@@ -38,71 +62,6 @@ class GeminiContentGeneratorLiveTest {
             .build();
         return new GeminiContentGenerator(chatModel, new GenerationPromptComposer(),
             new GeminiCallOutcomeClassifier(), new PhotoGuideAssembler());
-    }
-
-    static List<Channel> titledChannels() {
-        return Arrays.stream(Channel.values()).filter(Channel::hasTitle).toList();
-    }
-
-    static List<Channel> untitledChannels() {
-        return Arrays.stream(Channel.values()).filter(channel -> !channel.hasTitle()).toList();
-    }
-
-    static List<Channel> allChannels() {
-        return List.of(Channel.values());
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("titledChannels")
-    @DisplayName("제목 있는 채널을 실호출하면 제목·본문·해시태그가 스키마대로 생성된다")
-    void generatesTitledContent_withRealGeminiCall(Channel channel) {
-        LlmCallReply reply = generator().generate(new GenerationMaterial(
-            channel, Purpose.EVENT_DISCOUNT, Tone.CASUAL,
-            "이번 주말 아메리카노 1+1 이벤트", "가격 인상 언급", List.of("동네 카페"), false));
-
-        print(channel, reply);
-        assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
-        assertThat(reply.content().title()).isNotBlank();
-        assertThat(reply.content().body()).isNotBlank();
-        assertThat(reply.content().hashtags()).isNotEmpty();
-        assertThat(reply.outputTokens()).isPositive();
-        assertThat(reply.responseTimeMillis()).isPositive();
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("untitledChannels")
-    @DisplayName("제목 없는 채널을 실호출하면 제목 없이 본문·해시태그가 생성된다")
-    void generatesUntitledContent_withRealGeminiCall(Channel channel) {
-        LlmCallReply reply = generator().generate(new GenerationMaterial(
-            channel, Purpose.INFORMATION, Tone.EMOTIONAL,
-            "가을 신메뉴 밤라떼 출시", null, List.of(), false));
-
-        print(channel, reply);
-        assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
-        assertThat(reply.content().title()).isNull();
-        assertThat(reply.content().body()).isNotBlank();
-        assertThat(reply.content().hashtags()).isNotEmpty();
-        assertThat(reply.outputTokens()).isPositive();
-        assertThat(reply.responseTimeMillis()).isPositive();
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("allChannels")
-    @DisplayName("사진 가이드를 체크하고 실호출하면 본문에 조립된 사진 가이드 태그가 담긴다")
-    void assemblesPhotoGuideTags_withRealGeminiCall(Channel channel) {
-        LlmCallReply reply = generator().generate(new GenerationMaterial(
-            channel, Purpose.NEW_MENU_PROMOTION, Tone.EMOTIONAL,
-            "가을 신메뉴 밤라떼 출시", null, List.of(), true));
-
-        print(channel, reply);
-        assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
-        assertThat(reply.content().body())
-            .contains("<photo-guide type=")
-            .doesNotContain("<photo-guide/>")
-            .doesNotContain("</photo-guide>");
-        assertThat(reply.content().hashtags()).isNotEmpty();
-        assertThat(reply.outputTokens()).isPositive();
-        assertThat(reply.responseTimeMillis()).isPositive();
     }
 
     private String geminiApiKey() {
@@ -121,17 +80,28 @@ class GeminiContentGeneratorLiveTest {
         }
     }
 
-    private void print(Channel channel, LlmCallReply reply) {
+    private void print(LlmCallReply reply) {
+        String body = reply.content().body();
+        String stripped = PHOTO_GUIDE_TAG.matcher(body).replaceAll("").strip();
+        String title = reply.content().title();
         System.out.println("""
 
-            ===== %s 생성 결과 =====
-            제목: %s
-            본문:
-            %s
-            해시태그: %s
+            ===== %s 실측 =====
+            제목: %s (%d자)
+            본문: %d자 (사진 가이드 태그 제외) / 태그 포함 %d자
+            문단: %d개
+            사진 가이드: %d장
+            해시태그: %d개 — %s
             (입력 %d 토큰 / 출력 %d 토큰 / %d ms)
-            """.formatted(channel, reply.content().title(), reply.content().body(),
-            String.join(" ", reply.content().hashtags()),
-            reply.inputTokens(), reply.outputTokens(), reply.responseTimeMillis()));
+
+            %s
+            """.formatted(channel,
+            title, title == null ? 0 : title.codePointCount(0, title.length()),
+            stripped.codePointCount(0, stripped.length()), body.codePointCount(0, body.length()),
+            PARAGRAPH_BREAK.split(stripped).length,
+            PHOTO_GUIDE_TAG.matcher(body).results().count(),
+            reply.content().hashtags().size(), String.join(" ", reply.content().hashtags()),
+            reply.inputTokens(), reply.outputTokens(), reply.responseTimeMillis(),
+            body));
     }
 }

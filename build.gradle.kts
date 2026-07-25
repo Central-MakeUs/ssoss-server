@@ -87,6 +87,8 @@ tasks.register<Test>("liveTest") {
     useJUnitPlatform {
         includeTags("live")
     }
+    systemProperty("live.channel", providers.systemProperty("live.channel").getOrElse("BLOG"))
+    outputs.upToDateWhen { false }
     testLogging {
         showStandardStreams = true
         events("passed", "skipped", "failed")
