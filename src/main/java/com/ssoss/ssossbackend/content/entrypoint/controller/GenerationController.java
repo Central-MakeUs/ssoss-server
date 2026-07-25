@@ -2,12 +2,12 @@ package com.ssoss.ssossbackend.content.entrypoint.controller;
 
 import java.net.URI;
 
-import com.ssoss.ssossbackend.content.application.result.GenerationPollResult;
+import com.ssoss.ssossbackend.content.application.result.GenerationDetailResult;
 import com.ssoss.ssossbackend.content.application.result.GenerationStartResult;
 import com.ssoss.ssossbackend.content.application.service.GenerationService;
 import com.ssoss.ssossbackend.content.entrypoint.request.GenerationStartRequest;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationChannelResultResponse;
-import com.ssoss.ssossbackend.content.entrypoint.response.GenerationPollResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
 
 import jakarta.validation.Valid;
@@ -41,19 +41,21 @@ class GenerationController implements GenerationApi {
 
     @Override
     @GetMapping("/v1/generations/{generationId}")
-    public GenerationPollResponse poll(
+    public GenerationDetailResponse getById(
         @AuthenticationPrincipal Long memberId,
         @PathVariable Long generationId
     ) {
-        GenerationPollResult result = generationService.poll(generationId, memberId);
-        return new GenerationPollResponse(
+        GenerationDetailResult result = generationService.getById(generationId, memberId);
+        return new GenerationDetailResponse(
             result.generationId(),
             result.status(),
-            result.failureReason(),
+            result.purpose(),
+            result.tone(),
+            result.keywords(),
             result.results().stream()
                 .map(channelResult -> new GenerationChannelResultResponse(channelResult.channel(),
+                    channelResult.status(), channelResult.message(),
                     channelResult.title(), channelResult.body(), channelResult.hashtags()))
-                .toList(),
-            result.pendingChannels());
+                .toList());
     }
 }

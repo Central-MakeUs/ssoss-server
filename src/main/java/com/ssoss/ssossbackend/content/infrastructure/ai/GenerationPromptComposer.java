@@ -84,8 +84,8 @@ class GenerationPromptComposer {
         if (material.forbidden() != null && !material.forbidden().isBlank()) {
             sections.add(FORBIDDEN_SECTION.formatted(material.forbidden()));
         }
-        if (material.keywords() != null && !material.keywords().isBlank()) {
-            sections.add(KEYWORDS_SECTION.formatted(material.keywords()));
+        if (!material.keywords().isEmpty()) {
+            sections.add(KEYWORDS_SECTION.formatted(String.join(", ", material.keywords())));
         }
         sections.add(NO_STORE_SECTION);
         sections.add(HASHTAG_SECTION);

@@ -37,10 +37,11 @@ public record GenerationStartRequest(
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     @Size(max = 500, message = "금지 내용은 500자 이내로 입력해 주세요")
     String forbidden,
-    @Schema(description = "키워드 (선택) — 본문에 녹일 단어들", example = "디저트 맛집, 데이트 코스",
-        requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-    @Size(max = 500, message = "키워드는 500자 이내로 입력해 주세요")
-    String keywords
+    @Schema(description = "키워드 목록 (선택) — 본문에 녹일 단어들, 최대 10개",
+        example = "[\"디저트 맛집\", \"데이트 코스\"]", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    @Size(max = 10, message = "키워드는 최대 10개까지 입력할 수 있습니다")
+    List<@NotBlank(message = "빈 키워드는 보낼 수 없습니다")
+        @Size(max = 30, message = "키워드는 30자 이내로 입력해 주세요") String> keywords
 ) {
 
     public GenerationStartCommand toCommand(Long memberId) {

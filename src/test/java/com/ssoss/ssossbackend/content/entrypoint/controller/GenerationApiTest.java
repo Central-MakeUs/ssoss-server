@@ -13,12 +13,13 @@ import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationResultRepository;
+import com.ssoss.ssossbackend.content.domain.model.ChannelOutcome;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResultStatus;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationChannelResultResponse;
-import com.ssoss.ssossbackend.content.entrypoint.response.GenerationPollResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
 import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
 import com.ssoss.ssossbackend.credit.domain.model.CreditErrorCode;
@@ -139,6 +140,54 @@ class GenerationApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("키워드를 10개 넘게 보내면 400 을 반환한다")
+        void returns400_whenKeywordsExceedLimit() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-many-keywords");
+
+            fixture.startGeneration(signup.accessToken(), Map.of(
+                    "channels", List.of("BLOG"),
+                    "purpose", "INFORMATION",
+                    "tone", "CASUAL",
+                    "emphasis", "테스트 강조 내용",
+                    "keywords", List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("빈 키워드를 보내면 400 을 반환한다")
+        void returns400_whenKeywordBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-blank-keyword");
+
+            fixture.startGeneration(signup.accessToken(), Map.of(
+                    "channels", List.of("BLOG"),
+                    "purpose", "INFORMATION",
+                    "tone", "CASUAL",
+                    "emphasis", "테스트 강조 내용",
+                    "keywords", List.of("디저트", "   ")))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("키워드 하나가 30자를 넘으면 400 을 반환한다")
+        void returns400_whenKeywordTooLong() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-long-keyword");
+
+            fixture.startGeneration(signup.accessToken(), Map.of(
+                    "channels", List.of("BLOG"),
+                    "purpose", "INFORMATION",
+                    "tone", "CASUAL",
+                    "emphasis", "테스트 강조 내용",
+                    "keywords", List.of("가".repeat(31))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
         @DisplayName("같은 채널을 중복 선택하면 400 을 반환한다")
         void returns400_whenChannelsDuplicated() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-dup-channel");
@@ -207,22 +256,23 @@ class GenerationApiTest extends IntegrationTest {
 
     @Nested
     @DisplayName("GET /v1/generations/{generationId}")
-    class Poll {
+    class GetById {
 
         @Test
-        @DisplayName("블로그 생성이 끝나면 성공 상태와 제목·본문·해시태그가 반환된다")
-        void returnsSucceededBlogResultWithTitle_whenBlogGenerationFinished() {
+        @DisplayName("블로그 생성이 끝나면 성공 상태와 문구·제목·본문·해시태그가 반환된다")
+        void returnsSucceededBlogResultWithMessage_whenBlogGenerationFinished() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-blog");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
 
-            fixture.pollGeneration(signup.accessToken(), generationId)
+            fixture.getGeneration(signup.accessToken(), generationId)
                 .expectStatus().isOk()
-                .expectBody(GenerationPollResponse.class)
+                .expectBody(GenerationDetailResponse.class)
                 .value(body -> {
-                    assertThat(body.status()).isEqualTo("SUCCEEDED");
-                    assertThat(body.pendingChannels()).isEmpty();
+                    assertThat(body.status()).isEqualTo("COMPLETED");
                     assertThat(body.results()).singleElement().satisfies(result -> {
                         assertThat(result.channel()).isEqualTo("BLOG");
+                        assertThat(result.status()).isEqualTo("SUCCEEDED");
+                        assertThat(result.message()).isEqualTo(ChannelOutcome.SUCCEEDED.getMessage());
                         assertThat(result.title()).isNotBlank();
                         assertThat(result.body()).isNotBlank();
                         assertThat(result.hashtags()).isNotEmpty().allSatisfy(tag -> assertThat(tag).startsWith("#"));
@@ -236,9 +286,9 @@ class GenerationApiTest extends IntegrationTest {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-insta");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("INSTAGRAM"));
 
-            fixture.pollGeneration(signup.accessToken(), generationId)
+            fixture.getGeneration(signup.accessToken(), generationId)
                 .expectStatus().isOk()
-                .expectBody(GenerationPollResponse.class)
+                .expectBody(GenerationDetailResponse.class)
                 .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
                     assertThat(result.title()).isNull();
                     assertThat(result.body()).isNotBlank();
@@ -246,21 +296,20 @@ class GenerationApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("다중 채널을 선택하면 채널 수만큼 결과가 오고 성공으로 파생된다")
-        void returnsResultPerChannel_whenMultipleChannelsSelected() {
+        @DisplayName("선택한 채널이 요청한 순서 그대로 결과에 담긴다")
+        void returnsResultPerSelectedChannelInRequestedOrder() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-multi");
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
-                List.of("BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"));
+                List.of("INSTAGRAM", "BLOG", "DAANGN_BIZ", "THREADS"));
 
-            fixture.pollGeneration(signup.accessToken(), generationId)
+            fixture.getGeneration(signup.accessToken(), generationId)
                 .expectStatus().isOk()
-                .expectBody(GenerationPollResponse.class)
+                .expectBody(GenerationDetailResponse.class)
                 .value(body -> {
-                    assertThat(body.status()).isEqualTo("SUCCEEDED");
-                    assertThat(body.pendingChannels()).isEmpty();
+                    assertThat(body.status()).isEqualTo("COMPLETED");
                     assertThat(body.results())
                         .extracting(GenerationChannelResultResponse::channel)
-                        .containsExactlyInAnyOrder("BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS");
+                        .containsExactly("INSTAGRAM", "BLOG", "DAANGN_BIZ", "THREADS");
                     assertThat(body.results())
                         .filteredOn(result -> result.channel().equals("BLOG"))
                         .singleElement()
@@ -272,113 +321,177 @@ class GenerationApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("작업이 끝나기 전에는 진행 중 상태와 진행 중 채널 목록이 반환된다")
-        void returnsInProgressWithPendingChannels_whenGenerationNotFinished() {
+        @DisplayName("생성 조건인 목적·톤·키워드가 함께 반환된다")
+        void returnsGenerationConditions_whenQueried() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-condition");
+            Long generationId = fixture.startGeneration(signup.accessToken(), Map.of(
+                    "channels", List.of("BLOG"),
+                    "purpose", "EVENT_DISCOUNT",
+                    "tone", "EMOTIONAL",
+                    "emphasis", "테스트 강조 내용",
+                    "keywords", List.of("디저트, 크루아상", "을지로 \"베이커리\"")))
+                .expectStatus().isCreated()
+                .expectBody(GenerationStartResponse.class)
+                .returnResult()
+                .getResponseBody()
+                .generationId();
+
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> {
+                    assertThat(body.purpose()).isEqualTo("EVENT_DISCOUNT");
+                    assertThat(body.tone()).isEqualTo("EMOTIONAL");
+                    assertThat(body.keywords()).containsExactly("디저트, 크루아상", "을지로 \"베이커리\"");
+                });
+        }
+
+        @Test
+        @DisplayName("키워드를 보내지 않으면 빈 배열로 반환된다")
+        void returnsEmptyKeywords_whenNotGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-no-keyword");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.keywords()).isEmpty());
+        }
+
+        @Test
+        @DisplayName("작업이 끝나기 전에는 선택 채널이 모두 진행 중으로 반환된다")
+        void returnsPendingResults_whenGenerationNotFinished() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-progress");
             taskExecutor.hold();
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
-            fixture.pollGeneration(signup.accessToken(), generationId)
+            fixture.getGeneration(signup.accessToken(), generationId)
                 .expectStatus().isOk()
-                .expectBody(GenerationPollResponse.class)
+                .expectBody(GenerationDetailResponse.class)
                 .value(body -> {
                     assertThat(body.status()).isEqualTo("IN_PROGRESS");
-                    assertThat(body.results()).isEmpty();
-                    assertThat(body.pendingChannels()).containsExactlyInAnyOrder("BLOG", "INSTAGRAM");
+                    assertThat(body.results())
+                        .extracting(GenerationChannelResultResponse::channel)
+                        .containsExactly("BLOG", "INSTAGRAM");
+                    assertThat(body.results()).allSatisfy(result -> {
+                        assertThat(result.status()).isEqualTo("PENDING");
+                        assertThat(result.message()).isEqualTo(ChannelOutcome.PENDING.getMessage());
+                        assertThat(result.body()).isNull();
+                        assertThat(result.hashtags()).isEmpty();
+                    });
                 });
 
             taskExecutor.release();
 
-            fixture.pollGeneration(signup.accessToken(), generationId)
+            fixture.getGeneration(signup.accessToken(), generationId)
                 .expectStatus().isOk()
-                .expectBody(GenerationPollResponse.class)
+                .expectBody(GenerationDetailResponse.class)
                 .value(body -> {
-                    assertThat(body.status()).isEqualTo("SUCCEEDED");
-                    assertThat(body.results()).hasSize(2);
-                    assertThat(body.pendingChannels()).isEmpty();
+                    assertThat(body.status()).isEqualTo("COMPLETED");
+                    assertThat(body.results()).allSatisfy(result ->
+                        assertThat(result.status()).isEqualTo("SUCCEEDED"));
                 });
         }
 
         @Test
-        @DisplayName("없는 작업을 폴링하면 404 와 CT0002 를 반환한다")
-        void returns404_whenGenerationDoesNotExist() {
-            SignupResponse signup = fixture.signupActiveMember("naver-gen-not-found");
-
-            fixture.pollGeneration(signup.accessToken(), 999_999L)
-                .expectStatus().isNotFound()
-                .expectBody(ErrorResponse.class)
-                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_NOT_FOUND.getCode()));
-        }
-
-        @Test
-        @DisplayName("다른 회원의 작업을 폴링하면 404 와 CT0002 를 반환한다")
-        void returns404_whenPollingOtherMembersGeneration() {
-            SignupResponse owner = fixture.signupActiveMember("naver-gen-owner");
-            Long generationId = fixture.startedGenerationId(owner.accessToken(), List.of("BLOG"));
-            SignupResponse other = fixture.signupActiveMember("naver-gen-other");
-
-            fixture.pollGeneration(other.accessToken(), generationId)
-                .expectStatus().isNotFound()
-                .expectBody(ErrorResponse.class)
-                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_NOT_FOUND.getCode()));
-        }
-
-        @Test
-        @DisplayName("모든 채널이 실패하면 실패 상태와 원인 범주가 반환된다")
-        void returnsFailedWithReason_whenAllChannelsFail() {
+        @DisplayName("모든 채널이 실패해도 선택 채널이 모두 실패 문구와 함께 반환된다")
+        void returnsFailedResultsWithMessage_whenAllChannelsFail() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-all-fail");
             llmApi.stubFailure(429);
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
-            fixture.pollGeneration(signup.accessToken(), generationId)
+            fixture.getGeneration(signup.accessToken(), generationId)
                 .expectStatus().isOk()
-                .expectBody(GenerationPollResponse.class)
+                .expectBody(GenerationDetailResponse.class)
                 .value(body -> {
-                    assertThat(body.status()).isEqualTo("FAILED");
-                    assertThat(body.failureReason()).isEqualTo("OVERLOADED");
-                    assertThat(body.results()).isEmpty();
+                    assertThat(body.status()).isEqualTo("COMPLETED");
+                    assertThat(body.results())
+                        .extracting(GenerationChannelResultResponse::channel)
+                        .containsExactly("BLOG", "INSTAGRAM");
+                    assertThat(body.results()).allSatisfy(result -> {
+                        assertThat(result.status()).isEqualTo("FAILED");
+                        assertThat(result.message()).isEqualTo(ChannelOutcome.OVERLOADED.getMessage());
+                        assertThat(result.title()).isNull();
+                        assertThat(result.body()).isNull();
+                        assertThat(result.hashtags()).isEmpty();
+                    });
                 });
         }
 
         @Test
-        @DisplayName("deadline 이 지나도록 끝나지 않은 작업은 실패로 파생되고 원인은 null 이다")
-        void returnsFailedWithoutReason_whenDeadlinePassedWithoutFinish() {
+        @DisplayName("deadline 이 지나도록 끝나지 않으면 남은 채널이 시간 초과 문구와 함께 실패로 반환된다")
+        void returnsTimedOutResults_whenDeadlinePassedWithoutFinish() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-timeout");
             taskExecutor.hold();
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
 
             clock.advanceBy(Generation.DEADLINE.plusSeconds(1));
 
-            fixture.pollGeneration(signup.accessToken(), generationId)
+            fixture.getGeneration(signup.accessToken(), generationId)
                 .expectStatus().isOk()
-                .expectBody(GenerationPollResponse.class)
+                .expectBody(GenerationDetailResponse.class)
                 .value(body -> {
-                    assertThat(body.status()).isEqualTo("FAILED");
-                    assertThat(body.failureReason()).isNull();
-                    assertThat(body.results()).isEmpty();
+                    assertThat(body.status()).isEqualTo("COMPLETED");
+                    assertThat(body.results()).singleElement().satisfies(result -> {
+                        assertThat(result.status()).isEqualTo("FAILED");
+                        assertThat(result.message()).isEqualTo(ChannelOutcome.TIMED_OUT.getMessage());
+                    });
                 });
         }
 
         @Test
-        @DisplayName("일부 채널만 성공해도 성공으로 파생되고 실패 원인은 실리지 않는다")
-        void derivesSucceededWithoutReason_whenPartiallySucceeded() {
+        @DisplayName("일부 채널만 성공하면 실패한 채널도 실패 문구와 함께 결과에 남는다")
+        void keepsFailedChannelInResults_whenPartiallySucceeded() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-partial");
             llmApi.stubEmptyBodyForUntitled();
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
-            fixture.pollGeneration(signup.accessToken(), generationId)
+            fixture.getGeneration(signup.accessToken(), generationId)
                 .expectStatus().isOk()
-                .expectBody(GenerationPollResponse.class)
+                .expectBody(GenerationDetailResponse.class)
                 .value(body -> {
-                    assertThat(body.status()).isEqualTo("SUCCEEDED");
-                    assertThat(body.failureReason()).isNull();
-                    assertThat(body.results()).hasSize(1);
-                    assertThat(body.pendingChannels()).isEmpty();
+                    assertThat(body.status()).isEqualTo("COMPLETED");
+                    assertThat(body.results()).hasSize(2);
+                    assertThat(body.results().getFirst()).satisfies(result -> {
+                        assertThat(result.channel()).isEqualTo("BLOG");
+                        assertThat(result.status()).isEqualTo("SUCCEEDED");
+                        assertThat(result.body()).isNotBlank();
+                    });
+                    assertThat(body.results().getLast()).satisfies(result -> {
+                        assertThat(result.channel()).isEqualTo("INSTAGRAM");
+                        assertThat(result.status()).isEqualTo("FAILED");
+                        assertThat(result.message()).isEqualTo(ChannelOutcome.EMPTY_OUTPUT.getMessage());
+                        assertThat(result.body()).isNull();
+                    });
                 });
         }
 
         @Test
-        @DisplayName("액세스 토큰 없이 폴링하면 401 과 A0006 을 반환한다")
+        @DisplayName("없는 작업을 조회하면 404 와 CT0002 를 반환한다")
+        void returns404_whenGenerationDoesNotExist() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-not-found");
+
+            fixture.getGeneration(signup.accessToken(), 999_999L)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("다른 회원의 작업을 조회하면 404 와 CT0002 를 반환한다")
+        void returns404_whenQueryingOtherMembersGeneration() {
+            SignupResponse owner = fixture.signupActiveMember("naver-gen-owner");
+            Long generationId = fixture.startedGenerationId(owner.accessToken(), List.of("BLOG"));
+            SignupResponse other = fixture.signupActiveMember("naver-gen-other");
+
+            fixture.getGeneration(other.accessToken(), generationId)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
         void returns401_whenAccessTokenMissing() {
             fixture.client().get().uri("/v1/generations/1")
                 .exchange()
@@ -403,13 +516,14 @@ class GenerationApiTest extends IntegrationTest {
                     "tone", "EMOTIONAL",
                     "emphasis", "주말 아메리카노 1+1 이벤트",
                     "forbidden", "가격 인상 언급",
-                    "keywords", "디저트 맛집"))
+                    "keywords", List.of("디저트 맛집", "데이트 코스")))
                 .expectStatus().isCreated();
 
             assertThat(llmApi.recordedRequestBodies()).singleElement().satisfies(request -> assertThat(request)
                 .contains("주말 아메리카노 1+1 이벤트")
                 .contains("가격 인상 언급")
                 .contains("디저트 맛집")
+                .contains("데이트 코스")
                 .contains("감성")
                 .contains("이벤트")
                 .contains("할인"));
@@ -446,7 +560,7 @@ class GenerationApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("LLM 이 429 를 반환하면 RATE_LIMITED 행으로 기록되고 폴링 결과에서 빠진다")
+        @DisplayName("LLM 이 429 를 반환하면 RATE_LIMITED 행으로 기록되고 조회 결과에 과부하 실패로 남는다")
         void recordsRateLimitedResult_whenLlmReturns429() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-obs-429");
             llmApi.stubFailure(429);
@@ -458,9 +572,13 @@ class GenerationApiTest extends IntegrationTest {
                 assertThat(result.getInputTokens()).isNull();
                 assertThat(result.getBody()).isNull();
             });
-            fixture.pollGeneration(signup.accessToken(), generationId)
-                .expectBody(GenerationPollResponse.class)
-                .value(body -> assertThat(body.results()).isEmpty());
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
+                    assertThat(result.channel()).isEqualTo("BLOG");
+                    assertThat(result.status()).isEqualTo("FAILED");
+                    assertThat(result.message()).isEqualTo(ChannelOutcome.OVERLOADED.getMessage());
+                }));
         }
 
         @Test
@@ -492,7 +610,7 @@ class GenerationApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("본문이 빈 산출은 EMPTY_OUTPUT 행으로 기록되고 폴링 결과에서 빠진다")
+        @DisplayName("본문이 빈 산출은 EMPTY_OUTPUT 행으로 기록되고 조회 결과에 빈 결과 실패로 남는다")
         void recordsEmptyOutputResult_whenBodyBlank() {
             SignupResponse signup = fixture.signupActiveMember("naver-gen-obs-empty");
             llmApi.stubEmptyBody();
@@ -503,9 +621,13 @@ class GenerationApiTest extends IntegrationTest {
                 assertThat(result.getStatus()).isEqualTo(GenerationResultStatus.EMPTY_OUTPUT);
                 assertThat(result.getBody()).isNull();
             });
-            fixture.pollGeneration(signup.accessToken(), generationId)
-                .expectBody(GenerationPollResponse.class)
-                .value(body -> assertThat(body.results()).isEmpty());
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
+                    assertThat(result.channel()).isEqualTo("INSTAGRAM");
+                    assertThat(result.status()).isEqualTo("FAILED");
+                    assertThat(result.message()).isEqualTo(ChannelOutcome.EMPTY_OUTPUT.getMessage());
+                }));
         }
     }
 
@@ -522,7 +644,7 @@ class GenerationApiTest extends IntegrationTest {
 
             assertThat(balanceOf(signup.accessToken())).isEqualTo(40);
             List<Long> succeededResultIds = resultsOf(generationId).stream()
-                .filter(GenerationResult::isSucceeded)
+                .filter(result -> result.getStatus() == GenerationResultStatus.SUCCEEDED)
                 .map(GenerationResult::getId)
                 .toList();
             assertThat(deductionsOf(memberIdOf("naver-gen-credit-deduct")))

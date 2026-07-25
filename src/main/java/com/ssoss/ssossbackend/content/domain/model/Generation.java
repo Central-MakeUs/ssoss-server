@@ -3,7 +3,6 @@ package com.ssoss.ssossbackend.content.domain.model;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,6 +12,9 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
+
 @Getter
 @Table("generation")
 public class Generation {
@@ -20,6 +22,8 @@ public class Generation {
     public static final Duration DEADLINE = Duration.ofSeconds(60);
 
     private static final String CHANNEL_SEPARATOR = ",";
+
+    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
     @Id
     private Long id;
@@ -56,12 +60,15 @@ public class Generation {
     }
 
     public static Generation create(Long memberId, List<Channel> channels, Purpose purpose, Tone tone,
-        String emphasis, String forbidden, String keywords) {
+        String emphasis, String forbidden, List<String> keywords) {
         String joined = channels.stream()
             .map(Channel::name)
             .collect(Collectors.joining(CHANNEL_SEPARATOR));
-        return new Generation(null, memberId, joined, purpose, tone, emphasis, forbidden, keywords, false, null,
-            null, null);
+        String serializedKeywords = keywords == null || keywords.isEmpty()
+            ? null
+            : JSON_MAPPER.writeValueAsString(keywords);
+        return new Generation(null, memberId, joined, purpose, tone, emphasis, forbidden, serializedKeywords,
+            false, null, null, null);
     }
 
     public List<Channel> channelList() {
@@ -70,14 +77,27 @@ public class Generation {
             .toList();
     }
 
-    public List<Channel> pendingChannels(Collection<Channel> settledChannels) {
+    public List<String> keywordList() {
+        if (keywords == null || keywords.isBlank()) {
+            return List.of();
+        }
+        return JSON_MAPPER.readValue(keywords, new TypeReference<List<String>>() {
+        });
+    }
+
+    public List<ChannelResult> channelResults(Instant now, List<GenerationResult> results) {
         return channelList().stream()
-            .filter(channel -> !settledChannels.contains(channel))
+            .map(channel -> results.stream()
+                .filter(result -> result.getChannel() == channel)
+                .findFirst()
+                .map(ChannelResult::from)
+                .orElseGet(() -> ChannelResult.of(channel,
+                    isClosed(now) ? ChannelOutcome.TIMED_OUT : ChannelOutcome.PENDING)))
             .toList();
     }
 
     public GenerationMaterial materialFor(Channel channel) {
-        return new GenerationMaterial(channel, purpose, tone, emphasis, forbidden, keywords);
+        return new GenerationMaterial(channel, purpose, tone, emphasis, forbidden, keywordList());
     }
 
     public Instant deadline() {
@@ -95,21 +115,19 @@ public class Generation {
         return now.isAfter(deadline());
     }
 
+    public boolean isClosed(Instant now) {
+        return finishedAt != null || isExpired(now);
+    }
+
+    public GenerationStatus status(Instant now) {
+        return isClosed(now) ? GenerationStatus.COMPLETED : GenerationStatus.IN_PROGRESS;
+    }
+
     public boolean finish(Instant now) {
         if (isExpired(now)) {
             return false;
         }
         this.finishedAt = now;
         return true;
-    }
-
-    public GenerationStatus status(Instant now, Collection<Channel> settledChannels) {
-        if (finishedAt != null && !finishedAt.isAfter(deadline())) {
-            return settledChannels.isEmpty() ? GenerationStatus.FAILED : GenerationStatus.SUCCEEDED;
-        }
-        if (isExpired(now)) {
-            return GenerationStatus.FAILED;
-        }
-        return GenerationStatus.IN_PROGRESS;
     }
 }

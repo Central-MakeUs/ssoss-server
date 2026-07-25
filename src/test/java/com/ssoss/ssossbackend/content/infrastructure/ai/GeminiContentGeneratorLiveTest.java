@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.content.infrastructure.ai;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import com.google.genai.Client;
 import com.google.genai.types.HttpOptions;
@@ -42,7 +43,7 @@ class GeminiContentGeneratorLiveTest {
     void generatesTitledBlogContent_withRealGeminiCall() {
         LlmCallReply reply = generator().generate(new GenerationMaterial(
             Channel.BLOG, Purpose.EVENT_DISCOUNT, Tone.CASUAL,
-            "이번 주말 아메리카노 1+1 이벤트", "가격 인상 언급", "동네 카페"));
+            "이번 주말 아메리카노 1+1 이벤트", "가격 인상 언급", List.of("동네 카페")));
 
         print(Channel.BLOG, reply);
         assertThat(reply.content().hasRequiredOutput(Channel.BLOG)).isTrue();
@@ -58,7 +59,7 @@ class GeminiContentGeneratorLiveTest {
     void generatesUntitledContent_withRealGeminiCall() {
         LlmCallReply reply = generator().generate(new GenerationMaterial(
             Channel.INSTAGRAM, Purpose.INFORMATION, Tone.EMOTIONAL,
-            "가을 신메뉴 밤라떼 출시", null, null));
+            "가을 신메뉴 밤라떼 출시", null, List.of()));
 
         print(Channel.INSTAGRAM, reply);
         assertThat(reply.content().hasRequiredOutput(Channel.INSTAGRAM)).isTrue();

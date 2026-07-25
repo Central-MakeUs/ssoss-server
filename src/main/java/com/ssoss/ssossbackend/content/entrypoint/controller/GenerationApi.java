@@ -1,7 +1,7 @@
 package com.ssoss.ssossbackend.content.entrypoint.controller;
 
 import com.ssoss.ssossbackend.content.entrypoint.request.GenerationStartRequest;
-import com.ssoss.ssossbackend.content.entrypoint.response.GenerationPollResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 
@@ -26,13 +26,13 @@ interface GenerationApi {
             선택한 채널별 AI 콘텐츠를 만드는 생성 작업을 만들고 작업 id 를 즉시 반환합니다.
 
             - 가입 회원(ACTIVE) accessToken 전용 API 입니다.
-            - 콘텐츠는 비동기로 생성됩니다. 반환된 작업 id 로 폴링 API 를 호출해 채널별 결과를 확인하세요.
+            - 콘텐츠는 비동기로 생성됩니다. 반환된 작업 id 로 조회 API 를 호출해 채널별 결과를 확인하세요.
             - 회원당 진행 중 작업은 1건으로 제한됩니다. 진행 중 작업이 있으면 409 로 거부됩니다.
             - 크레딧 잔액이 차감량(5) × 선택 채널 수보다 적으면 400 으로 거부됩니다. 성공한 채널 결과 1건마다 5 가 차감됩니다.
             - 작업은 생성 시각부터 60초가 지나면 더 이상 결과가 더해지지 않습니다.
             """)
     @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "생성 작업이 만들어졌습니다. Location 헤더와 본문의 작업 id 로 폴링할 수 있습니다"),
+        @ApiResponse(responseCode = "201", description = "생성 작업이 만들어졌습니다. Location 헤더와 본문의 작업 id 로 조회할 수 있습니다"),
         @ApiResponse(responseCode = "400",
             description = "입력값이 잘못되었거나 (C0001 — 채널 0개·중복 채널·목적/톤/강조 내용 누락 등) 크레딧이 부족합니다 (CR0002)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
@@ -62,19 +62,26 @@ interface GenerationApi {
     ResponseEntity<GenerationStartResponse> start(Long memberId, GenerationStartRequest request);
 
     @Operation(
-        summary = "생성 작업 폴링",
+        summary = "생성 작업 조회",
         security = @SecurityRequirement(name = "bearerAuth"),
         description = """
-            생성 작업의 진행 상태와 완성된 채널별 결과(제목·본문·해시태그)를 조회합니다.
+            생성 작업 하나의 진행 상태와 선택한 채널 전부의 결과를 조회합니다.
 
             - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 작업만 조회할 수 있습니다.
-            - 결과는 완성된 채널부터 순차로 채워집니다. 블로그만 제목이 있고 나머지 채널은 제목이 null 입니다.
-            - status 가 SUCCEEDED 또는 FAILED 가 될 때까지 주기적으로 폴링하세요. 폴링 간격과 중단 조건은 클라이언트 소관입니다.
-            - FAILED 면 failureReason 으로 실패 원인 범주를 내려주며, 원인 파악이 불가하면 null 입니다.
-              실패한 작업은 재시도(새 생성 요청)로 복구합니다.
+            - results 에는 선택한 채널이 요청한 순서 그대로 전부 담깁니다. 결과 화면의 채널 탭을 이 배열로 그릴 수 있습니다.
+            - 채널별 status 는 PENDING(생성 중)·SUCCEEDED(성공)·FAILED(실패) 셋이고, message 는 상태와 무관하게 항상 값이 있습니다.
+              성공한 채널만 본문이 차고, 제목은 성공한 블로그에만 있습니다.
+            - 생성이 끝나기를 기다릴 때는 status 가 COMPLETED 가 될 때까지 이 API 를 반복 호출하세요.
+              호출 간격과 중단 조건은 클라이언트 소관입니다.
+            - COMPLETED 는 작업이 끝나 더 이상 결과가 더해지지 않는다는 뜻이지 전부 성공했다는 뜻이 아닙니다.
+              채널마다 독립적으로 성공하거나 실패하므로 성공·실패 여부는 results 의 채널별 status 로 판단하세요.
+            - COMPLETED 가 되면 새 생성 요청이 409 로 막히지 않습니다. 결과가 다 나왔는데도 IN_PROGRESS 인 짧은 구간이 있을 수 있는데,
+              이때는 아직 새 생성을 시작할 수 없으므로 다시 생성하기 버튼은 COMPLETED 를 기준으로 열어 주세요.
+            - 실패한 채널은 재시도(새 생성 요청)로 복구합니다.
+            - purpose·tone·keywords 는 생성에 쓴 조건입니다. 작업 id 로 다시 들어와도 결과 화면 상단을 그릴 수 있도록 함께 내려줍니다.
             """)
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "작업 상태와 완성된 채널별 결과를 반환합니다"),
+        @ApiResponse(responseCode = "200", description = "작업 상태와 선택 채널 전부의 결과를 반환합니다"),
         @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """
@@ -91,5 +98,5 @@ interface GenerationApi {
                     {"code":"CT0002","message":"생성 작업을 찾을 수 없습니다"}
                     """)))
     })
-    GenerationPollResponse poll(Long memberId, Long generationId);
+    GenerationDetailResponse getById(Long memberId, Long generationId);
 }
