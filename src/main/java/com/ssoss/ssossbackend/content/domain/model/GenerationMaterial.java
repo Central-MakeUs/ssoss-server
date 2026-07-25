@@ -8,7 +8,8 @@ public record GenerationMaterial(
     Tone tone,
     String emphasis,
     String forbidden,
-    List<String> keywords
+    List<String> keywords,
+    boolean photoGuideChecked
 ) {
 
     public GenerationMaterial {

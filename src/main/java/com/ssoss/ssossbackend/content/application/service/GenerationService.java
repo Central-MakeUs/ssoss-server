@@ -37,7 +37,7 @@ public class GenerationService {
         creditService.checkDeductible(command.memberId(), command.channels().size());
         Generation generation = generationWriter.create(Generation.create(
             command.memberId(), command.channels(), command.purpose(), command.tone(),
-            command.emphasis(), command.forbidden(), command.keywords()));
+            command.emphasis(), command.forbidden(), command.keywords(), command.photoGuideChecked()));
         generationCoordinator.run(generation);
         return new GenerationStartResult(generation.getId());
     }

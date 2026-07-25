@@ -1,6 +1,8 @@
 package com.ssoss.ssossbackend.support;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -22,6 +24,8 @@ public class TestLlmApi {
     private volatile boolean emptyBody;
     private volatile boolean emptyBodyForUntitled;
     private volatile boolean malformedContent;
+    private volatile int markerCount = 2;
+    private volatile int photoGuideCount = 2;
 
     public void start() throws IOException {
         server.setDispatcher(new Dispatcher() {
@@ -61,6 +65,11 @@ public class TestLlmApi {
         this.malformedContent = true;
     }
 
+    public void stubPhotoGuides(int markerCount, int photoGuideCount) {
+        this.markerCount = markerCount;
+        this.photoGuideCount = photoGuideCount;
+    }
+
     public void shutdown() throws IOException {
         server.shutdown();
     }
@@ -74,11 +83,19 @@ public class TestLlmApi {
         return List.copyOf(recordedRequestBodies);
     }
 
+    public List<String> recordedOutputSchemas() {
+        return recordedRequestBodies.stream()
+            .map(body -> String.valueOf(outputProperties(mapper.readTree(body))))
+            .toList();
+    }
+
     public void reset() {
         failureStatus = null;
         emptyBody = false;
         emptyBodyForUntitled = false;
         malformedContent = false;
+        markerCount = 2;
+        photoGuideCount = 2;
         recordedRequestBodies.clear();
     }
 
@@ -86,12 +103,43 @@ public class TestLlmApi {
         if (malformedContent) {
             return completionEnvelope("이건 JSON 이 아닙니다");
         }
-        boolean titled = requestsTitle(mapper.readTree(requestBody));
-        String body = emptyBody || (emptyBodyForUntitled && !titled) ? "" : "테스트 본문";
-        Map<String, Object> content = titled
-            ? Map.of("title", "테스트 제목", "body", body, "hashtags", List.of("#테스트", "#쏘쓰"))
-            : Map.of("body", body, "hashtags", List.of("#테스트", "#쏘쓰"));
+        JsonNode properties = outputProperties(mapper.readTree(requestBody));
+        if (properties == null) {
+            throw new IllegalStateException("LLM 요청에서 출력 스키마를 찾지 못했습니다: " + requestBody);
+        }
+        boolean titled = properties.has("title");
+        boolean photoGuided = properties.has("photoGuides");
+        String body = emptyBody || (emptyBodyForUntitled && !titled) ? "" : bodyWithMarkers(photoGuided);
+        Map<String, Object> content = new LinkedHashMap<>();
+        if (titled) {
+            content.put("title", "테스트 제목");
+        }
+        content.put("body", body);
+        content.put("hashtags", List.of("#테스트", "#쏘쓰"));
+        if (photoGuided) {
+            content.put("photoGuides", photoGuides());
+        }
         return completionEnvelope(mapper.writeValueAsString(content));
+    }
+
+    private String bodyWithMarkers(boolean photoGuided) {
+        if (!photoGuided) {
+            return "테스트 본문";
+        }
+        StringBuilder body = new StringBuilder("테스트 본문");
+        for (int number = 1; number <= markerCount; number++) {
+            body.append("\n<photo-guide/>\n이어지는 본문 %d".formatted(number));
+        }
+        return body.toString();
+    }
+
+    private List<Map<String, Object>> photoGuides() {
+        List<Map<String, Object>> guides = new ArrayList<>();
+        for (int number = 1; number <= photoGuideCount; number++) {
+            guides.add(Map.of("type", "MENU", "title", "사진 제목 %d".formatted(number),
+                "description", "사진 설명 %d".formatted(number)));
+        }
+        return guides;
     }
 
     private String completionEnvelope(String contentText) {
@@ -105,18 +153,19 @@ public class TestLlmApi {
         return mapper.writeValueAsString(completion);
     }
 
-    private boolean requestsTitle(JsonNode node) {
+    private JsonNode outputProperties(JsonNode node) {
         if (node.isObject()) {
             JsonNode properties = node.get("properties");
-            if (properties != null && properties.has("title")) {
-                return true;
+            if (properties != null && properties.has("body")) {
+                return properties;
             }
         }
         for (JsonNode child : node) {
-            if (requestsTitle(child)) {
-                return true;
+            JsonNode found = outputProperties(child);
+            if (found != null) {
+                return found;
             }
         }
-        return false;
+        return null;
     }
 }

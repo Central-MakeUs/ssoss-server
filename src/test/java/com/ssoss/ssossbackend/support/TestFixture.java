@@ -89,11 +89,7 @@ public class TestFixture {
     }
 
     public RestTestClient.ResponseSpec startGeneration(String accessToken, List<String> channels) {
-        return startGeneration(accessToken, Map.of(
-            "channels", channels,
-            "purpose", "INFORMATION",
-            "tone", "CASUAL",
-            "emphasis", "테스트 강조 내용"));
+        return startGeneration(accessToken, generationBody(channels, false));
     }
 
     public RestTestClient.ResponseSpec startGeneration(String accessToken, Map<String, Object> body) {
@@ -105,7 +101,24 @@ public class TestFixture {
     }
 
     public Long startedGenerationId(String accessToken, List<String> channels) {
-        return startGeneration(accessToken, channels)
+        return startedGenerationId(accessToken, generationBody(channels, false));
+    }
+
+    public Long photoGuidedGenerationId(String accessToken, List<String> channels) {
+        return startedGenerationId(accessToken, generationBody(channels, true));
+    }
+
+    private Map<String, Object> generationBody(List<String> channels, boolean photoGuideChecked) {
+        return Map.of(
+            "channels", channels,
+            "purpose", "INFORMATION",
+            "tone", "CASUAL",
+            "emphasis", "테스트 강조 내용",
+            "photoGuideChecked", photoGuideChecked);
+    }
+
+    public Long startedGenerationId(String accessToken, Map<String, Object> body) {
+        return startGeneration(accessToken, body)
             .expectStatus().isCreated()
             .expectBody(GenerationStartResponse.class)
             .returnResult()

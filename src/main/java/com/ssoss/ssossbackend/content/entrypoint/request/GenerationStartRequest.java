@@ -41,10 +41,14 @@ public record GenerationStartRequest(
         example = "[\"디저트 맛집\", \"데이트 코스\"]", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     @Size(max = 10, message = "키워드는 최대 10개까지 입력할 수 있습니다")
     List<@NotBlank(message = "빈 키워드는 보낼 수 없습니다")
-        @Size(max = 30, message = "키워드는 30자 이내로 입력해 주세요") String> keywords
+        @Size(max = 30, message = "키워드는 30자 이내로 입력해 주세요") String> keywords,
+    @Schema(description = "사진 가이드 체크 여부 (선택) — 체크하면 본문에 사진 안내 태그가 함께 담긴다",
+        example = "true", defaultValue = "false", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    Boolean photoGuideChecked
 ) {
 
     public GenerationStartCommand toCommand(Long memberId) {
-        return GenerationStartCommand.of(memberId, channels, purpose, tone, emphasis, forbidden, keywords);
+        return GenerationStartCommand.of(
+            memberId, channels, purpose, tone, emphasis, forbidden, keywords, photoGuideChecked);
     }
 }
