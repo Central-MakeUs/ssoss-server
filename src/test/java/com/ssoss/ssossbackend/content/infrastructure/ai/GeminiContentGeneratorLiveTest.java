@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.content.infrastructure.ai;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 
 import com.google.genai.Client;
@@ -15,7 +16,8 @@ import com.ssoss.ssossbackend.content.domain.model.Tone;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
 
@@ -38,15 +40,24 @@ class GeminiContentGeneratorLiveTest {
             new GeminiCallOutcomeClassifier());
     }
 
-    @Test
-    @DisplayName("블로그 채널을 실호출하면 제목·본문·해시태그가 스키마대로 생성된다")
-    void generatesTitledBlogContent_withRealGeminiCall() {
+    static List<Channel> titledChannels() {
+        return Arrays.stream(Channel.values()).filter(Channel::hasTitle).toList();
+    }
+
+    static List<Channel> untitledChannels() {
+        return Arrays.stream(Channel.values()).filter(channel -> !channel.hasTitle()).toList();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("titledChannels")
+    @DisplayName("제목 있는 채널을 실호출하면 제목·본문·해시태그가 스키마대로 생성된다")
+    void generatesTitledContent_withRealGeminiCall(Channel channel) {
         LlmCallReply reply = generator().generate(new GenerationMaterial(
-            Channel.BLOG, Purpose.EVENT_DISCOUNT, Tone.CASUAL,
+            channel, Purpose.EVENT_DISCOUNT, Tone.CASUAL,
             "이번 주말 아메리카노 1+1 이벤트", "가격 인상 언급", List.of("동네 카페")));
 
-        print(Channel.BLOG, reply);
-        assertThat(reply.content().hasRequiredOutput(Channel.BLOG)).isTrue();
+        print(channel, reply);
+        assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
         assertThat(reply.content().title()).isNotBlank();
         assertThat(reply.content().body()).isNotBlank();
         assertThat(reply.content().hashtags()).isNotEmpty();
@@ -54,18 +65,21 @@ class GeminiContentGeneratorLiveTest {
         assertThat(reply.responseTimeMillis()).isPositive();
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("untitledChannels")
     @DisplayName("제목 없는 채널을 실호출하면 제목 없이 본문·해시태그가 생성된다")
-    void generatesUntitledContent_withRealGeminiCall() {
+    void generatesUntitledContent_withRealGeminiCall(Channel channel) {
         LlmCallReply reply = generator().generate(new GenerationMaterial(
-            Channel.INSTAGRAM, Purpose.INFORMATION, Tone.EMOTIONAL,
+            channel, Purpose.INFORMATION, Tone.EMOTIONAL,
             "가을 신메뉴 밤라떼 출시", null, List.of()));
 
-        print(Channel.INSTAGRAM, reply);
-        assertThat(reply.content().hasRequiredOutput(Channel.INSTAGRAM)).isTrue();
+        print(channel, reply);
+        assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
         assertThat(reply.content().title()).isNull();
         assertThat(reply.content().body()).isNotBlank();
         assertThat(reply.content().hashtags()).isNotEmpty();
+        assertThat(reply.outputTokens()).isPositive();
+        assertThat(reply.responseTimeMillis()).isPositive();
     }
 
     private String geminiApiKey() {
