@@ -649,6 +649,53 @@ class GenerationApiTest extends IntegrationTest {
     }
 
     @Nested
+    @DisplayName("채널별 해시태그 정책")
+    class ChannelHashtagPolicy {
+
+        @Test
+        @DisplayName("당근 비즈만 LLM 출력 스키마에서 해시태그 필드가 빠진다")
+        void omitsHashtagsField_onlyForDaangnBiz() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-tag-schema");
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("DAANGN_BIZ"));
+            assertThat(llmApi.recordedOutputSchemas()).singleElement()
+                .satisfies(schema -> assertThat(schema).contains("paragraphs").doesNotContain("hashtags"));
+
+            llmApi.reset();
+            fixture.startedGenerationId(signup.accessToken(), List.of("THREADS"));
+            assertThat(llmApi.recordedOutputSchemas()).singleElement()
+                .satisfies(schema -> assertThat(schema).contains("hashtags"));
+        }
+
+        @Test
+        @DisplayName("당근 비즈 결과의 해시태그는 빈 배열이다")
+        void returnsEmptyHashtags_whenChannelIsDaangnBiz() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-tag-daangn");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("DAANGN_BIZ"));
+
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
+                    assertThat(result.status()).isEqualTo("SUCCEEDED");
+                    assertThat(result.body()).isNotBlank();
+                    assertThat(result.hashtags()).isEmpty();
+                }));
+        }
+
+        @Test
+        @DisplayName("당근 비즈 요청에는 해시태그를 만들지 않는다는 지시가 실린다")
+        void carriesNoHashtagInstruction_whenChannelIsDaangnBiz() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-tag-instruction");
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("DAANGN_BIZ"));
+
+            assertThat(llmApi.recordedRequestBodies()).singleElement()
+                .satisfies(request -> assertThat(request).contains("해시태그를 만들지 않는다"));
+        }
+    }
+
+    @Nested
     @DisplayName("결과 상태 기록")
     class ResultStatusRecord {
 

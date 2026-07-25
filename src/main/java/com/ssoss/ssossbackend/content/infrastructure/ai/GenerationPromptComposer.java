@@ -17,22 +17,35 @@ class GenerationPromptComposer {
     private static final String BLOG_INSTRUCTION = """
         [채널]
         네이버 블로그에 올릴 글을 쓴다.
-        검색 노출을 고려한 30자 이내의 제목을 함께 쓰고, 본문은 1,000~2,000자 분량으로 문단을 나눠 자세히 쓴다.""";
+        검색 노출을 고려한 40자 이내의 제목을 함께 쓴다.
+        본문은 1,000자 이상 2,000자 이하로 쓴다. 1,000자에 못 미치는 본문은 지시를 어긴 것이다.
+        문단은 4~6개로 나누고 각 문단을 200자 이상으로 쓴다.""";
 
     private static final String INSTAGRAM_INSTRUCTION = """
         [채널]
         인스타그램 피드에 올릴 캡션을 쓴다.
-        제목 없이 본문만 쓰고, 첫 문장으로 시선을 끌며 300~800자 분량으로 쓴다. 줄바꿈으로 호흡을 나누고 이모지를 적절히 섞는다.""";
+        제목 없이 본문만 쓰고, 첫 문장으로 시선을 끈다.
+        본문은 300자 이상 700자 이하로 쓴다.
+        문단은 2~4개로 나누고 이모지를 적절히 섞는다.""";
 
     private static final String DAANGN_BIZ_INSTRUCTION = """
         [채널]
         당근 비즈프로필 소식에 올릴 글을 쓴다.
-        제목 없이 본문만 쓰고, 동네 이웃에게 말을 거는 친근한 문장으로 200~600자 분량으로 쓴다.""";
+        제목 없이 본문만 쓰고, 동네 이웃에게 말을 거는 친근한 문장으로 쓴다.
+        본문은 150자 이상 400자 이하로 쓴다.
+        문단은 2~3개로 나눈다.""";
 
     private static final String THREADS_INSTRUCTION = """
         [채널]
         스레드에 올릴 게시물을 쓴다.
-        제목 없이 본문만 쓰고, 대화하듯 짧고 편한 문장으로 100~400자 분량으로 쓴다.""";
+        제목 없이 본문만 쓰고, 대화하듯 짧고 편한 문장으로 쓴다.
+        본문은 100자 이상 500자 이하로 쓴다.
+        문단은 2~3개로 나눈다.""";
+
+    private static final String BODY_FORMAT_SECTION = """
+        [본문 형식]
+        본문은 paragraphs 배열에 담고, 원소 하나가 문단 하나다.
+        원소 안에서는 줄바꿈을 쓰지 않고 빈 원소도 넣지 않는다.""";
 
     private static final String EMPHASIS_SECTION = """
         [강조 내용]
@@ -55,7 +68,7 @@ class GenerationPromptComposer {
 
     private static final String PHOTO_GUIDE_SECTION = """
         [사진 가이드]
-        사진이 들어가면 좋을 자리를 1~4곳 골라, 그 자리에 <photo-guide/> 마커를 문단 사이에 한 줄로 넣는다.
+        사진이 들어가면 좋을 자리를 %s 골라, 그 자리에 <photo-guide/> 마커만 담은 원소를 문단 사이에 끼운다.
         마커와 같은 순서로 photoGuides 배열을 채우고 개수를 정확히 맞춘다.
         type 은 MENU(메뉴·음식), STORE(매장 외관·내부), MOOD(분위기·소품), PEOPLE(사람) 중 하나를 고른다.
         title 은 어떤 사진인지 15자 이내로, description 은 어떻게 찍으면 좋은지 40자 이내로 쓴다.
@@ -63,7 +76,16 @@ class GenerationPromptComposer {
 
     private static final String HASHTAG_SECTION = """
         [해시태그]
-        해시태그는 3~5개 만들고, 각 태그는 #으로 시작하는 공백 없는 한 단어로 쓴다.""";
+        해시태그는 10개 만들고, 각 태그는 #으로 시작하는 공백 없는 한 단어로 쓴다.""";
+
+    private static final String OPTIONAL_HASHTAG_SECTION = """
+        [해시태그]
+        해시태그는 어울릴 때만 최대 3개까지 만들고, 어울리지 않으면 만들지 않는다.
+        만들 때는 #으로 시작하는 공백 없는 한 단어로 쓴다.""";
+
+    private static final String NO_HASHTAG_SECTION = """
+        [해시태그]
+        해시태그를 만들지 않는다. 본문에도 #으로 시작하는 태그를 쓰지 않는다.""";
 
     String compose(GenerationMaterial material) {
         String channelInstruction = switch (material.channel()) {
@@ -86,6 +108,7 @@ class GenerationPromptComposer {
         List<String> sections = new ArrayList<>();
         sections.add(ROLE_INSTRUCTION);
         sections.add(channelInstruction);
+        sections.add(BODY_FORMAT_SECTION);
         sections.add("[목적]\n" + purposeInstruction);
         sections.add("[톤]\n" + toneInstruction);
         sections.add(EMPHASIS_SECTION.formatted(material.emphasis()));
@@ -97,9 +120,18 @@ class GenerationPromptComposer {
         }
         sections.add(NO_STORE_SECTION);
         if (material.photoGuideChecked()) {
-            sections.add(PHOTO_GUIDE_SECTION);
+            String places = switch (material.channel()) {
+                case BLOG -> "2~4곳";
+                case INSTAGRAM -> "1~2곳";
+                case DAANGN_BIZ, THREADS -> "1곳";
+            };
+            sections.add(PHOTO_GUIDE_SECTION.formatted(places));
         }
-        sections.add(HASHTAG_SECTION);
+        sections.add(switch (material.channel()) {
+            case BLOG, INSTAGRAM -> HASHTAG_SECTION;
+            case THREADS -> OPTIONAL_HASHTAG_SECTION;
+            case DAANGN_BIZ -> NO_HASHTAG_SECTION;
+        });
         return String.join("\n\n", sections);
     }
 }

@@ -109,28 +109,33 @@ public class TestLlmApi {
         }
         boolean titled = properties.has("title");
         boolean photoGuided = properties.has("photoGuides");
-        String body = emptyBody || (emptyBodyForUntitled && !titled) ? "" : bodyWithMarkers(photoGuided);
+        List<String> paragraphs = emptyBody || (emptyBodyForUntitled && !titled)
+            ? List.of()
+            : paragraphsWithMarkers(photoGuided);
         Map<String, Object> content = new LinkedHashMap<>();
         if (titled) {
             content.put("title", "테스트 제목");
         }
-        content.put("body", body);
-        content.put("hashtags", List.of("#테스트", "#쏘쓰"));
+        content.put("paragraphs", paragraphs);
+        if (properties.has("hashtags")) {
+            content.put("hashtags", List.of("#테스트", "#쏘쓰"));
+        }
         if (photoGuided) {
             content.put("photoGuides", photoGuides());
         }
         return completionEnvelope(mapper.writeValueAsString(content));
     }
 
-    private String bodyWithMarkers(boolean photoGuided) {
-        if (!photoGuided) {
-            return "테스트 본문";
+    private List<String> paragraphsWithMarkers(boolean photoGuided) {
+        List<String> paragraphs = new ArrayList<>();
+        paragraphs.add("테스트 본문");
+        if (photoGuided) {
+            for (int number = 1; number <= markerCount; number++) {
+                paragraphs.add("<photo-guide/>");
+                paragraphs.add("이어지는 본문 %d".formatted(number));
+            }
         }
-        StringBuilder body = new StringBuilder("테스트 본문");
-        for (int number = 1; number <= markerCount; number++) {
-            body.append("\n<photo-guide/>\n이어지는 본문 %d".formatted(number));
-        }
-        return body.toString();
+        return paragraphs;
     }
 
     private List<Map<String, Object>> photoGuides() {
@@ -156,7 +161,7 @@ public class TestLlmApi {
     private JsonNode outputProperties(JsonNode node) {
         if (node.isObject()) {
             JsonNode properties = node.get("properties");
-            if (properties != null && properties.has("body")) {
+            if (properties != null && properties.has("paragraphs")) {
                 return properties;
             }
         }
