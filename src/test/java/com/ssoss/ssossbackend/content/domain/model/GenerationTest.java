@@ -16,6 +16,10 @@ class GenerationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-07-22T10:00:00Z");
     private static final Instant DEADLINE = CREATED_AT.plus(Generation.DEADLINE);
 
+    private LlmCallReply reply(GeneratedContent content) {
+        return new LlmCallReply(content, 100L, 10, 20, "{}");
+    }
+
     private Generation generation(List<Channel> channels) {
         Generation generation = Generation.create(1L, channels, Purpose.INFORMATION, Tone.CASUAL,
             "강조", null, null);
@@ -29,16 +33,14 @@ class GenerationTest {
     class Finish {
 
         @Test
-        @DisplayName("deadline 이내에 끝나면 finished_at 이 기록되고 성공으로 파생된다")
-        void recordsFinishedAtAndDerivesSucceeded_whenFinishedWithinDeadline() {
+        @DisplayName("deadline 이내에 끝나면 finished_at 이 기록된다")
+        void recordsFinishedAt_whenFinishedWithinDeadline() {
             Generation generation = generation(List.of(Channel.BLOG));
 
             boolean finished = generation.finish(CREATED_AT.plusSeconds(10));
 
             assertThat(finished).isTrue();
             assertThat(generation.getFinishedAt()).isEqualTo(CREATED_AT.plusSeconds(10));
-            assertThat(generation.status(CREATED_AT.plusSeconds(10), List.of(Channel.BLOG)))
-                .isEqualTo(GenerationStatus.SUCCEEDED);
         }
 
         @Test
@@ -49,7 +51,7 @@ class GenerationTest {
             boolean finished = generation.finish(DEADLINE);
 
             assertThat(finished).isTrue();
-            assertThat(generation.status(DEADLINE, List.of(Channel.BLOG))).isEqualTo(GenerationStatus.SUCCEEDED);
+            assertThat(generation.getFinishedAt()).isEqualTo(DEADLINE);
         }
 
         @Test
@@ -69,41 +71,36 @@ class GenerationTest {
     class Status {
 
         @Test
-        @DisplayName("finished_at 이 없고 deadline 이내면 진행 중으로 파생된다")
+        @DisplayName("작업이 끝나지 않고 deadline 이내면 진행 중으로 파생된다")
         void derivesInProgress_whenNotFinishedWithinDeadline() {
             Generation generation = generation(List.of(Channel.BLOG));
 
-            assertThat(generation.status(CREATED_AT.plusSeconds(10), List.of()))
-                .isEqualTo(GenerationStatus.IN_PROGRESS);
+            assertThat(generation.status(CREATED_AT.plusSeconds(10))).isEqualTo(GenerationStatus.IN_PROGRESS);
         }
 
         @Test
-        @DisplayName("finished_at 없이 deadline 이 지나면 실패로 파생된다")
-        void derivesFailed_whenDeadlinePassedWithoutFinish() {
+        @DisplayName("작업이 끝나면 완료로 파생된다")
+        void derivesCompleted_whenFinished() {
+            Generation generation = generation(List.of(Channel.BLOG));
+            generation.finish(CREATED_AT.plusSeconds(10));
+
+            assertThat(generation.status(CREATED_AT.plusSeconds(10))).isEqualTo(GenerationStatus.COMPLETED);
+        }
+
+        @Test
+        @DisplayName("끝나지 않은 채 deadline 이 지나면 완료로 파생된다")
+        void derivesCompleted_whenDeadlinePassedWithoutFinish() {
             Generation generation = generation(List.of(Channel.BLOG));
 
-            assertThat(generation.status(DEADLINE.plusSeconds(1), List.of()))
-                .isEqualTo(GenerationStatus.FAILED);
+            assertThat(generation.status(DEADLINE.plusSeconds(1))).isEqualTo(GenerationStatus.COMPLETED);
         }
 
         @Test
-        @DisplayName("끝났는데 성공한 채널이 없으면 실패로 파생된다")
-        void derivesFailed_whenFinishedWithoutAnySuccess() {
-            Generation generation = generation(List.of(Channel.BLOG, Channel.INSTAGRAM));
-            generation.finish(CREATED_AT.plusSeconds(10));
+        @DisplayName("deadline 정각에는 아직 진행 중으로 파생된다")
+        void derivesInProgress_whenExactlyAtDeadline() {
+            Generation generation = generation(List.of(Channel.BLOG));
 
-            assertThat(generation.status(CREATED_AT.plusSeconds(10), List.of()))
-                .isEqualTo(GenerationStatus.FAILED);
-        }
-
-        @Test
-        @DisplayName("끝났고 성공한 채널이 하나라도 있으면 성공으로 파생된다")
-        void derivesSucceeded_whenFinishedWithAnySuccess() {
-            Generation generation = generation(List.of(Channel.BLOG, Channel.INSTAGRAM));
-            generation.finish(CREATED_AT.plusSeconds(10));
-
-            assertThat(generation.status(CREATED_AT.plusSeconds(10), List.of(Channel.BLOG)))
-                .isEqualTo(GenerationStatus.SUCCEEDED);
+            assertThat(generation.status(DEADLINE)).isEqualTo(GenerationStatus.IN_PROGRESS);
         }
     }
 
@@ -164,27 +161,134 @@ class GenerationTest {
     }
 
     @Nested
-    @DisplayName("pendingChannels")
-    class PendingChannels {
+    @DisplayName("channelResults")
+    class ChannelResults {
 
         @Test
-        @DisplayName("진행 중 채널은 선택 채널에서 완료된 채널을 뺀 나머지다")
-        void derivesPendingChannels_bySubtractingSettledChannels() {
-            Generation generation = generation(List.of(Channel.BLOG, Channel.INSTAGRAM, Channel.THREADS));
+        @DisplayName("결과 행이 없고 deadline 이내면 진행 중으로 파생된다")
+        void derivesPending_whenNoResultWithinDeadline() {
+            Generation generation = generation(List.of(Channel.BLOG));
 
-            List<Channel> pending = generation.pendingChannels(List.of(Channel.INSTAGRAM));
+            List<ChannelResult> results = generation.channelResults(CREATED_AT.plusSeconds(10), List.of());
 
-            assertThat(pending).containsExactly(Channel.BLOG, Channel.THREADS);
+            assertThat(results).singleElement().satisfies(result -> {
+                assertThat(result.channel()).isEqualTo(Channel.BLOG);
+                assertThat(result.status()).isEqualTo(ChannelStatus.PENDING);
+                assertThat(result.message()).isEqualTo(ChannelOutcome.PENDING.getMessage());
+                assertThat(result.title()).isNull();
+                assertThat(result.body()).isNull();
+                assertThat(result.hashtags()).isEmpty();
+            });
         }
 
         @Test
-        @DisplayName("모든 채널이 완료되면 진행 중 채널이 비어 있다")
-        void returnsEmpty_whenAllChannelsSettled() {
+        @DisplayName("성공한 결과 행이 있으면 성공으로 파생되고 콘텐츠가 실린다")
+        void derivesSucceededWithContent_whenSucceededResultExists() {
+            Generation generation = generation(List.of(Channel.BLOG));
+            GenerationResult succeeded = GenerationResult.succeeded(1L, Channel.BLOG,
+                reply(new GeneratedContent("제목", "본문", List.of("#태그"))));
+
+            List<ChannelResult> results = generation.channelResults(CREATED_AT.plusSeconds(10), List.of(succeeded));
+
+            assertThat(results).singleElement().satisfies(result -> {
+                assertThat(result.status()).isEqualTo(ChannelStatus.SUCCEEDED);
+                assertThat(result.message()).isEqualTo(ChannelOutcome.SUCCEEDED.getMessage());
+                assertThat(result.title()).isEqualTo("제목");
+                assertThat(result.body()).isEqualTo("본문");
+                assertThat(result.hashtags()).containsExactly("#태그");
+            });
+        }
+
+        @Test
+        @DisplayName("실패한 결과 행이 있으면 실패로 파생되고 사유 문구가 붙는다")
+        void derivesFailedWithReasonMessage_whenFailedResultExists() {
+            Generation generation = generation(List.of(Channel.BLOG));
+            GenerationResult failed = GenerationResult.failed(1L, Channel.BLOG,
+                GenerationResultStatus.RATE_LIMITED, 100L, null, null, null);
+
+            List<ChannelResult> results = generation.channelResults(CREATED_AT.plusSeconds(10), List.of(failed));
+
+            assertThat(results).singleElement().satisfies(result -> {
+                assertThat(result.status()).isEqualTo(ChannelStatus.FAILED);
+                assertThat(result.message()).isEqualTo(ChannelOutcome.OVERLOADED.getMessage());
+                assertThat(result.title()).isNull();
+                assertThat(result.body()).isNull();
+                assertThat(result.hashtags()).isEmpty();
+            });
+        }
+
+        @Test
+        @DisplayName("결과 행 없이 deadline 이 지나면 시간 초과로 실패 파생된다")
+        void derivesTimedOut_whenNoResultAfterDeadline() {
+            Generation generation = generation(List.of(Channel.BLOG));
+
+            List<ChannelResult> results = generation.channelResults(DEADLINE.plusSeconds(1), List.of());
+
+            assertThat(results).singleElement().satisfies(result -> {
+                assertThat(result.status()).isEqualTo(ChannelStatus.FAILED);
+                assertThat(result.message()).isEqualTo(ChannelOutcome.TIMED_OUT.getMessage());
+            });
+        }
+
+        @Test
+        @DisplayName("작업이 끝났는데 결과 행이 없는 채널은 deadline 전이라도 시간 초과로 실패 파생된다")
+        void derivesTimedOut_whenFinishedWithoutResult() {
+            Generation generation = generation(List.of(Channel.BLOG));
+            generation.finish(CREATED_AT.plusSeconds(10));
+
+            List<ChannelResult> results = generation.channelResults(CREATED_AT.plusSeconds(10), List.of());
+
+            assertThat(results).singleElement().satisfies(result -> {
+                assertThat(result.status()).isEqualTo(ChannelStatus.FAILED);
+                assertThat(result.message()).isEqualTo(ChannelOutcome.TIMED_OUT.getMessage());
+            });
+        }
+
+        @Test
+        @DisplayName("결과 행이 없어도 deadline 정각까지는 진행 중으로 파생된다")
+        void derivesPending_whenExactlyAtDeadline() {
+            Generation generation = generation(List.of(Channel.BLOG));
+
+            List<ChannelResult> results = generation.channelResults(DEADLINE, List.of());
+
+            assertThat(results).singleElement().satisfies(result ->
+                assertThat(result.status()).isEqualTo(ChannelStatus.PENDING));
+        }
+
+        @Test
+        @DisplayName("작업이 끝나면 결과 행이 있는 채널과 없는 채널이 각각 성공과 실패로 갈린다")
+        void splitsSucceededAndUnrecordedChannels_whenFinished() {
             Generation generation = generation(List.of(Channel.BLOG, Channel.INSTAGRAM));
+            GenerationResult succeeded = GenerationResult.succeeded(1L, Channel.BLOG,
+                reply(new GeneratedContent("제목", "본문", List.of("#태그"))));
+            generation.finish(CREATED_AT.plusSeconds(10));
 
-            List<Channel> pending = generation.pendingChannels(List.of(Channel.BLOG, Channel.INSTAGRAM));
+            List<ChannelResult> results = generation.channelResults(
+                CREATED_AT.plusSeconds(10), List.of(succeeded));
 
-            assertThat(pending).isEmpty();
+            assertThat(results).satisfiesExactly(
+                blog -> {
+                    assertThat(blog.channel()).isEqualTo(Channel.BLOG);
+                    assertThat(blog.status()).isEqualTo(ChannelStatus.SUCCEEDED);
+                    assertThat(blog.body()).isEqualTo("본문");
+                },
+                instagram -> {
+                    assertThat(instagram.channel()).isEqualTo(Channel.INSTAGRAM);
+                    assertThat(instagram.status()).isEqualTo(ChannelStatus.FAILED);
+                    assertThat(instagram.message()).isEqualTo(ChannelOutcome.TIMED_OUT.getMessage());
+                    assertThat(instagram.body()).isNull();
+                });
+        }
+
+        @Test
+        @DisplayName("채널별 결과는 선택한 순서대로 나온다")
+        void keepsSelectedChannelOrder() {
+            Generation generation = generation(List.of(Channel.INSTAGRAM, Channel.BLOG, Channel.THREADS));
+
+            List<ChannelResult> results = generation.channelResults(CREATED_AT.plusSeconds(10), List.of());
+
+            assertThat(results).extracting(ChannelResult::channel)
+                .containsExactly(Channel.INSTAGRAM, Channel.BLOG, Channel.THREADS);
         }
     }
 }

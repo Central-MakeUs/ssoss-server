@@ -1,16 +1,14 @@
 package com.ssoss.ssossbackend.content.application.service;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 
 import com.ssoss.ssossbackend.content.application.command.GenerationStartCommand;
-import com.ssoss.ssossbackend.content.application.result.GenerationPollResult;
+import com.ssoss.ssossbackend.content.application.result.GenerationDetailResult;
 import com.ssoss.ssossbackend.content.application.result.GenerationStartResult;
-import com.ssoss.ssossbackend.content.domain.model.Channel;
+import com.ssoss.ssossbackend.content.domain.model.ChannelResult;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
-import com.ssoss.ssossbackend.content.domain.model.GenerationFailureReason;
-import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
-import com.ssoss.ssossbackend.content.domain.model.GenerationStatus;
 import com.ssoss.ssossbackend.content.domain.service.GenerationCoordinator;
 import com.ssoss.ssossbackend.content.domain.service.GenerationFinder;
 import com.ssoss.ssossbackend.content.domain.service.GenerationValidator;
@@ -44,33 +42,21 @@ public class GenerationService {
         return new GenerationStartResult(generation.getId());
     }
 
-    public GenerationPollResult poll(Long generationId, Long memberId) {
+    public GenerationDetailResult getById(Long generationId, Long memberId) {
+        Instant now = clock.instant();
         Generation generation = generationFinder.get(generationId, memberId);
-        List<GenerationResult> results = generationFinder.results(generationId);
-        List<Channel> settledChannels = results.stream()
-            .map(GenerationResult::getChannel)
-            .toList();
-        List<GenerationResult> succeededResults = results.stream()
-            .filter(GenerationResult::isSucceeded)
-            .toList();
-        List<Channel> succeededChannels = succeededResults.stream()
-            .map(GenerationResult::getChannel)
-            .toList();
-        GenerationStatus status = generation.status(clock.instant(), succeededChannels);
-        String failureReason = status != GenerationStatus.FAILED ? null
-            : GenerationFailureReason.derive(results)
-                .map(Enum::name)
-                .orElse(null);
-        return new GenerationPollResult(
+        List<ChannelResult> channelResults = generation.channelResults(
+            now, generationFinder.results(generationId));
+        return new GenerationDetailResult(
             generation.getId(),
-            status.name(),
-            failureReason,
-            succeededResults.stream()
-                .map(result -> new GenerationPollResult.ChannelResult(
-                    result.getChannel().name(), result.getTitle(), result.getBody(), result.hashtagList()))
-                .toList(),
-            generation.pendingChannels(settledChannels).stream()
-                .map(Channel::name)
+            generation.status(now).name(),
+            generation.getPurpose().name(),
+            generation.getTone().name(),
+            generation.keywordList(),
+            channelResults.stream()
+                .map(result -> new GenerationDetailResult.ChannelDetail(
+                    result.channel().name(), result.status().name(), result.message(),
+                    result.title(), result.body(), result.hashtags()))
                 .toList());
     }
 }

@@ -16,11 +16,11 @@ public record GenerationStartCommand(
     Tone tone,
     String emphasis,
     String forbidden,
-    String keywords
+    List<String> keywords
 ) {
 
     public static GenerationStartCommand of(Long memberId, List<String> channels, String purpose, String tone,
-        String emphasis, String forbidden, String keywords) {
+        String emphasis, String forbidden, List<String> keywords) {
         List<Channel> parsedChannels = channels.stream().map(Channel::from).toList();
         if (Set.copyOf(parsedChannels).size() != parsedChannels.size()) {
             throw new BusinessException(CommonErrorCode.INVALID_INPUT);
