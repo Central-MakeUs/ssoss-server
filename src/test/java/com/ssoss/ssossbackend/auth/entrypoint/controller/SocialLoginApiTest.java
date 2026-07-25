@@ -5,11 +5,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
+import com.ssoss.ssossbackend.auth.domain.contract.SocialLoginRepository;
 import com.ssoss.ssossbackend.auth.domain.contract.TokenHasher;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.domain.model.RefreshToken;
 import com.ssoss.ssossbackend.auth.domain.model.RefreshTokenStatus;
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
+import com.ssoss.ssossbackend.auth.domain.model.SocialLogin;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.model.Member;
@@ -42,8 +44,12 @@ class SocialLoginApiTest extends IntegrationTest {
     @Autowired
     private TokenHasher tokenHasher;
 
+    @Autowired
+    private SocialLoginRepository socialLoginRepository;
+
     @BeforeEach
     void resetDatabase() {
+        socialLoginRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         memberRepository.deleteAll();
     }
@@ -302,7 +308,7 @@ class SocialLoginApiTest extends IntegrationTest {
         void returns404AndAuthErrorCode_whenProviderIsUnsupported() {
             fixture.client().post().uri("/v1/social-logins/kakao")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("accessToken", "any-token"))
+                .body(Map.of("accessToken", "any-token", "refreshToken", "any-refresh-token"))
                 .exchange()
                 .expectStatus().isNotFound()
                 .expectBody(ErrorResponse.class)
@@ -313,6 +319,93 @@ class SocialLoginApiTest extends IntegrationTest {
         @DisplayName("소셜 액세스 토큰이 비어 있으면 400 과 C0001 을 반환한다")
         void returns400_whenAccessTokenIsBlank() {
             fixture.socialLogin(SocialProvider.NAVER, "")
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("네이버 로그인하면 프로바이더 리프레시 토큰이 저장된다")
+        void storesProviderRefreshToken_whenNaverLogin() {
+            naverApi.stubProfile("naver-access-token", "naver-id-store");
+
+            fixture.socialLogin(SocialProvider.NAVER, "naver-access-token", "naver-refresh-token")
+                .expectStatus().isOk();
+
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-id-store").orElseThrow();
+            assertThat(socialLoginRepository.findByMemberId(member.getId()))
+                .get()
+                .extracting(SocialLogin::getRefreshToken)
+                .isEqualTo("naver-refresh-token");
+        }
+
+        @Test
+        @DisplayName("애플 authorization code 교환이 실패해도 로그인은 200 으로 토큰 쌍을 응답한다")
+        void completesLogin_whenAppleTokenExchangeFails() {
+            appleApi.stubJwks();
+            appleApi.stubTokenExchangeServerError();
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-exchange-fail"), "apple-auth-code")
+                .expectStatus().isOk()
+                .expectBody(SocialLoginResponse.class)
+                .value(body -> {
+                    assertThat(body.status()).isEqualTo("PENDING");
+                    assertThat(body.accessToken()).isNotBlank();
+                    assertThat(body.refreshToken()).isNotBlank();
+                });
+
+            Member member = memberRepository.findByProviderAndSocialId(APPLE, "apple-sub-exchange-fail").orElseThrow();
+            assertThat(socialLoginRepository.findByMemberId(member.getId())).isEmpty();
+        }
+
+        @Test
+        @DisplayName("애플 로그인하면 authorization code 를 교환해 받은 리프레시 토큰이 저장된다")
+        void storesExchangedRefreshToken_whenAppleLogin() {
+            appleApi.stubJwks();
+            appleApi.stubTokenExchange("apple-exchanged-refresh-token");
+
+            fixture.socialLogin(SocialProvider.APPLE, appleApi.issueIdentityToken("apple-sub-store"), "apple-auth-code")
+                .expectStatus().isOk();
+
+            Member member = memberRepository.findByProviderAndSocialId(APPLE, "apple-sub-store").orElseThrow();
+            assertThat(socialLoginRepository.findByMemberId(member.getId()))
+                .get()
+                .extracting(SocialLogin::getRefreshToken)
+                .isEqualTo("apple-exchanged-refresh-token");
+            assertThat(appleApi.tokenRequestBodies())
+                .singleElement()
+                .satisfies(body -> assertThat(body)
+                    .contains("grant_type=authorization_code")
+                    .contains("code=apple-auth-code")
+                    .contains("client_id=test-apple-client-id"));
+        }
+
+        @Test
+        @DisplayName("같은 회원이 다시 로그인하면 저장된 프로바이더 리프레시 토큰이 새 값으로 덮어써진다")
+        void replacesProviderRefreshToken_whenMemberLogsInAgain() {
+            naverApi.stubProfile("naver-access-token", "naver-id-replace");
+            fixture.socialLogin(SocialProvider.NAVER, "naver-access-token", "first-refresh-token")
+                .expectStatus().isOk();
+
+            fixture.socialLogin(SocialProvider.NAVER, "naver-access-token", "second-refresh-token")
+                .expectStatus().isOk();
+
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-id-replace").orElseThrow();
+            assertThat(socialLoginRepository.findByMemberId(member.getId()))
+                .get()
+                .extracting(SocialLogin::getRefreshToken)
+                .isEqualTo("second-refresh-token");
+        }
+
+        @Test
+        @DisplayName("프로바이더 리프레시 토큰이 없으면 400 과 C0001 을 반환한다")
+        void returns400_whenRefreshTokenIsMissing() {
+            naverApi.stubProfile("naver-access-token", "naver-id-new");
+
+            client().post().uri("/v1/social-logins/naver")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("accessToken", "naver-access-token"))
+                .exchange()
                 .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));

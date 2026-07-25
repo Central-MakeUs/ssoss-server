@@ -33,9 +33,13 @@ public class TestFixture {
     }
 
     public RestTestClient.ResponseSpec socialLogin(SocialProvider provider, String accessToken) {
+        return socialLogin(provider, accessToken, provider.name().toLowerCase(Locale.ROOT) + "-refresh-token");
+    }
+
+    public RestTestClient.ResponseSpec socialLogin(SocialProvider provider, String accessToken, String refreshToken) {
         return client.post().uri("/v1/social-logins/" + provider.name().toLowerCase(Locale.ROOT))
             .contentType(MediaType.APPLICATION_JSON)
-            .body(Map.of("accessToken", accessToken))
+            .body(Map.of("accessToken", accessToken, "refreshToken", refreshToken))
             .exchange();
     }
 

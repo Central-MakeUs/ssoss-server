@@ -44,4 +44,24 @@ class NaverOAuthConfig {
             .build()
             .createClient(NaverProfileHttpClient.class);
     }
+
+    @Bean
+    NaverRevokeHttpClient naverRevokeHttpClient(
+        RestClient.Builder restClientBuilder,
+        @Value("${auth.oauth.naver.revoke-url}") String revokeUrl,
+        @Value("${auth.oauth.naver.connect-timeout}") Duration connectTimeout,
+        @Value("${auth.oauth.naver.read-timeout}") Duration readTimeout
+    ) {
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
+            HttpClient.newBuilder().connectTimeout(connectTimeout).build()
+        );
+        requestFactory.setReadTimeout(readTimeout);
+        RestClient restClient = restClientBuilder
+            .requestFactory(requestFactory)
+            .baseUrl(revokeUrl)
+            .build();
+        return HttpServiceProxyFactory.builderFor(RestClientAdapter.create(restClient))
+            .build()
+            .createClient(NaverRevokeHttpClient.class);
+    }
 }

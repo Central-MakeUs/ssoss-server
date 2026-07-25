@@ -23,9 +23,12 @@ interface SocialLoginApi {
 
             **처리 순서**
             1. 앱이 프로바이더 SDK 로그인으로 토큰을 발급받습니다.
-               - naver: 액세스 토큰
-               - apple: identity token (JWT)
-            2. 이 API 의 `accessToken` 필드에 발급받은 토큰을 전달합니다.
+               - naver: 액세스 토큰 + 리프레시 토큰
+               - apple: identity token (JWT) + authorization code
+            2. 이 API 의 `accessToken`·`refreshToken` 필드에 각각 전달합니다. 두 필드 모두 필수입니다.
+               - `accessToken` — naver 는 액세스 토큰, apple 은 identity token
+               - `refreshToken` — naver 는 리프레시 토큰, apple 은 authorization code.
+                 탈퇴할 때 소셜 연결을 해제하는 데 쓰려고 보관합니다.
             3. 서버가 토큰 유효성을 확인합니다. 무효한 토큰이면 401 을 응답합니다.
                - naver: 네이버 프로필 API 호출로 확인합니다.
                - apple: 애플 공개키(JWKS)로 identity token 서명과 클레임(iss/aud/exp)을 검증합니다.
@@ -35,6 +38,8 @@ interface SocialLoginApi {
                - 토큰 형태는 상태와 무관하게 동일하며, 호출할 수 있는 API 는 accessToken 의 role 이 결정합니다.
                  가입 대기(PENDING) 토큰은 회원가입만 호출할 수 있고, 탈퇴 대기(WITHDRAWN) 토큰은 복구 용도 전용입니다.
                  role 에 허용되지 않은 API 를 호출하면 403 (A0007) 을 응답합니다.
+               - `refreshToken` 은 이 시점에 회원별로 하나만 보관되며 로그인할 때마다 최신 값으로 덮어씁니다.
+                 apple 은 authorization code 를 애플 서버에서 교환한 결과를 보관하는데, 이 교환이 실패해도 로그인은 그대로 성공합니다.
             """)
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "인증에 성공해 회원 상태와 토큰 쌍을 반환합니다",
@@ -51,7 +56,7 @@ interface SocialLoginApi {
                         """)
                 })),
         @ApiResponse(responseCode = "400", description = """
-            accessToken 이 누락되었거나 공백입니다 (C0001) — 요청 본문을 확인해 주세요.
+            accessToken 또는 refreshToken 이 누락되었거나 공백입니다 (C0001) — 요청 본문을 확인해 주세요.
             또는 소셜 계정이 이메일을 제공하지 않아 가입할 수 없습니다 (A0008) — 프로바이더에서 이메일 제공에 동의한 뒤 다시 로그인해 주세요.
             또는 탈퇴 후 재가입 제한 기간이 지나지 않았습니다 (M0005) — 탈퇴일로부터 2개월이 지나야 같은 소셜 계정으로 다시 가입할 수 있습니다.
             안내 메시지를 그대로 노출해 주세요.
@@ -60,6 +65,9 @@ interface SocialLoginApi {
                 examples = {
                     @ExampleObject(name = "accessToken 누락(C0001)", value = """
                         {"code":"C0001","message":"소셜 액세스 토큰을 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "refreshToken 누락(C0001)", value = """
+                        {"code":"C0001","message":"소셜 리프레시 토큰을 입력해 주세요"}
                         """),
                     @ExampleObject(name = "이메일 미제공 가입 실패(A0008)", value = """
                         {"code":"A0008","message":"소셜 계정에서 이메일을 확인할 수 없어 가입할 수 없습니다. 이메일 제공에 동의해 주세요"}
