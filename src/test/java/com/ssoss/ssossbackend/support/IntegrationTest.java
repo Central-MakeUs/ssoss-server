@@ -54,6 +54,16 @@ public abstract class IntegrationTest {
     }
 
     @BeforeEach
+    void resetNaverApi() {
+        naverApi.reset();
+    }
+
+    @BeforeEach
+    void resetAppleApi() {
+        appleApi.reset();
+    }
+
+    @BeforeEach
     void resetTaskExecutor() {
         taskExecutor.reset();
     }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.stream.StreamSupport;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
+import com.ssoss.ssossbackend.auth.domain.contract.SocialLoginRepository;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
 import com.ssoss.ssossbackend.credit.domain.contract.CreditRepository;
@@ -50,6 +51,9 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
+    private SocialLoginRepository socialLoginRepository;
+
+    @Autowired
     private CreditRepository creditRepository;
 
     @Autowired
@@ -59,6 +63,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     void resetDatabase() {
         memberWithdrawalHistoryRepository.deleteAll();
         memberTermRepository.deleteAll();
+        socialLoginRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         creditLedgerRepository.deleteAll();
         creditRepository.deleteAll();
@@ -82,6 +87,35 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-delete-due")).isEmpty();
             assertThat(termsOf(memberId)).isEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("탈퇴 대기 중 재로그인한 회원이 삭제되면 소셜 로그인 행도 사라지고 연결 해제가 호출된다")
+        void deletesSocialLoginAndUnlinks_whenReloggedMemberIsDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-relogin");
+            Long memberId = memberIdOf("naver-delete-relogin");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            fixture.naverLogin("naver-delete-relogin").expectStatus().isOk();
+            naverApi.reset();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(socialLoginRepository.findByMemberId(memberId)).isEmpty();
+            assertThat(naverApi.revokeRequestBodies()).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("탈퇴 회원이 삭제되면 소셜 로그인 행도 사라진다")
+        void deletesSocialLogin_whenMemberIsDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-social");
+            Long memberId = memberIdOf("naver-delete-social");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(socialLoginRepository.findByMemberId(memberId)).isEmpty();
         }
 
         @Test

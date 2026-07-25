@@ -40,4 +40,44 @@ class AppleOAuthConfig {
             .build()
             .createClient(AppleJwksHttpClient.class);
     }
+
+    @Bean
+    AppleTokenHttpClient appleTokenHttpClient(
+        RestClient.Builder restClientBuilder,
+        @Value("${auth.oauth.apple.token-url}") String tokenUrl,
+        @Value("${auth.oauth.apple.connect-timeout}") Duration connectTimeout,
+        @Value("${auth.oauth.apple.read-timeout}") Duration readTimeout
+    ) {
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
+            HttpClient.newBuilder().connectTimeout(connectTimeout).build()
+        );
+        requestFactory.setReadTimeout(readTimeout);
+        RestClient restClient = restClientBuilder
+            .requestFactory(requestFactory)
+            .baseUrl(tokenUrl)
+            .build();
+        return HttpServiceProxyFactory.builderFor(RestClientAdapter.create(restClient))
+            .build()
+            .createClient(AppleTokenHttpClient.class);
+    }
+
+    @Bean
+    AppleRevokeHttpClient appleRevokeHttpClient(
+        RestClient.Builder restClientBuilder,
+        @Value("${auth.oauth.apple.revoke-url}") String revokeUrl,
+        @Value("${auth.oauth.apple.connect-timeout}") Duration connectTimeout,
+        @Value("${auth.oauth.apple.read-timeout}") Duration readTimeout
+    ) {
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
+            HttpClient.newBuilder().connectTimeout(connectTimeout).build()
+        );
+        requestFactory.setReadTimeout(readTimeout);
+        RestClient restClient = restClientBuilder
+            .requestFactory(requestFactory)
+            .baseUrl(revokeUrl)
+            .build();
+        return HttpServiceProxyFactory.builderFor(RestClientAdapter.create(restClient))
+            .build()
+            .createClient(AppleRevokeHttpClient.class);
+    }
 }

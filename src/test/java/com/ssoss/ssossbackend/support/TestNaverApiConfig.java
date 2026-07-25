@@ -13,7 +13,12 @@ class TestNaverApiConfig {
     }
 
     @Bean
-    DynamicPropertyRegistrar naverProfileUrlRegistrar(TestNaverApi testNaverApi) {
-        return registry -> registry.add("auth.oauth.naver.profile-url", testNaverApi::profileUrl);
+    DynamicPropertyRegistrar naverOAuthPropertiesRegistrar(TestNaverApi testNaverApi) {
+        return registry -> {
+            registry.add("auth.oauth.naver.profile-url", testNaverApi::profileUrl);
+            registry.add("auth.oauth.naver.revoke-url", testNaverApi::revokeUrl);
+            registry.add("auth.oauth.naver.client-id", () -> "test-naver-client-id");
+            registry.add("auth.oauth.naver.client-secret", () -> "test-naver-client-secret");
+        };
     }
 }

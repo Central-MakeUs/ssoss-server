@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
+import com.ssoss.ssossbackend.auth.domain.contract.SocialLoginRepository;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
@@ -43,10 +44,14 @@ class WithdrawalApiTest extends IntegrationTest {
     @Autowired
     private MemberWithdrawalHistoryRepository memberWithdrawalHistoryRepository;
 
+    @Autowired
+    private SocialLoginRepository socialLoginRepository;
+
     @BeforeEach
     void resetDatabase() {
         memberWithdrawalHistoryRepository.deleteAll();
         memberTermRepository.deleteAll();
+        socialLoginRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         memberRepository.deleteAll();
     }
@@ -54,6 +59,105 @@ class WithdrawalApiTest extends IntegrationTest {
     @Nested
     @DisplayName("DELETE /v1/members/me")
     class Withdraw {
+
+        @Test
+        @DisplayName("네이버 회원이 탈퇴하면 저장된 리프레시 토큰으로 네이버 연결 해제가 1회 호출된다")
+        void revokesNaverConnectionOnce_whenNaverMemberWithdraws() {
+            SignupResponse signup = fixture.signupActiveMember("naver-unlink");
+
+            fixture.withdraw(signup.accessToken())
+                .expectStatus().isNoContent();
+
+            assertThat(naverApi.revokeRequestBodies())
+                .singleElement()
+                .satisfies(body -> assertThat(body)
+                    .contains("token=naver-refresh-token")
+                    .contains("token_type_hint=refresh_token")
+                    .contains("client_id=test-naver-client-id")
+                    .contains("client_secret=test-naver-client-secret"));
+        }
+
+        @Test
+        @DisplayName("저장된 소셜 로그인이 없는 회원이 탈퇴하면 연결 해제를 호출하지 않고 204 로 끝난다")
+        void skipsUnlink_whenNoStoredSocialLogin() {
+            appleApi.stubJwks();
+            appleApi.stubTokenExchangeServerError();
+            SocialLoginResponse login = fixture.socialLogin(com.ssoss.ssossbackend.auth.domain.model.SocialProvider.APPLE,
+                    appleApi.issueIdentityToken("apple-sub-no-token"), "apple-auth-code")
+                .expectStatus().isOk()
+                .expectBody(SocialLoginResponse.class)
+                .returnResult()
+                .getResponseBody();
+            SignupResponse signup = fixture.signup(login.accessToken())
+                .expectStatus().isOk()
+                .expectBody(SignupResponse.class)
+                .returnResult()
+                .getResponseBody();
+
+            fixture.withdraw(signup.accessToken())
+                .expectStatus().isNoContent();
+
+            assertThat(appleApi.revokeRequestBodies()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("애플 회원이 탈퇴하면 저장된 리프레시 토큰으로 애플 연결 해제가 1회 호출된다")
+        void revokesAppleConnectionOnce_whenAppleMemberWithdraws() {
+            appleApi.stubJwks();
+            appleApi.stubTokenExchange("apple-stored-refresh-token");
+            SocialLoginResponse login = fixture.socialLogin(com.ssoss.ssossbackend.auth.domain.model.SocialProvider.APPLE,
+                    appleApi.issueIdentityToken("apple-sub-unlink"), "apple-auth-code")
+                .expectStatus().isOk()
+                .expectBody(SocialLoginResponse.class)
+                .returnResult()
+                .getResponseBody();
+            SignupResponse signup = fixture.signup(login.accessToken())
+                .expectStatus().isOk()
+                .expectBody(SignupResponse.class)
+                .returnResult()
+                .getResponseBody();
+
+            fixture.withdraw(signup.accessToken())
+                .expectStatus().isNoContent();
+
+            assertThat(appleApi.revokeRequestBodies())
+                .singleElement()
+                .satisfies(body -> assertThat(body)
+                    .contains("token=apple-stored-refresh-token")
+                    .contains("token_type_hint=refresh_token")
+                    .contains("client_id=test-apple-client-id")
+                    .contains("client_secret="));
+        }
+
+        @Test
+        @DisplayName("네이버 연결 해제가 실패해도 탈퇴는 204 로 끝나고 탈퇴 대기로 남는다")
+        void completesWithdrawal_whenUnlinkFails() {
+            SignupResponse signup = fixture.signupActiveMember("naver-unlink-fail");
+            naverApi.stubRevokeServerError();
+
+            fixture.withdraw(signup.accessToken())
+                .expectStatus().isNoContent();
+
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-unlink-fail").orElseThrow();
+            assertThat(member.getStatus()).isEqualTo(MemberStatus.WITHDRAWN);
+        }
+
+        @Test
+        @DisplayName("탈퇴해도 소셜 로그인 행은 유예 기간 동안 남는다")
+        void keepsSocialLogin_whenMemberWithdraws() {
+            SignupResponse signup = fixture.signupActiveMember("naver-unlink-keep");
+
+            fixture.withdraw(signup.accessToken())
+                .expectStatus().isNoContent();
+
+            Member member = memberRepository.findByProviderAndSocialId(NAVER, "naver-unlink-keep").orElseThrow();
+            assertThat(socialLoginRepository.findByMemberId(member.getId()))
+                .get()
+                .satisfies(socialLogin -> {
+                    assertThat(socialLogin.getSocialId()).isEqualTo("naver-unlink-keep");
+                    assertThat(socialLogin.getProvider().name()).isEqualTo("NAVER");
+                });
+        }
 
         @Test
         @DisplayName("탈퇴하면 204 를 반환하고 탈퇴 대기로 전환되며 탈퇴 시각이 기록된다")
