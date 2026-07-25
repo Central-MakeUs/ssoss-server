@@ -30,6 +30,8 @@ interface GenerationApi {
             - 회원당 진행 중 작업은 1건으로 제한됩니다. 진행 중 작업이 있으면 409 로 거부됩니다.
             - 크레딧 잔액이 차감량(5) × 선택 채널 수보다 적으면 400 으로 거부됩니다. 성공한 채널 결과 1건마다 5 가 차감됩니다.
             - 작업은 생성 시각부터 60초가 지나면 더 이상 결과가 더해지지 않습니다.
+            - photoGuideChecked 를 true 로 보내면 어떤 사진을 찍어 넣으면 좋을지 알려 주는 안내가 결과 본문에 태그로 함께 담깁니다.
+              보내지 않으면 false 로 보고 태그 없는 본문을 만듭니다. 태그 형식과 응답 모양은 조회 API 의 예시를 참고하세요.
             """)
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "생성 작업이 만들어졌습니다. Location 헤더와 본문의 작업 id 로 조회할 수 있습니다"),
@@ -79,9 +81,99 @@ interface GenerationApi {
               이때는 아직 새 생성을 시작할 수 없으므로 다시 생성하기 버튼은 COMPLETED 를 기준으로 열어 주세요.
             - 실패한 채널은 재시도(새 생성 요청)로 복구합니다.
             - purpose·tone·keywords 는 생성에 쓴 조건입니다. 작업 id 로 다시 들어와도 결과 화면 상단을 그릴 수 있도록 함께 내려줍니다.
+            - 사진 가이드를 체크하고 만든 작업이면 본문 안에 `<photo-guide />` 태그가 섞여 옵니다.
+              닫는 태그가 없는 한 덩어리이고 type 은 MENU·STORE·MOOD·PEOPLE 넷 중 하나이며, 클라이언트가 이 태그를 찾아 사진 안내 카드로 그립니다.
+              태그를 그대로 두면 사용자에게 노출되므로 반드시 파싱해 주세요. 체크하지 않고 만든 작업의 본문에는 태그가 없습니다.
             """)
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "작업 상태와 선택 채널 전부의 결과를 반환합니다"),
+        @ApiResponse(responseCode = "200", description = "작업 상태와 선택 채널 전부의 결과를 반환합니다",
+            content = @Content(schema = @Schema(implementation = GenerationDetailResponse.class),
+                examples = {
+                    @ExampleObject(name = "완료 — 사진 가이드 체크", description = "본문에 사진 안내 태그가 섞여 있습니다",
+                        value = """
+                            {
+                              "generationId": 1,
+                              "status": "COMPLETED",
+                              "purpose": "NEW_MENU_PROMOTION",
+                              "tone": "EMOTIONAL",
+                              "keywords": ["밤라떼", "가을신메뉴"],
+                              "results": [
+                                {
+                                  "channel": "BLOG",
+                                  "status": "SUCCEEDED",
+                                  "message": "생성에 성공했습니다",
+                                  "title": "가을의 온기를 담은 신메뉴, 포근한 밤라떼",
+                                  "body": "어느덧 바람 끝에 서늘한 기운이 묻어나는 계절입니다. <photo-guide type=\\"MOOD\\" title=\\"가을 감성 가득한 매장\\" description=\\"창가 자리의 햇살을 배경으로 촬영하세요\\"/> 이번에 선보이는 밤라떼는 잘 익은 밤의 고소한 풍미를 담았습니다. <photo-guide type=\\"MENU\\" title=\\"따뜻한 밤라떼 근접샷\\" description=\\"거품과 토핑이 잘 보이도록 가까이서 찍어 주세요\\"/> 창밖 풍경과 함께 즐겨 보세요.",
+                                  "hashtags": ["#가을신메뉴", "#밤라떼", "#가을감성"]
+                                },
+                                {
+                                  "channel": "INSTAGRAM",
+                                  "status": "SUCCEEDED",
+                                  "message": "생성에 성공했습니다",
+                                  "title": null,
+                                  "body": "성큼 다가온 가을, 마음까지 녹여 줄 한 잔을 준비했어요. <photo-guide type=\\"MENU\\" title=\\"밤라떼 메뉴 사진\\" description=\\"김이 올라오는 잔을 클로즈업해 주세요\\"/> 오늘 하루, 포근한 온기를 더해 보세요.",
+                                  "hashtags": ["#가을신메뉴", "#밤라떼", "#카페스타그램"]
+                                }
+                              ]
+                            }
+                            """),
+                    @ExampleObject(name = "완료 — 사진 가이드 미체크·부분 실패",
+                        description = "본문에 태그가 없고, 실패한 채널은 본문 없이 문구만 옵니다",
+                        value = """
+                            {
+                              "generationId": 2,
+                              "status": "COMPLETED",
+                              "purpose": "EVENT_DISCOUNT",
+                              "tone": "CASUAL",
+                              "keywords": [],
+                              "results": [
+                                {
+                                  "channel": "BLOG",
+                                  "status": "SUCCEEDED",
+                                  "message": "생성에 성공했습니다",
+                                  "title": "이번 주말, 아메리카노 1+1 이벤트",
+                                  "body": "이번 주말 매장에서 아메리카노 1+1 이벤트를 진행합니다. 소중한 사람과 함께 들러 주세요.",
+                                  "hashtags": ["#주말이벤트", "#아메리카노"]
+                                },
+                                {
+                                  "channel": "INSTAGRAM",
+                                  "status": "FAILED",
+                                  "message": "요청이 많습니다. 잠시 후 다시 시도해 주세요",
+                                  "title": null,
+                                  "body": null,
+                                  "hashtags": []
+                                }
+                              ]
+                            }
+                            """),
+                    @ExampleObject(name = "생성 중", description = "아직 결과가 확정되지 않은 채널은 PENDING 입니다",
+                        value = """
+                            {
+                              "generationId": 3,
+                              "status": "IN_PROGRESS",
+                              "purpose": "NEW_MENU_PROMOTION",
+                              "tone": "EMOTIONAL",
+                              "keywords": ["밤라떼"],
+                              "results": [
+                                {
+                                  "channel": "BLOG",
+                                  "status": "PENDING",
+                                  "message": "생성 중입니다",
+                                  "title": null,
+                                  "body": null,
+                                  "hashtags": []
+                                },
+                                {
+                                  "channel": "INSTAGRAM",
+                                  "status": "PENDING",
+                                  "message": "생성 중입니다",
+                                  "title": null,
+                                  "body": null,
+                                  "hashtags": []
+                                }
+                              ]
+                            }
+                            """)})),
         @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """
