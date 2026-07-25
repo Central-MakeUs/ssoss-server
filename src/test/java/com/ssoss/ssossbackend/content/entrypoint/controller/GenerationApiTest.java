@@ -541,6 +541,114 @@ class GenerationApiTest extends IntegrationTest {
     }
 
     @Nested
+    @DisplayName("사진 가이드")
+    class PhotoGuide {
+
+        @Test
+        @DisplayName("사진 가이드를 체크하면 본문에 사진 가이드 태그가 조립되어 담긴다")
+        void assemblesTagsIntoBody_whenPhotoGuideChecked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-guide-on");
+            Long generationId = fixture.photoGuidedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
+                    assertThat(result.status()).isEqualTo("SUCCEEDED");
+                    assertThat(result.body())
+                        .contains("<photo-guide type=\"MENU\" title=\"사진 제목 1\" description=\"사진 설명 1\"/>")
+                        .contains("<photo-guide type=\"MENU\" title=\"사진 제목 2\" description=\"사진 설명 2\"/>")
+                        .doesNotContain("<photo-guide/>");
+                }));
+        }
+
+        @Test
+        @DisplayName("제목 없는 채널도 사진 가이드 태그가 조립되어 담긴다")
+        void assemblesTagsIntoBody_whenChannelHasNoTitle() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-guide-untitled");
+            Long generationId = fixture.photoGuidedGenerationId(signup.accessToken(), List.of("INSTAGRAM"));
+
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
+                    assertThat(result.status()).isEqualTo("SUCCEEDED");
+                    assertThat(result.title()).isNull();
+                    assertThat(result.body())
+                        .contains("<photo-guide type=\"MENU\" title=\"사진 제목 1\" description=\"사진 설명 1\"/>")
+                        .doesNotContain("<photo-guide/>");
+                }));
+        }
+
+        @Test
+        @DisplayName("사진 가이드를 체크하지 않으면 본문에 사진 가이드 태그가 없다")
+        void keepsBodyPlain_whenPhotoGuideUnchecked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-guide-off");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
+                    assertThat(result.status()).isEqualTo("SUCCEEDED");
+                    assertThat(result.body()).doesNotContain("<photo-guide");
+                }));
+        }
+
+        @Test
+        @DisplayName("마커가 카드보다 많아도 채널이 성공하고 짝지어진 만큼만 조립된다")
+        void succeedsWithPairedTagsOnly_whenMarkersOutnumberGuides() {
+            llmApi.stubPhotoGuides(3, 1);
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-guide-many-markers");
+            Long generationId = fixture.photoGuidedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
+                    assertThat(result.status()).isEqualTo("SUCCEEDED");
+                    assertThat(result.body())
+                        .containsOnlyOnce("<photo-guide type=")
+                        .doesNotContain("<photo-guide/>");
+                }));
+        }
+
+        @Test
+        @DisplayName("카드가 마커보다 많아도 채널이 성공하고 자리 없는 카드는 버려진다")
+        void succeedsDroppingExtraGuides_whenGuidesOutnumberMarkers() {
+            llmApi.stubPhotoGuides(1, 3);
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-guide-many-guides");
+            Long generationId = fixture.photoGuidedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
+                    assertThat(result.status()).isEqualTo("SUCCEEDED");
+                    assertThat(result.body())
+                        .containsOnlyOnce("<photo-guide type=")
+                        .contains("사진 제목 1")
+                        .doesNotContain("사진 제목 2");
+                }));
+        }
+
+        @Test
+        @DisplayName("사진 가이드를 체크했을 때만 LLM 출력 스키마에 배열 필드가 실린다")
+        void carriesPhotoGuidesField_onlyWhenChecked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-guide-schema");
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            assertThat(llmApi.recordedOutputSchemas()).singleElement()
+                .satisfies(schema -> assertThat(schema).contains("title").doesNotContain("photoGuides"));
+
+            llmApi.reset();
+            fixture.photoGuidedGenerationId(signup.accessToken(), List.of("BLOG"));
+            assertThat(llmApi.recordedOutputSchemas()).singleElement()
+                .satisfies(schema -> assertThat(schema).contains("photoGuides").doesNotContain("마커"));
+        }
+    }
+
+    @Nested
     @DisplayName("결과 상태 기록")
     class ResultStatusRecord {
 

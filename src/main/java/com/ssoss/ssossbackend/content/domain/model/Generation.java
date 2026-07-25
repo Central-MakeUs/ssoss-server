@@ -60,7 +60,7 @@ public class Generation {
     }
 
     public static Generation create(Long memberId, List<Channel> channels, Purpose purpose, Tone tone,
-        String emphasis, String forbidden, List<String> keywords) {
+        String emphasis, String forbidden, List<String> keywords, boolean photoGuideChecked) {
         String joined = channels.stream()
             .map(Channel::name)
             .collect(Collectors.joining(CHANNEL_SEPARATOR));
@@ -68,7 +68,7 @@ public class Generation {
             ? null
             : JSON_MAPPER.writeValueAsString(keywords);
         return new Generation(null, memberId, joined, purpose, tone, emphasis, forbidden, serializedKeywords,
-            false, null, null, null);
+            photoGuideChecked, null, null, null);
     }
 
     public List<Channel> channelList() {
@@ -97,7 +97,7 @@ public class Generation {
     }
 
     public GenerationMaterial materialFor(Channel channel) {
-        return new GenerationMaterial(channel, purpose, tone, emphasis, forbidden, keywordList());
+        return new GenerationMaterial(channel, purpose, tone, emphasis, forbidden, keywordList(), photoGuideChecked);
     }
 
     public Instant deadline() {

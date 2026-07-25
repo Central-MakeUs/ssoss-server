@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.content.infrastructure.ai;
 
 import java.time.Duration;
+import java.util.List;
 
 import com.ssoss.ssossbackend.content.domain.contract.ContentGenerator;
 import com.ssoss.ssossbackend.content.domain.model.GeneratedContent;
@@ -28,14 +29,21 @@ class GeminiContentGenerator implements ContentGenerator {
         new BeanOutputConverter<>(TitledGenerationOutput.class);
     private static final BeanOutputConverter<UntitledGenerationOutput> UNTITLED_CONVERTER =
         new BeanOutputConverter<>(UntitledGenerationOutput.class);
+    private static final BeanOutputConverter<PhotoGuidedTitledGenerationOutput> PHOTO_GUIDED_TITLED_CONVERTER =
+        new BeanOutputConverter<>(PhotoGuidedTitledGenerationOutput.class);
+    private static final BeanOutputConverter<PhotoGuidedUntitledGenerationOutput> PHOTO_GUIDED_UNTITLED_CONVERTER =
+        new BeanOutputConverter<>(PhotoGuidedUntitledGenerationOutput.class);
 
     private final GoogleGenAiChatModel chatModel;
     private final GenerationPromptComposer promptComposer;
     private final GeminiCallOutcomeClassifier outcomeClassifier;
+    private final PhotoGuideAssembler photoGuideAssembler;
 
     @Override
     public LlmCallReply generate(GenerationMaterial material) {
-        BeanOutputConverter<?> converter = material.channel().hasTitle() ? TITLED_CONVERTER : UNTITLED_CONVERTER;
+        BeanOutputConverter<?> converter = material.channel().hasTitle()
+            ? (material.photoGuideChecked() ? PHOTO_GUIDED_TITLED_CONVERTER : TITLED_CONVERTER)
+            : (material.photoGuideChecked() ? PHOTO_GUIDED_UNTITLED_CONVERTER : UNTITLED_CONVERTER);
         GoogleGenAiChatOptions options = GoogleGenAiChatOptions.builder()
             .model(chatModel.getOptions().getModel())
             .responseMimeType(MediaType.APPLICATION_JSON_VALUE)
@@ -54,14 +62,19 @@ class GeminiContentGenerator implements ContentGenerator {
         String text = null;
         try {
             text = response.getResult().getOutput().getText();
-            Object output = converter.convert(text);
-            if (output instanceof TitledGenerationOutput titled) {
-                return new LlmCallReply(new GeneratedContent(titled.title(), titled.body(), titled.hashtags()),
-                    responseTimeMillis, usage.getPromptTokens(), usage.getCompletionTokens(), text);
-            }
-            UntitledGenerationOutput untitled = (UntitledGenerationOutput) output;
-            return new LlmCallReply(new GeneratedContent(null, untitled.body(), untitled.hashtags()),
-                responseTimeMillis, usage.getPromptTokens(), usage.getCompletionTokens(), text);
+            GeneratedContent content = switch (converter.convert(text)) {
+                case PhotoGuidedTitledGenerationOutput output -> new GeneratedContent(output.title(),
+                    photoGuideAssembler.assemble(output.body(), output.photoGuides()), output.hashtags());
+                case PhotoGuidedUntitledGenerationOutput output -> new GeneratedContent(null,
+                    photoGuideAssembler.assemble(output.body(), output.photoGuides()), output.hashtags());
+                case TitledGenerationOutput output -> new GeneratedContent(output.title(),
+                    photoGuideAssembler.assemble(output.body(), List.of()), output.hashtags());
+                case UntitledGenerationOutput output -> new GeneratedContent(null,
+                    photoGuideAssembler.assemble(output.body(), List.of()), output.hashtags());
+                default -> throw new IllegalStateException("알 수 없는 생성 산출 형태입니다");
+            };
+            return new LlmCallReply(content, responseTimeMillis,
+                usage.getPromptTokens(), usage.getCompletionTokens(), text);
         } catch (RuntimeException e) {
             throw new LlmCallFailedException(GenerationResultStatus.EMPTY_OUTPUT, responseTimeMillis,
                 usage.getPromptTokens(), usage.getCompletionTokens(), text, e);

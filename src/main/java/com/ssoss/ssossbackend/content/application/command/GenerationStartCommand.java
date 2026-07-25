@@ -16,11 +16,12 @@ public record GenerationStartCommand(
     Tone tone,
     String emphasis,
     String forbidden,
-    List<String> keywords
+    List<String> keywords,
+    boolean photoGuideChecked
 ) {
 
     public static GenerationStartCommand of(Long memberId, List<String> channels, String purpose, String tone,
-        String emphasis, String forbidden, List<String> keywords) {
+        String emphasis, String forbidden, List<String> keywords, Boolean photoGuideChecked) {
         List<Channel> parsedChannels = channels.stream().map(Channel::from).toList();
         if (Set.copyOf(parsedChannels).size() != parsedChannels.size()) {
             throw new BusinessException(CommonErrorCode.INVALID_INPUT);
@@ -32,6 +33,7 @@ public record GenerationStartCommand(
             Tone.from(tone),
             emphasis,
             forbidden,
-            keywords);
+            keywords,
+            Boolean.TRUE.equals(photoGuideChecked));
     }
 }

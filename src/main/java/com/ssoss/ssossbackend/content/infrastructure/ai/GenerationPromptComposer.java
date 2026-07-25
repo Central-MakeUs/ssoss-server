@@ -53,6 +53,14 @@ class GenerationPromptComposer {
         [매장 정보]
         매장 정보가 제공되지 않았다. 매장명·업종·위치·메뉴 같은 매장에 대한 사실을 지어내지 않는다.""";
 
+    private static final String PHOTO_GUIDE_SECTION = """
+        [사진 가이드]
+        사진이 들어가면 좋을 자리를 1~4곳 골라, 그 자리에 <photo-guide/> 마커를 문단 사이에 한 줄로 넣는다.
+        마커와 같은 순서로 photoGuides 배열을 채우고 개수를 정확히 맞춘다.
+        type 은 MENU(메뉴·음식), STORE(매장 외관·내부), MOOD(분위기·소품), PEOPLE(사람) 중 하나를 고른다.
+        title 은 어떤 사진인지 15자 이내로, description 은 어떻게 찍으면 좋은지 40자 이내로 쓴다.
+        마커와 배열 외의 방법으로 사진을 언급하지 않는다.""";
+
     private static final String HASHTAG_SECTION = """
         [해시태그]
         해시태그는 3~5개 만들고, 각 태그는 #으로 시작하는 공백 없는 한 단어로 쓴다.""";
@@ -88,6 +96,9 @@ class GenerationPromptComposer {
             sections.add(KEYWORDS_SECTION.formatted(String.join(", ", material.keywords())));
         }
         sections.add(NO_STORE_SECTION);
+        if (material.photoGuideChecked()) {
+            sections.add(PHOTO_GUIDE_SECTION);
+        }
         sections.add(HASHTAG_SECTION);
         return String.join("\n\n", sections);
     }

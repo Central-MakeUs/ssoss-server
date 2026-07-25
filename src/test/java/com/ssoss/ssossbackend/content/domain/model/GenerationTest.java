@@ -22,7 +22,7 @@ class GenerationTest {
 
     private Generation generation(List<Channel> channels) {
         Generation generation = Generation.create(1L, channels, Purpose.INFORMATION, Tone.CASUAL,
-            "강조", null, null);
+            "강조", null, null, false);
         return new Generation(1L, 1L, generation.getChannels(), generation.getPurpose(), generation.getTone(),
             generation.getEmphasis(), generation.getForbidden(), generation.getKeywords(),
             generation.isPhotoGuideChecked(), generation.getSourceSavedContentId(), CREATED_AT, null);
