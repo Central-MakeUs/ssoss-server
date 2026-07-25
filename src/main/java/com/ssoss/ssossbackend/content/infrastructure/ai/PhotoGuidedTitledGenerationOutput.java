@@ -4,7 +4,7 @@ import java.util.List;
 
 record PhotoGuidedTitledGenerationOutput(
     String title,
-    String body,
+    List<String> paragraphs,
     List<String> hashtags,
     List<PhotoGuideOutput> photoGuides
 ) {

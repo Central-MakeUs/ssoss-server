@@ -2,9 +2,8 @@ package com.ssoss.ssossbackend.content.infrastructure.ai;
 
 import java.util.List;
 
-record PhotoGuidedUntitledGenerationOutput(
+record PhotoGuidedBodyOnlyGenerationOutput(
     List<String> paragraphs,
-    List<String> hashtags,
     List<PhotoGuideOutput> photoGuides
 ) {
 }

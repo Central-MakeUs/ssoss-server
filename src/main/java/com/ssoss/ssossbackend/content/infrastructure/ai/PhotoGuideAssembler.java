@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.content.infrastructure.ai;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -11,11 +12,15 @@ class PhotoGuideAssembler {
 
     private static final Pattern MARKER = Pattern.compile("</?photo-guide(?=[\\s/>])[^>]*>");
     private static final String TAG = "<photo-guide type=\"%s\" title=\"%s\" description=\"%s\"/>";
+    private static final String PARAGRAPH_BREAK = "\n\n";
 
-    String assemble(String body, List<PhotoGuideOutput> photoGuides) {
-        if (body == null) {
+    String assemble(List<String> paragraphs, List<PhotoGuideOutput> photoGuides) {
+        if (paragraphs == null) {
             return null;
         }
+        String body = paragraphs.stream()
+            .filter(paragraph -> paragraph != null && !paragraph.isBlank())
+            .collect(Collectors.joining(PARAGRAPH_BREAK));
         List<PhotoGuideOutput> guides = photoGuides == null
             ? List.of()
             : photoGuides.stream().filter(guide -> guide != null && guide.type() != null).toList();

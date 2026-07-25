@@ -2,5 +2,5 @@ package com.ssoss.ssossbackend.content.infrastructure.ai;
 
 import java.util.List;
 
-record UntitledGenerationOutput(List<String> paragraphs, List<String> hashtags) {
+record BodyOnlyGenerationOutput(List<String> paragraphs) {
 }
