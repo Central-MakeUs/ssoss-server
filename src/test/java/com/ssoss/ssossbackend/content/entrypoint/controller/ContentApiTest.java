@@ -807,8 +807,8 @@ class ContentApiTest extends IntegrationTest {
     class Delete {
 
         @Test
-        @DisplayName("삭제하면 채널 전부에 삭제 시각이 찍히고 콘텐츠 행은 남는다")
-        void stampsDeletedAtOnEveryChannel_whenContentDeleted() {
+        @DisplayName("삭제하면 콘텐츠와 채널 전부에 같은 삭제 시각이 찍힌다")
+        void stampsDeletedAtOnContentAndEveryChannel_whenContentDeleted() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-every-channel");
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
                 List.of("BLOG", "INSTAGRAM", "THREADS"));
@@ -817,10 +817,10 @@ class ContentApiTest extends IntegrationTest {
             fixture.deleteContent(signup.accessToken(), contentId)
                 .expectStatus().isNoContent();
 
-            assertThat(contentsOf(memberIdOf("naver-delete-every-channel"))).singleElement()
-                .satisfies(content -> assertThat(content.getId()).isEqualTo(contentId));
+            Instant deletedAt = contentRepository.findById(contentId).orElseThrow().getDeletedAt();
+            assertThat(deletedAt).isNotNull();
             assertThat(channelsOf(memberIdOf("naver-delete-every-channel"))).hasSize(3)
-                .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isNotNull());
+                .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isEqualTo(deletedAt));
         }
 
         @Test

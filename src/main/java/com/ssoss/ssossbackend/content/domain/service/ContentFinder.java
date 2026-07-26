@@ -1,7 +1,5 @@
 package com.ssoss.ssossbackend.content.domain.service;
 
-import java.util.List;
-
 import com.ssoss.ssossbackend.content.domain.contract.ContentChannelRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentRepository;
 import com.ssoss.ssossbackend.content.domain.model.Content;
@@ -22,16 +20,12 @@ public class ContentFinder {
     private final ContentChannelRepository contentChannelRepository;
 
     public ContentWithChannels get(Long contentId, Long memberId) {
-        Content content = contentRepository.findByIdAndMemberId(contentId, memberId)
+        Content content = contentRepository.findByIdAndMemberIdAndDeletedAtIsNull(contentId, memberId)
             .orElseThrow(() -> new BusinessException(ContentErrorCode.CONTENT_NOT_FOUND));
-        List<ContentChannel> channels = contentChannelRepository
+        return new ContentWithChannels(content, contentChannelRepository
             .findAllByContentIdAndDeletedAtIsNull(content.getId()).stream()
             .sorted(ContentChannel.CHANNEL_ORDER)
-            .toList();
-        if (channels.isEmpty()) {
-            throw new BusinessException(ContentErrorCode.CONTENT_NOT_FOUND);
-        }
-        return new ContentWithChannels(content, channels);
+            .toList());
     }
 
     public ContentChannel channelOf(Long contentId, Long contentChannelId, Long memberId) {
