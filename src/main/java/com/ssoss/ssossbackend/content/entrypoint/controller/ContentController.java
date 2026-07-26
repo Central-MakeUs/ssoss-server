@@ -2,19 +2,24 @@ package com.ssoss.ssossbackend.content.entrypoint.controller;
 
 import com.ssoss.ssossbackend.content.application.result.ContentChannelResult;
 import com.ssoss.ssossbackend.content.application.result.ContentDetailResult;
+import com.ssoss.ssossbackend.content.application.result.ContentListResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
 import com.ssoss.ssossbackend.content.application.service.ContentService;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentChannelEditRequest;
+import com.ssoss.ssossbackend.content.entrypoint.request.ContentListRequest;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentSaveRequest;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelSummaryResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentListResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentSummaryResponse;
 
 import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -44,6 +49,20 @@ class ContentController implements ContentApi {
             .body(new ContentSaveResponse(result.contentId(), result.contents().stream()
                 .map(content -> new ContentChannelSummaryResponse(content.contentChannelId(), content.channel()))
                 .toList()));
+    }
+
+    @Override
+    @GetMapping("/v1/contents")
+    public ContentListResponse list(
+        @AuthenticationPrincipal Long memberId,
+        @Valid @ParameterObject ContentListRequest request
+    ) {
+        ContentListResult result = contentService.list(request.toCommand(memberId));
+        return new ContentListResponse(result.totalCount(), result.page(), result.size(), result.hasNext(),
+            result.contents().stream()
+                .map(content -> new ContentSummaryResponse(content.contentId(), content.savedAt(),
+                    content.channels(), content.purpose(), content.tone(), content.title(), content.hashtags()))
+                .toList());
     }
 
     @Override

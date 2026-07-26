@@ -24,6 +24,7 @@ public class ContentChannel {
     @Id
     private Long id;
     private Long contentId;
+    private Long memberId;
     private Channel channel;
     private Long sourceGenerationResultId;
     private String title;
@@ -38,10 +39,11 @@ public class ContentChannel {
 
     private Instant deletedAt;
 
-    ContentChannel(Long id, Long contentId, Channel channel, Long sourceGenerationResultId,
+    ContentChannel(Long id, Long contentId, Long memberId, Channel channel, Long sourceGenerationResultId,
         String title, String body, Hashtags hashtags, Instant createdAt, Instant updatedAt, Instant deletedAt) {
         this.id = id;
         this.contentId = contentId;
+        this.memberId = memberId;
         this.channel = channel;
         this.sourceGenerationResultId = sourceGenerationResultId;
         this.title = title;
@@ -52,8 +54,8 @@ public class ContentChannel {
         this.deletedAt = deletedAt;
     }
 
-    public static ContentChannel copyOf(Long contentId, GenerationResult result) {
-        return new ContentChannel(null, contentId, result.getChannel(), result.getId(),
+    public static ContentChannel copyOf(Content content, GenerationResult result) {
+        return new ContentChannel(null, content.getId(), content.getMemberId(), result.getChannel(), result.getId(),
             result.getTitle(), result.getBody(), result.getHashtags(), null, null, null);
     }
 

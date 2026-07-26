@@ -22,7 +22,9 @@ import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelSummaryResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentListResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentSummaryResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationChannelResultResponse;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
@@ -267,6 +269,363 @@ class ContentApiTest extends IntegrationTest {
                 .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /v1/contents")
+    class GetList {
+
+        @Test
+        @DisplayName("3채널을 저장한 작업이 카드 1건으로 나오고 채널이 정해진 순서로 담긴다")
+        void returnsOneCardWithEveryChannelInChannelOrder_whenThreeChannelsSaved() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-one-card");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(),
+                List.of("THREADS", "BLOG", "INSTAGRAM"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            fixture.getContents(signup.accessToken(), "")
+                .expectStatus().isOk()
+                .expectBody(ContentListResponse.class)
+                .value(body -> {
+                    assertThat(body.totalCount()).isEqualTo(1);
+                    assertThat(body.contents()).singleElement().satisfies(content -> {
+                        assertThat(content.contentId()).isEqualTo(contentId);
+                        assertThat(content.channels()).containsExactly("BLOG", "INSTAGRAM", "THREADS");
+                    });
+                });
+        }
+
+        @Test
+        @DisplayName("저장한 콘텐츠가 저장 시각 최신순으로 온다")
+        void returnsContentsInSavedAtDescendingOrder() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-order");
+            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long middleId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
+            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(newestId, middleId, oldestId);
+        }
+
+        @Test
+        @DisplayName("page 와 size 로 페이지를 넘겨도 전체 건수는 그대로이고 마지막 페이지는 hasNext 가 false 다")
+        void returnsRequestedPageWithTotalCountAndHasNext() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-paging");
+            Long firstId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long secondId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
+            Long thirdId = savedContent(signup.accessToken(), List.of("THREADS"));
+
+            ContentListResponse firstPage = fixture.contentList(signup.accessToken(), "?page=0&size=2");
+            ContentListResponse secondPage = fixture.contentList(signup.accessToken(), "?page=1&size=2");
+
+            assertThat(firstPage.totalCount()).isEqualTo(3);
+            assertThat(firstPage.page()).isZero();
+            assertThat(firstPage.size()).isEqualTo(2);
+            assertThat(firstPage.hasNext()).isTrue();
+            assertThat(firstPage.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(thirdId, secondId);
+            assertThat(secondPage.totalCount()).isEqualTo(3);
+            assertThat(secondPage.page()).isEqualTo(1);
+            assertThat(secondPage.hasNext()).isFalse();
+            assertThat(secondPage.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(firstId);
+        }
+
+        @Test
+        @DisplayName("size 를 3 으로 부르면 홈의 최근 저장 3건을 얻는다")
+        void returnsThreeMostRecentContents_whenSizeIsThree() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-home");
+            savedContent(signup.accessToken(), List.of("BLOG"));
+            Long secondId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long thirdId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
+            Long fourthId = savedContent(signup.accessToken(), List.of("THREADS"));
+
+            ContentListResponse home = fixture.contentList(signup.accessToken(), "?size=3");
+
+            assertThat(home.totalCount()).isEqualTo(4);
+            assertThat(home.hasNext()).isTrue();
+            assertThat(home.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(fourthId, thirdId, secondId);
+        }
+
+        @Test
+        @DisplayName("없는 채널로 거르면 400 과 C0001 을 반환한다")
+        void returns400_whenChannelUnknown() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-bad-channel");
+
+            fixture.getContents(signup.accessToken(), "?channel=FACEBOOK")
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("채널로 거르면 그 채널을 포함한 저장 건만 오고 카드의 채널 목록은 잘리지 않는다")
+        void returnsOnlyContentsHavingChannelWithFullChannelList_whenChannelFiltered() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-filter");
+            Long instagramId = savedContent(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            savedContent(signup.accessToken(), List.of("THREADS"));
+
+            ContentListResponse filtered = fixture.contentList(signup.accessToken(), "?channel=INSTAGRAM");
+
+            assertThat(filtered.totalCount()).isEqualTo(1);
+            assertThat(filtered.contents()).singleElement().satisfies(content -> {
+                assertThat(content.contentId()).isEqualTo(instagramId);
+                assertThat(content.channels()).containsExactly("BLOG", "INSTAGRAM");
+            });
+        }
+
+        @Test
+        @DisplayName("대표 채널에 제목이 있으면 저장된 제목이 목록 제목이 된다")
+        void fillsTitleFromSavedTitle_whenRepresentativeChannelHasTitle() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-titled");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            fixture.savedContentId(signup.accessToken(), generationId);
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.title()).isEqualTo("테스트 제목"));
+        }
+
+        @Test
+        @DisplayName("대표 채널에 제목이 없으면 사진 가이드 태그를 걷어낸 본문이 목록 제목이 된다")
+        void fillsTitleFromBodyWithoutPhotoGuideTags_whenRepresentativeChannelHasNoTitle() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-untitled");
+            Long generationId = fixture.photoGuidedGenerationId(signup.accessToken(), List.of("INSTAGRAM"));
+            fixture.savedContentId(signup.accessToken(), generationId);
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.title())
+                    .startsWith("테스트 본문 이어지는 본문 1")
+                    .doesNotContain("<photo-guide", "\n"));
+        }
+
+        @Test
+        @DisplayName("목록 제목이 20자를 넘으면 20자까지만 담고 말줄임표를 붙인다")
+        void cutsTitleAtTwentyCharactersWithEllipsis() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-long-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("THREADS"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(),
+                    Map.of("body", "가".repeat(21), "hashtags", List.of()))
+                .expectStatus().isOk();
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.title()).isEqualTo("가".repeat(20) + "…"));
+        }
+
+        @Test
+        @DisplayName("목록 제목이 20자 이하면 말줄임표 없이 그대로 온다")
+        void keepsTitleAsIs_whenNotLongerThanTwentyCharacters() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-short-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("THREADS"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(),
+                    Map.of("body", "가".repeat(20), "hashtags", List.of()))
+                .expectStatus().isOk();
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.title()).isEqualTo("가".repeat(20)));
+        }
+
+        @Test
+        @DisplayName("제목 있는 채널의 제목도 20자에서 잘린다")
+        void cutsSavedTitleAtTwentyCharacters_whenRepresentativeChannelHasTitle() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-long-saved-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), Map.of(
+                        "title", "나".repeat(25),
+                        "body", "직접 고친 본문",
+                        "hashtags", List.of()))
+                .expectStatus().isOk();
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.title()).isEqualTo("나".repeat(20) + "…"));
+        }
+
+        @Test
+        @DisplayName("해시태그는 대표 채널의 앞 2개만 온다")
+        void returnsAtMostTwoHashtagsOfRepresentativeChannel() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-hashtags");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), Map.of(
+                        "title", "직접 고친 제목",
+                        "body", "직접 고친 본문",
+                        "hashtags", List.of("#첫째", "#둘째", "#셋째")))
+                .expectStatus().isOk();
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.hashtags()).containsExactly("#첫째", "#둘째"));
+        }
+
+        @Test
+        @DisplayName("카드에 저장할 때의 목적·톤과 저장 시각이 담긴다")
+        void returnsPurposeToneAndSavedAt() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-condition");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), Map.of(
+                "channels", List.of("BLOG"),
+                "purpose", "EVENT_DISCOUNT",
+                "tone", "EMOTIONAL",
+                "emphasis", "테스트 강조 내용"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> {
+                    assertThat(content.purpose()).isEqualTo("EVENT_DISCOUNT");
+                    assertThat(content.tone()).isEqualTo("EMOTIONAL");
+                    assertThat(content.savedAt())
+                        .isEqualTo(contentRepository.findById(contentId).orElseThrow().getCreatedAt());
+                });
+        }
+
+        @Test
+        @DisplayName("삭제한 콘텐츠는 목록에서 빠지고 전체 건수에서도 빠진다")
+        void excludesDeletedContentsFromListAndTotalCount() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-deleted");
+            Long deletedId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long keptId = savedContent(signup.accessToken(), List.of("THREADS"));
+            fixture.deletedContent(signup.accessToken(), deletedId);
+
+            ContentListResponse list = fixture.contentList(signup.accessToken(), "");
+
+            assertThat(list.totalCount()).isEqualTo(1);
+            assertThat(list.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(keptId);
+        }
+
+        @Test
+        @DisplayName("다른 회원의 콘텐츠는 목록에 오지 않는다")
+        void excludesOtherMembersContents() {
+            SignupResponse owner = fixture.signupActiveMember("naver-list-owner");
+            savedContent(owner.accessToken(), List.of("BLOG"));
+            SignupResponse other = fixture.signupActiveMember("naver-list-other");
+            Long otherContentId = savedContent(other.accessToken(), List.of("THREADS"));
+
+            ContentListResponse list = fixture.contentList(other.accessToken(), "");
+
+            assertThat(list.totalCount()).isEqualTo(1);
+            assertThat(list.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(otherContentId);
+        }
+
+        @Test
+        @DisplayName("저장한 콘텐츠가 없으면 빈 목록과 0 건이 온다")
+        void returnsEmptyList_whenNothingSaved() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-empty");
+
+            ContentListResponse list = fixture.contentList(signup.accessToken(), "");
+
+            assertThat(list.totalCount()).isZero();
+            assertThat(list.contents()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("채널로 걸러도 저장 시각 최신순과 페이징이 그대로 적용된다")
+        void appliesOrderAndPagingToFilteredList() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-filter-paging");
+            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
+            savedContent(signup.accessToken(), List.of("THREADS"));
+            Long middleId = savedContent(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            Long newestId = savedContent(signup.accessToken(), List.of("BLOG"));
+
+            ContentListResponse firstPage = fixture.contentList(signup.accessToken(), "?channel=BLOG&page=0&size=2");
+            ContentListResponse secondPage = fixture.contentList(signup.accessToken(), "?channel=BLOG&page=1&size=2");
+
+            assertThat(firstPage.totalCount()).isEqualTo(3);
+            assertThat(firstPage.hasNext()).isTrue();
+            assertThat(firstPage.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(newestId, middleId);
+            assertThat(secondPage.totalCount()).isEqualTo(3);
+            assertThat(secondPage.hasNext()).isFalse();
+            assertThat(secondPage.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(oldestId);
+        }
+
+        @Test
+        @DisplayName("채널로 걸러도 삭제한 콘텐츠는 목록과 전체 건수에서 빠진다")
+        void excludesDeletedContentsFromFilteredList() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-filter-deleted");
+            Long deletedId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long keptId = savedContent(signup.accessToken(), List.of("BLOG"));
+            fixture.deletedContent(signup.accessToken(), deletedId);
+
+            ContentListResponse filtered = fixture.contentList(signup.accessToken(), "?channel=BLOG");
+
+            assertThat(filtered.totalCount()).isEqualTo(1);
+            assertThat(filtered.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(keptId);
+        }
+
+        @Test
+        @DisplayName("채널 필터 결과가 없으면 빈 목록과 0 건이 온다")
+        void returnsEmptyList_whenNoContentHasChannel() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-filter-empty");
+            savedContent(signup.accessToken(), List.of("BLOG"));
+
+            ContentListResponse filtered = fixture.contentList(signup.accessToken(), "?channel=DAANGN_BIZ");
+
+            assertThat(filtered.totalCount()).isZero();
+            assertThat(filtered.contents()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("size 가 상한을 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenSizeExceedsLimit() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-huge-size");
+
+            fixture.getContents(signup.accessToken(), "?size=51")
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 목록을 조회하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            fixture.client().get().uri("/v1/contents")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 목록을 조회하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenRequests() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-list-pending");
+
+            fixture.getContents(login.accessToken(), "")
+                .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        private Long savedContent(String accessToken, List<String> channels) {
+            Long contentId = fixture.savedContentId(accessToken, fixture.startedGenerationId(accessToken, channels));
+            clock.advanceBy(Duration.ofMinutes(1));
+            return contentId;
         }
     }
 

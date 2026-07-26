@@ -1,9 +1,11 @@
 package com.ssoss.ssossbackend.content.entrypoint.controller;
 
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentChannelEditRequest;
+import com.ssoss.ssossbackend.content.entrypoint.request.ContentListRequest;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentSaveRequest;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentListResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 
@@ -90,6 +92,77 @@ interface ContentApi {
     ResponseEntity<ContentSaveResponse> save(Long memberId, ContentSaveRequest request);
 
     @Operation(
+        summary = "생성 기록 목록 조회",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            저장한 콘텐츠를 저장 시각 최신순으로 조회합니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 콘텐츠만 조회됩니다.
+            - 카드 1건은 저장하기 1회로 만들어진 콘텐츠 하나입니다. 3채널을 저장했어도 카드는 1건이고 channels 에 채널 셋이 담깁니다.
+            - channels 는 블로그 → 인스타그램 → 당근 비즈 → 스레드 순으로 담깁니다. 저장·상세 응답과 같은 규칙입니다.
+            - 삭제한 콘텐츠는 목록에도 totalCount 에도 들어가지 않습니다.
+            - 정렬은 저장 시각 최신순 고정입니다. 편집해도 저장 시각은 움직이지 않아 순서가 흔들리지 않으며, 정렬 파라미터는 받지 않습니다.
+            - page 는 0 부터 세고 size 는 기본 20·최대 50 입니다. 홈의 "최근 생성된 콘텐츠"는 size=3 으로 부르면 됩니다.
+            - title 과 hashtags 는 channels 의 첫 채널에서 가져옵니다. 채널마다 제목이 다르지만 카드에는 하나만 보이기 때문입니다.
+            - title 은 20자까지만 옵니다. 넘으면 서버가 20자에서 자르고 말줄임표(…)를 붙이므로 화면에서 다시 자르지 않아도 됩니다.
+            - channel 로 거르면 그 채널을 포함한 저장 건만 남고, 남은 카드의 channels 는 자르지 않고 전부 보여줍니다.
+            - 본문은 담기지 않습니다. 카드를 눌러 들어갈 때 상세 조회로 받으세요.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "저장 시각 최신순 카드 목록과 전체 건수를 반환합니다",
+            content = @Content(schema = @Schema(implementation = ContentListResponse.class),
+                examples = @ExampleObject(name = "2건", description = "두 번째 카드는 제목 없는 채널이라 본문에서 제목을 채웠고, 둘 다 20자를 넘어 잘렸습니다",
+                    value = """
+                        {
+                          "totalCount": 2,
+                          "page": 0,
+                          "size": 20,
+                          "hasNext": false,
+                          "contents": [
+                            {
+                              "contentId": 2,
+                              "savedAt": "2026-09-01T09:41:00Z",
+                              "channels": ["BLOG", "THREADS"],
+                              "purpose": "INFORMATION",
+                              "tone": "CASUAL",
+                              "title": "을지로 크루아상 맛집 | 겹겹이 살…",
+                              "hashtags": ["#을지로카페", "#을지로크루아상"]
+                            },
+                            {
+                              "contentId": 1,
+                              "savedAt": "2026-08-23T02:10:00Z",
+                              "channels": ["INSTAGRAM"],
+                              "purpose": "NEW_MENU_PROMOTION",
+                              "tone": "EMOTIONAL",
+                              "title": "성큼 다가온 가을, 마음까지 녹여 줄 한…",
+                              "hashtags": ["#가을신메뉴", "#카페스타그램"]
+                            }
+                          ]
+                        }
+                        """))),
+        @ApiResponse(responseCode = "400", description = "channel 이 없는 값이거나 page·size 가 허용 범위를 벗어났습니다 (C0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = {
+                    @ExampleObject(name = "size 상한 초과", value = """
+                        {"code":"C0001","message":"한 번에 최대 50건까지 조회할 수 있습니다"}
+                        """),
+                    @ExampleObject(name = "없는 채널", value = """
+                        {"code":"C0001","message":"입력값을 다시 확인해 주세요"}
+                        """)})),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """)))
+    })
+    ContentListResponse list(Long memberId, ContentListRequest request);
+
+    @Operation(
         summary = "콘텐츠 상세 조회",
         security = @SecurityRequirement(name = "bearerAuth"),
         description = """
@@ -101,7 +174,7 @@ interface ContentApi {
             - contents 는 블로그 → 인스타그램 → 당근 비즈 → 스레드 순으로 담깁니다. 저장 응답과 같은 규칙입니다.
             - 저장된 최신본이 옵니다. 편집했다면 편집한 내용이, 편집하지 않았다면 저장할 때 복사해 둔 내용이 그대로 옵니다.
             - 제목은 저장된 값을 그대로 돌려줍니다. 제목 없는 채널(인스타그램·당근 비즈·스레드)은 title 이 null 입니다.
-              목록처럼 서버가 본문에서 임시 제목을 만들어 채우지 않습니다.
+              목록처럼 서버가 본문에서 제목을 만들어 채우거나 20자에서 자르지 않습니다.
             - purpose·tone·keywords 는 콘텐츠 전체의 생성 조건입니다. 화면 상단의 "정보성 · 일상형"과 활용 키워드가 이 값들이며, 채널이 달라도 같습니다.
               저장할 때 복사해 두므로 원본 생성 작업이 없어도 그대로 옵니다.
             - 편집은 이 콘텐츠의 contentId 와 채널마다 다른 contents[].contentChannelId 를 함께 써서 호출합니다.

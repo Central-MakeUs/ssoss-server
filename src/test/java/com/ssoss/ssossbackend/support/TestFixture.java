@@ -8,6 +8,7 @@ import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentListResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
@@ -169,6 +170,20 @@ public class TestFixture {
 
     public Long savedContentId(String accessToken, Long generationId) {
         return contentsOfGeneration(accessToken, generationId).contentId();
+    }
+
+    public RestTestClient.ResponseSpec getContents(String accessToken, String query) {
+        return client.get().uri("/v1/contents" + query)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public ContentListResponse contentList(String accessToken, String query) {
+        return getContents(accessToken, query)
+            .expectStatus().isOk()
+            .expectBody(ContentListResponse.class)
+            .returnResult()
+            .getResponseBody();
     }
 
     public RestTestClient.ResponseSpec getContent(String accessToken, Long contentId) {

@@ -3,9 +3,11 @@ package com.ssoss.ssossbackend.content.application.service;
 import java.util.List;
 
 import com.ssoss.ssossbackend.content.application.command.ContentChannelEditCommand;
+import com.ssoss.ssossbackend.content.application.command.ContentListCommand;
 import com.ssoss.ssossbackend.content.application.command.ContentSaveCommand;
 import com.ssoss.ssossbackend.content.application.result.ContentChannelResult;
 import com.ssoss.ssossbackend.content.application.result.ContentDetailResult;
+import com.ssoss.ssossbackend.content.application.result.ContentListResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
 import com.ssoss.ssossbackend.content.domain.model.Content;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
@@ -49,6 +51,11 @@ public class ContentService {
 
     public void delete(Long contentId, Long memberId) {
         contentWriter.delete(contentFinder.get(contentId, memberId));
+    }
+
+    public ContentListResult list(ContentListCommand command) {
+        return ContentListResult.from(
+            contentFinder.list(command.memberId(), command.channel(), command.page(), command.size()));
     }
 
     public ContentDetailResult getById(Long contentId, Long memberId) {
