@@ -8,6 +8,7 @@ import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
 
 import org.springframework.http.HttpHeaders;
@@ -137,6 +138,14 @@ public class TestFixture {
             .exchange();
     }
 
+    public GenerationDetailResponse generationDetail(String accessToken, Long generationId) {
+        return getGeneration(accessToken, generationId)
+            .expectStatus().isOk()
+            .expectBody(GenerationDetailResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
     public RestTestClient.ResponseSpec saveContents(String accessToken, Long generationId) {
         return saveContents(accessToken, Map.of("generationId", generationId));
     }
@@ -155,6 +164,16 @@ public class TestFixture {
             .expectBody(ContentSaveResponse.class)
             .returnResult()
             .getResponseBody();
+    }
+
+    public Long savedContentId(String accessToken, Long generationId) {
+        return contentsOfGeneration(accessToken, generationId).contentId();
+    }
+
+    public RestTestClient.ResponseSpec getContent(String accessToken, Long contentId) {
+        return client.get().uri("/v1/contents/" + contentId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
     }
 
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {

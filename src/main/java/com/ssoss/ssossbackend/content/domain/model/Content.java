@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.content.domain.model;
 
 import java.time.Instant;
+import java.util.List;
 
 import lombok.Getter;
 
@@ -15,34 +16,33 @@ public class Content {
     @Id
     private Long id;
     private Long memberId;
-    private Long generationId;
-    private Long generationResultId;
-    private Channel channel;
-    private String title;
-    private String body;
-    private String hashtags;
+    private ContentSource sourceType;
+    private Long sourceId;
+    private Purpose purpose;
+    private Tone tone;
+    private Keywords keywords;
 
     @CreatedDate
     private Instant createdAt;
 
-    private Instant deletedAt;
-
-    Content(Long id, Long memberId, Long generationId, Long generationResultId, Channel channel,
-        String title, String body, String hashtags, Instant createdAt, Instant deletedAt) {
+    Content(Long id, Long memberId, ContentSource sourceType, Long sourceId, Purpose purpose, Tone tone,
+        Keywords keywords, Instant createdAt) {
         this.id = id;
         this.memberId = memberId;
-        this.generationId = generationId;
-        this.generationResultId = generationResultId;
-        this.channel = channel;
-        this.title = title;
-        this.body = body;
-        this.hashtags = hashtags;
+        this.sourceType = sourceType;
+        this.sourceId = sourceId;
+        this.purpose = purpose;
+        this.tone = tone;
+        this.keywords = keywords;
         this.createdAt = createdAt;
-        this.deletedAt = deletedAt;
     }
 
-    public static Content copyOf(Long memberId, GenerationResult result) {
-        return new Content(null, memberId, result.getGenerationId(), result.getId(), result.getChannel(),
-            result.getTitle(), result.getBody(), result.getHashtags(), null, null);
+    public static Content copyOf(Generation generation) {
+        return new Content(null, generation.getMemberId(), ContentSource.GENERATION, generation.getId(),
+            generation.getPurpose(), generation.getTone(), generation.getKeywords(), null);
+    }
+
+    public List<String> keywordList() {
+        return keywords == null ? List.of() : keywords.values();
     }
 }

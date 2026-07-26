@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.content.entrypoint.controller;
 
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentSaveRequest;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 
@@ -25,12 +26,12 @@ interface ContentApi {
             생성 작업의 결과를 콘텐츠로 저장합니다.
 
             - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 작업만 저장할 수 있습니다.
-            - 저장 단위는 작업 하나입니다. 작업 id 를 보내면 그 작업의 채널 결과가 전부 한 번에 저장됩니다.
+            - 저장 단위는 작업 하나입니다. 작업 id 를 보내면 그 작업의 채널 결과가 전부 한 번에 저장되어 콘텐츠 1건이 됩니다.
               채널을 골라 저장하는 방법은 없습니다.
             - 성공한 작업만 저장할 수 있습니다. 조회 API 의 status 가 SUCCEEDED 인 작업을 보내세요.
               아직 IN_PROGRESS 면 409 로, FAILED 면 400 으로 거부됩니다.
-            - 같은 작업을 다시 저장해도 콘텐츠가 늘어나지 않습니다. 이미 저장된 결과는 그대로 두고 같은 콘텐츠 id 를 반환합니다.
-            - 반환된 contentId 로 생성 기록의 상세 조회·편집·채널 변환에 들어갑니다.
+            - 같은 작업을 다시 저장해도 콘텐츠가 늘어나지 않습니다. 이미 저장된 결과는 그대로 두고 contentId 와 contentChannelId 를 처음 저장할 때와 같은 값으로 반환합니다.
+            - 반환된 contentId 로 상세 조회에, contents[].contentChannelId 로 편집·삭제·채널 변환에 들어갑니다.
             - contents 는 블로그 → 인스타그램 → 당근 비즈 → 스레드 순으로 담깁니다. 요청한 채널 순서나 저장된 순서와 무관하게 항상 같습니다.
             """)
     @ApiResponses({
@@ -38,9 +39,10 @@ interface ContentApi {
             content = @Content(schema = @Schema(implementation = ContentSaveResponse.class),
                 examples = @ExampleObject(name = "2채널 저장", value = """
                     {
+                      "contentId": 1,
                       "contents": [
-                        {"contentId": 1, "generationResultId": 10, "channel": "BLOG"},
-                        {"contentId": 2, "generationResultId": 11, "channel": "INSTAGRAM"}
+                        {"contentChannelId": 10, "channel": "BLOG"},
+                        {"contentChannelId": 11, "channel": "INSTAGRAM"}
                       ]
                     }
                     """))),
@@ -76,4 +78,85 @@ interface ContentApi {
                     """)))
     })
     ResponseEntity<ContentSaveResponse> save(Long memberId, ContentSaveRequest request);
+
+    @Operation(
+        summary = "콘텐츠 상세 조회",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            저장한 콘텐츠 1건을 채널별 본문까지 통째로 조회합니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 콘텐츠만 조회할 수 있습니다.
+            - 콘텐츠 1건은 저장하기 1회로 만들어지는 묶음입니다. 3채널을 저장했다면 콘텐츠는 1건이고 그 안에 채널 셋이 담깁니다.
+              생성 기록 카드 하나가 곧 콘텐츠 하나라, 카드를 눌러 들어온 상세 화면의 채널 탭을 한 번의 호출로 그릴 수 있습니다.
+            - contents 는 블로그 → 인스타그램 → 당근 비즈 → 스레드 순으로 담깁니다. 저장 응답과 같은 규칙입니다.
+            - 저장된 최신본이 옵니다. 편집했다면 편집한 내용이, 편집하지 않았다면 저장할 때 복사해 둔 내용이 그대로 옵니다.
+            - 제목은 저장된 값을 그대로 돌려줍니다. 제목 없는 채널(인스타그램·당근 비즈·스레드)은 title 이 null 입니다.
+              목록처럼 서버가 본문에서 임시 제목을 만들어 채우지 않습니다.
+            - purpose·tone·keywords 는 콘텐츠 전체의 생성 조건입니다. 화면 상단의 "정보성 · 일상형"과 활용 키워드가 이 값들이며, 채널이 달라도 같습니다.
+              저장할 때 복사해 두므로 원본 생성 작업이 없어도 그대로 옵니다.
+            - 편집·삭제·채널 변환은 채널마다 다른 contents[].contentChannelId 로 호출합니다.
+            - 사진 가이드 태그가 섞인 본문은 생성 작업 조회와 같은 형식이라 같은 파서를 쓸 수 있습니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "콘텐츠의 목적·톤·키워드와 채널별 제목·본문·해시태그를 반환합니다",
+            content = @Content(schema = @Schema(implementation = ContentDetailResponse.class),
+                examples = {
+                    @ExampleObject(name = "2채널 저장", description = "블로그는 제목이 있고 스레드는 없습니다", value = """
+                        {
+                          "contentId": 1,
+                          "purpose": "INFORMATION",
+                          "tone": "CASUAL",
+                          "keywords": ["디저트", "크루아상", "을지로베이커리"],
+                          "contents": [
+                            {
+                              "contentChannelId": 10,
+                              "channel": "BLOG",
+                              "title": "을지로 크루아상 맛집 | 겹겹이 살아있는 결, 보니스커피",
+                              "body": "을지로에서 크루아상 하나를 제대로 먹고 싶다면, 보니스커피를 추천드려요...",
+                              "hashtags": ["#을지로카페", "#을지로크루아상", "#보니스커피"]
+                            },
+                            {
+                              "contentChannelId": 11,
+                              "channel": "THREADS",
+                              "title": null,
+                              "body": "매일 아침 6시부터 미는 반죽, 결이 살아있는 크루아상 한 입 어떠세요?",
+                              "hashtags": ["#을지로카페", "#크루아상맛집"]
+                            }
+                          ]
+                        }
+                        """),
+                    @ExampleObject(name = "1채널 저장 — 키워드 없음", value = """
+                        {
+                          "contentId": 2,
+                          "purpose": "NEW_MENU_PROMOTION",
+                          "tone": "EMOTIONAL",
+                          "keywords": [],
+                          "contents": [
+                            {
+                              "contentChannelId": 12,
+                              "channel": "INSTAGRAM",
+                              "title": null,
+                              "body": "성큼 다가온 가을, 마음까지 녹여 줄 한 잔을 준비했어요.",
+                              "hashtags": ["#가을신메뉴", "#카페스타그램"]
+                            }
+                          ]
+                        }
+                        """)})),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404", description = "콘텐츠가 없거나 본인의 콘텐츠가 아닙니다 (CT0005)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"CT0005","message":"콘텐츠를 찾을 수 없습니다"}
+                    """)))
+    })
+    ContentDetailResponse getById(Long memberId, Long contentId);
 }
