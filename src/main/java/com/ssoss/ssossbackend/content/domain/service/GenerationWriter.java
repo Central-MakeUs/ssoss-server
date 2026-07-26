@@ -9,7 +9,7 @@ import com.ssoss.ssossbackend.content.domain.model.Generation;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResultStatus;
 import com.ssoss.ssossbackend.content.domain.model.LlmCallReply;
-import com.ssoss.ssossbackend.content.event.GenerationResultSucceededEvent;
+import com.ssoss.ssossbackend.content.event.GenerationSucceededEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,20 +34,19 @@ public class GenerationWriter {
     }
 
     @Transactional
-    public void settle(Generation generation, Channel channel, GenerationResultStatus status, LlmCallReply reply) {
+    public boolean settle(Generation generation, Channel channel, GenerationResultStatus status, LlmCallReply reply) {
         if (status == GenerationResultStatus.SUCCEEDED && generation.isExpired(clock.instant())) {
             log.warn("deadline 을 넘긴 지각 결과를 폐기합니다: generationId={}, channel={}", generation.getId(), channel);
             generationResultRepository.save(GenerationResult.failed(generation.getId(), channel,
                 GenerationResultStatus.DISCARDED_LATE, reply));
-            return;
+            return false;
         }
         if (status != GenerationResultStatus.SUCCEEDED) {
             generationResultRepository.save(GenerationResult.failed(generation.getId(), channel, status, reply));
-            return;
+            return false;
         }
-        GenerationResult succeeded = generationResultRepository.save(
-            GenerationResult.succeeded(generation.getId(), channel, reply));
-        eventPublisher.publishEvent(new GenerationResultSucceededEvent(generation.getMemberId(), succeeded.getId()));
+        generationResultRepository.save(GenerationResult.succeeded(generation.getId(), channel, reply));
+        return true;
     }
 
     @Transactional
@@ -58,9 +57,14 @@ public class GenerationWriter {
     }
 
     @Transactional
-    public void finish(Generation generation) {
-        if (generation.finish(clock.instant())) {
-            generationRepository.save(generation);
+    public void finish(Generation generation, boolean everyChannelSucceeded) {
+        if (!generation.finish(clock.instant())) {
+            return;
+        }
+        generationRepository.save(generation);
+        if (everyChannelSucceeded) {
+            eventPublisher.publishEvent(new GenerationSucceededEvent(generation.getMemberId(), generation.getId(),
+                generation.channelList().size()));
         }
     }
 }

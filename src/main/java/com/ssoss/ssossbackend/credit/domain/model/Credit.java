@@ -15,7 +15,7 @@ import org.springframework.data.relational.core.mapping.Table;
 public class Credit {
 
     public static final int CYCLE_FREE_GRANT = 50;
-    public static final int RESULT_DEDUCTION = 5;
+    public static final int CHANNEL_DEDUCTION = 5;
 
     @Id
     private Long id;

@@ -7,8 +7,8 @@ import java.util.List;
 import com.ssoss.ssossbackend.content.application.command.GenerationStartCommand;
 import com.ssoss.ssossbackend.content.application.result.GenerationDetailResult;
 import com.ssoss.ssossbackend.content.application.result.GenerationStartResult;
-import com.ssoss.ssossbackend.content.domain.model.ChannelResult;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
+import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
 import com.ssoss.ssossbackend.content.domain.service.GenerationCoordinator;
 import com.ssoss.ssossbackend.content.domain.service.GenerationFinder;
 import com.ssoss.ssossbackend.content.domain.service.GenerationValidator;
@@ -45,18 +45,16 @@ public class GenerationService {
     public GenerationDetailResult getById(Long generationId, Long memberId) {
         Instant now = clock.instant();
         Generation generation = generationFinder.get(generationId, memberId);
-        List<ChannelResult> channelResults = generation.channelResults(
-            now, generationFinder.results(generationId));
+        List<GenerationResult> results = generationFinder.results(generationId);
         return new GenerationDetailResult(
             generation.getId(),
-            generation.status(now).name(),
+            generation.status(now, results).name(),
             generation.getPurpose().name(),
             generation.getTone().name(),
             generation.keywordList(),
-            channelResults.stream()
+            generation.channelResults(now, results).stream()
                 .map(result -> new GenerationDetailResult.ChannelDetail(
-                    result.channel().name(), result.status().name(), result.message(),
-                    result.title(), result.body(), result.hashtags()))
+                    result.channel().name(), result.title(), result.body(), result.hashtags()))
                 .toList());
     }
 }

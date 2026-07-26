@@ -25,10 +25,10 @@ interface ContentApi {
             생성 작업의 결과를 콘텐츠로 저장합니다.
 
             - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 작업만 저장할 수 있습니다.
-            - 저장 단위는 작업 하나입니다. 작업 id 를 보내면 그 작업에서 성공한 채널 결과가 전부 한 번에 저장됩니다.
+            - 저장 단위는 작업 하나입니다. 작업 id 를 보내면 그 작업의 채널 결과가 전부 한 번에 저장됩니다.
               채널을 골라 저장하는 방법은 없습니다.
-            - 끝난 작업만 저장할 수 있습니다. 조회 API 의 status 가 COMPLETED 가 된 뒤에 호출하세요. 아직 진행 중이면 409 로 거부됩니다.
-            - 실패한 채널은 저장 대상이 아닙니다. 전 채널이 실패해 성공한 결과가 하나도 없으면 400 으로 거부됩니다.
+            - 성공한 작업만 저장할 수 있습니다. 조회 API 의 status 가 SUCCEEDED 인 작업을 보내세요.
+              아직 IN_PROGRESS 면 409 로, FAILED 면 400 으로 거부됩니다.
             - 같은 작업을 다시 저장해도 콘텐츠가 늘어나지 않습니다. 이미 저장된 결과는 그대로 두고 같은 콘텐츠 id 를 반환합니다.
             - 반환된 contentId 로 생성 기록의 상세 조회·편집·채널 변환에 들어갑니다.
             - contents 는 블로그 → 인스타그램 → 당근 비즈 → 스레드 순으로 담깁니다. 요청한 채널 순서나 저장된 순서와 무관하게 항상 같습니다.
@@ -45,14 +45,14 @@ interface ContentApi {
                     }
                     """))),
         @ApiResponse(responseCode = "400",
-            description = "입력값이 잘못되었거나 (C0001) 전 채널이 실패해 저장할 수 있는 생성 결과가 없습니다 (CT0003)",
+            description = "입력값이 잘못되었거나 (C0001) 생성에 실패한 작업입니다 (CT0003)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = {
                     @ExampleObject(name = "입력값 오류", value = """
                         {"code":"C0001","message":"생성 작업 id 를 입력해 주세요"}
                         """),
-                    @ExampleObject(name = "저장할 결과 없음", value = """
-                        {"code":"CT0003","message":"저장할 수 있는 생성 결과가 없습니다"}
+                    @ExampleObject(name = "실패한 작업", value = """
+                        {"code":"CT0003","message":"생성에 실패한 작업은 저장할 수 없습니다"}
                         """)})),
         @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
@@ -69,10 +69,10 @@ interface ContentApi {
                 examples = @ExampleObject(value = """
                     {"code":"CT0002","message":"생성 작업을 찾을 수 없습니다"}
                     """))),
-        @ApiResponse(responseCode = "409", description = "작업이 아직 진행 중입니다 (CT0004) — 조회 API 의 status 가 COMPLETED 가 된 뒤에 저장해 주세요",
+        @ApiResponse(responseCode = "409", description = "작업이 아직 진행 중입니다 (CT0004) — 조회 API 의 status 가 IN_PROGRESS 가 아니게 된 뒤에 저장해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """
-                    {"code":"CT0004","message":"생성이 아직 끝나지 않았습니다. 완료된 뒤 저장해 주세요"}
+                    {"code":"CT0004","message":"생성이 아직 끝나지 않았습니다. 끝난 뒤 저장해 주세요"}
                     """)))
     })
     ResponseEntity<ContentSaveResponse> save(Long memberId, ContentSaveRequest request);

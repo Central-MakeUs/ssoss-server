@@ -95,7 +95,7 @@ class CreditBalanceApiTest extends IntegrationTest {
             assertThat(entries).singleElement().satisfies(entry -> {
                 assertThat(entry.getType()).isEqualTo(CreditLedgerType.GRANT);
                 assertThat(entry.getAmount()).isEqualTo(50);
-                assertThat(entry.getGenerationResultId()).isNull();
+                assertThat(entry.getGenerationId()).isNull();
             });
             int ledgerSum = entries.stream().mapToInt(CreditLedger::getAmount).sum();
             fixture.creditBalance(signup.accessToken())

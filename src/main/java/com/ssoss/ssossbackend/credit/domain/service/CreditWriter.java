@@ -32,11 +32,12 @@ public class CreditWriter {
     }
 
     @Transactional
-    public void deduct(Long memberId, Long generationResultId) {
+    public void deduct(Long memberId, Long generationId, int channelCount) {
+        int amount = Credit.CHANNEL_DEDUCTION * channelCount;
         Credit credit = creditRepository.findWithLockByMemberId(memberId)
             .orElseThrow(() -> new BusinessException(CreditErrorCode.CREDIT_NOT_FOUND));
-        creditRepository.save(credit.deduct(Credit.RESULT_DEDUCTION));
-        creditLedgerRepository.save(CreditLedger.deduct(memberId, Credit.RESULT_DEDUCTION, generationResultId));
+        creditRepository.save(credit.deduct(amount));
+        creditLedgerRepository.save(CreditLedger.deduct(memberId, amount, generationId));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

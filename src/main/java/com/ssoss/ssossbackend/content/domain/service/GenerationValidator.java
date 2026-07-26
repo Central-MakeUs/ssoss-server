@@ -1,11 +1,14 @@
 package com.ssoss.ssossbackend.content.domain.service;
 
 import java.time.Clock;
+import java.util.List;
 
 import com.ssoss.ssossbackend.content.domain.contract.GenerationLockRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationRepository;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
+import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
+import com.ssoss.ssossbackend.content.domain.model.GenerationStatus;
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
@@ -28,9 +31,13 @@ public class GenerationValidator {
         }
     }
 
-    public void ensureCompleted(Generation generation) {
-        if (!generation.isClosed(clock.instant())) {
-            throw new BusinessException(ContentErrorCode.GENERATION_NOT_COMPLETED);
+    public void ensureSavable(Generation generation, List<GenerationResult> results) {
+        GenerationStatus status = generation.status(clock.instant(), results);
+        if (status == GenerationStatus.IN_PROGRESS) {
+            throw new BusinessException(ContentErrorCode.GENERATION_NOT_FINISHED);
+        }
+        if (status == GenerationStatus.FAILED) {
+            throw new BusinessException(ContentErrorCode.GENERATION_FAILED);
         }
     }
 }
