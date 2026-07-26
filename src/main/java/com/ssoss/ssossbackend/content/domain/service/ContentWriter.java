@@ -66,7 +66,7 @@ public class ContentWriter {
             .collect(Collectors.toSet());
         List<ContentChannel> added = contentChannelRepository.saveAll(results.stream()
             .filter(result -> !savedResultIds.contains(result.getId()))
-            .map(result -> ContentChannel.copyOf(content.getId(), result))
+            .map(result -> ContentChannel.copyOf(content, result))
             .toList());
         return new ContentWithChannels(content, Stream.concat(saved.stream(), added.stream())
             .sorted(ContentChannel.CHANNEL_ORDER)
