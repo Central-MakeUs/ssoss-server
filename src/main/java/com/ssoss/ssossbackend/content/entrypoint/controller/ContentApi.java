@@ -33,6 +33,8 @@ interface ContentApi {
             - 성공한 작업만 저장할 수 있습니다. 조회 API 의 status 가 SUCCEEDED 인 작업을 보내세요.
               아직 IN_PROGRESS 면 409 로, FAILED 면 400 으로 거부됩니다.
             - 같은 작업을 다시 저장해도 콘텐츠가 늘어나지 않습니다. 이미 저장된 결과는 그대로 두고 contentId 와 contentChannelId 를 처음 저장할 때와 같은 값으로 반환합니다.
+            - 저장한 뒤 삭제한 작업은 다시 저장할 수 없습니다. 409(CT0009)로 거부하며 삭제한 콘텐츠는 되살아나지 않습니다.
+              삭제 후에는 같은 작업으로 저장하기를 다시 호출하지 말고, 필요하면 새로 생성해 주세요.
             - 반환된 contentId 로 상세 조회에, contents[].contentChannelId 로 편집·삭제·채널 변환에 들어갑니다.
             - contents 는 블로그 → 인스타그램 → 당근 비즈 → 스레드 순으로 담깁니다. 요청한 채널 순서나 저장된 순서와 무관하게 항상 같습니다.
             """)
@@ -73,11 +75,17 @@ interface ContentApi {
                 examples = @ExampleObject(value = """
                     {"code":"CT0002","message":"생성 작업을 찾을 수 없습니다"}
                     """))),
-        @ApiResponse(responseCode = "409", description = "작업이 아직 진행 중입니다 (CT0004) — 조회 API 의 status 가 IN_PROGRESS 가 아니게 된 뒤에 저장해 주세요",
+        @ApiResponse(responseCode = "409",
+            description = "작업이 아직 진행 중이거나 (CT0004) 저장했다 삭제한 작업입니다 (CT0009)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
-                examples = @ExampleObject(value = """
-                    {"code":"CT0004","message":"생성이 아직 끝나지 않았습니다. 끝난 뒤 저장해 주세요"}
-                    """)))
+                examples = {
+                    @ExampleObject(name = "진행 중인 작업",
+                        description = "조회 API 의 status 가 IN_PROGRESS 가 아니게 된 뒤에 저장해 주세요", value = """
+                        {"code":"CT0004","message":"생성이 아직 끝나지 않았습니다. 끝난 뒤 저장해 주세요"}
+                        """),
+                    @ExampleObject(name = "삭제한 콘텐츠", value = """
+                        {"code":"CT0009","message":"이미 삭제한 콘텐츠는 다시 저장할 수 없습니다"}
+                        """)}))
     })
     ResponseEntity<ContentSaveResponse> save(Long memberId, ContentSaveRequest request);
 
@@ -233,4 +241,36 @@ interface ContentApi {
     })
     ContentChannelResponse edit(Long memberId, Long contentId, Long contentChannelId,
         ContentChannelEditRequest request);
+
+    @Operation(
+        summary = "저장 콘텐츠 삭제",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            저장한 콘텐츠 1건을 삭제합니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 콘텐츠만 삭제할 수 있습니다.
+            - 삭제 단위는 콘텐츠 통째입니다. 3채널을 저장했다면 세 채널이 함께 사라지며, 채널 하나만 골라 지우는 방법은 없습니다.
+              채널마다 따로 호출하는 편집과 단위가 다릅니다.
+            - 되돌릴 수 없습니다. 복구 API 가 없고, 같은 작업을 다시 저장해도 되살아나지 않습니다(409 CT0009).
+            - 삭제한 콘텐츠는 목록·상세에서 사라지고, 상세·편집·삭제를 다시 호출하면 404(CT0005)입니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "삭제되었습니다"),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404", description = "콘텐츠를 찾을 수 없습니다 (CT0005)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"CT0005","message":"콘텐츠를 찾을 수 없습니다"}
+                    """)))
+    })
+    void delete(Long memberId, Long contentId);
 }

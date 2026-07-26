@@ -194,6 +194,16 @@ public class TestFixture {
             .exchange();
     }
 
+    public RestTestClient.ResponseSpec deleteContent(String accessToken, Long contentId) {
+        return client.delete().uri("/v1/contents/" + contentId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public void deletedContent(String accessToken, Long contentId) {
+        deleteContent(accessToken, contentId).expectStatus().isNoContent();
+    }
+
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
         return client.post().uri("/v1/tokens")
             .contentType(MediaType.APPLICATION_JSON)

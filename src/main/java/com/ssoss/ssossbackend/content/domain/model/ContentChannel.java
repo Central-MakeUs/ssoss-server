@@ -75,6 +75,14 @@ public class ContentChannel {
         return true;
     }
 
+    public void delete(Instant deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
     public List<String> hashtagList() {
         return hashtags == null ? List.of() : hashtags.values();
     }
