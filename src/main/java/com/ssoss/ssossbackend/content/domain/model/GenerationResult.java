@@ -69,6 +69,10 @@ public class GenerationResult {
             responseTimeMillis, inputTokens, outputTokens, rawResponse);
     }
 
+    public boolean isSucceeded() {
+        return status == GenerationResultStatus.SUCCEEDED;
+    }
+
     public List<String> hashtagList() {
         if (hashtags == null || hashtags.isBlank()) {
             return List.of();

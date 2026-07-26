@@ -27,4 +27,10 @@ public class GenerationValidator {
             throw new BusinessException(ContentErrorCode.GENERATION_IN_PROGRESS_EXISTS);
         }
     }
+
+    public void ensureCompleted(Generation generation) {
+        if (!generation.isClosed(clock.instant())) {
+            throw new BusinessException(ContentErrorCode.GENERATION_NOT_COMPLETED);
+        }
+    }
 }

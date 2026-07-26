@@ -7,6 +7,7 @@ import java.util.Map;
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
 
 import org.springframework.http.HttpHeaders;
@@ -134,6 +135,26 @@ public class TestFixture {
         return client.get().uri("/v1/generations/" + generationId)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .exchange();
+    }
+
+    public RestTestClient.ResponseSpec saveContents(String accessToken, Long generationId) {
+        return saveContents(accessToken, Map.of("generationId", generationId));
+    }
+
+    public RestTestClient.ResponseSpec saveContents(String accessToken, Map<String, Object> body) {
+        return client.post().uri("/v1/contents")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public ContentSaveResponse contentsOfGeneration(String accessToken, Long generationId) {
+        return saveContents(accessToken, generationId)
+            .expectStatus().isCreated()
+            .expectBody(ContentSaveResponse.class)
+            .returnResult()
+            .getResponseBody();
     }
 
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
