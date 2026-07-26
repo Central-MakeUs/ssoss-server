@@ -25,7 +25,7 @@ class GenerationTest {
             "강조", null, null, false);
         return new Generation(1L, 1L, generation.getChannels(), generation.getPurpose(), generation.getTone(),
             generation.getEmphasis(), generation.getForbidden(), generation.getKeywords(),
-            generation.isPhotoGuideChecked(), generation.getSourceSavedContentId(), CREATED_AT, null);
+            generation.isPhotoGuideChecked(), generation.getSourceContentId(), CREATED_AT, null);
     }
 
     @Nested
