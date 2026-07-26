@@ -9,14 +9,9 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.json.JsonMapper;
-
 @Getter
 @Table("generation_result")
 public class GenerationResult {
-
-    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
     @Id
     private Long id;
@@ -25,7 +20,7 @@ public class GenerationResult {
     private GenerationResultStatus status;
     private String title;
     private String body;
-    private String hashtags;
+    private Hashtags hashtags;
     private long responseTimeMillis;
     private Integer inputTokens;
     private Integer outputTokens;
@@ -35,7 +30,7 @@ public class GenerationResult {
     private Instant createdAt;
 
     GenerationResult(Long id, Long generationId, Channel channel, GenerationResultStatus status,
-        String title, String body, String hashtags, long responseTimeMillis,
+        String title, String body, Hashtags hashtags, long responseTimeMillis,
         Integer inputTokens, Integer outputTokens, String rawResponse) {
         this.id = id;
         this.generationId = generationId;
@@ -53,7 +48,7 @@ public class GenerationResult {
     public static GenerationResult succeeded(Long generationId, Channel channel, LlmCallReply reply) {
         GeneratedContent content = reply.content();
         return new GenerationResult(null, generationId, channel, GenerationResultStatus.SUCCEEDED,
-            content.title(), content.body(), JSON_MAPPER.writeValueAsString(content.hashtags()),
+            content.title(), content.body(), new Hashtags(content.hashtags()),
             reply.responseTimeMillis(), reply.inputTokens(), reply.outputTokens(), reply.rawResponse());
     }
 
@@ -74,10 +69,6 @@ public class GenerationResult {
     }
 
     public List<String> hashtagList() {
-        if (hashtags == null || hashtags.isBlank()) {
-            return List.of();
-        }
-        return JSON_MAPPER.readValue(hashtags, new TypeReference<List<String>>() {
-        });
+        return hashtags == null ? List.of() : hashtags.values();
     }
 }

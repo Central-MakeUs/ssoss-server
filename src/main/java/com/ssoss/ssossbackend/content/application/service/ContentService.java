@@ -3,9 +3,13 @@ package com.ssoss.ssossbackend.content.application.service;
 import java.util.List;
 
 import com.ssoss.ssossbackend.content.application.command.ContentSaveCommand;
+import com.ssoss.ssossbackend.content.application.result.ContentDetailResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
+import com.ssoss.ssossbackend.content.domain.model.Content;
+import com.ssoss.ssossbackend.content.domain.model.ContentWithChannels;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
+import com.ssoss.ssossbackend.content.domain.service.ContentFinder;
 import com.ssoss.ssossbackend.content.domain.service.ContentWriter;
 import com.ssoss.ssossbackend.content.domain.service.GenerationFinder;
 import com.ssoss.ssossbackend.content.domain.service.GenerationValidator;
@@ -21,14 +25,28 @@ public class ContentService {
     private final GenerationFinder generationFinder;
     private final GenerationValidator generationValidator;
     private final ContentWriter contentWriter;
+    private final ContentFinder contentFinder;
 
     public ContentSaveResult save(ContentSaveCommand command) {
         Generation generation = generationFinder.get(command.generationId(), command.memberId());
         List<GenerationResult> results = generationFinder.results(generation.getId());
         generationValidator.ensureSavable(generation, results);
-        return new ContentSaveResult(contentWriter.save(generation.getMemberId(), results).stream()
-            .map(content -> new ContentSaveResult.Item(
-                content.getId(), content.getGenerationResultId(), content.getChannel().name()))
+        ContentWithChannels saved = contentWriter.save(generation, results);
+        return new ContentSaveResult(saved.content().getId(), saved.channels().stream()
+            .map(channel -> new ContentSaveResult.Item(channel.getId(), channel.getChannel().name()))
             .toList());
+    }
+
+    public ContentDetailResult getById(Long contentId, Long memberId) {
+        Content content = contentFinder.get(contentId, memberId);
+        return new ContentDetailResult(
+            content.getId(),
+            content.getPurpose().name(),
+            content.getTone().name(),
+            content.keywordList(),
+            contentFinder.channelsOf(content.getId()).stream()
+                .map(channel -> new ContentDetailResult.Item(channel.getId(), channel.getChannel().name(),
+                    channel.getTitle(), channel.getBody(), channel.hashtagList()))
+                .toList());
     }
 }

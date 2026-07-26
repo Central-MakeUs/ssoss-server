@@ -12,9 +12,6 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.json.JsonMapper;
-
 @Getter
 @Table("generation")
 public class Generation {
@@ -22,8 +19,6 @@ public class Generation {
     public static final Duration DEADLINE = Duration.ofSeconds(60);
 
     private static final String CHANNEL_SEPARATOR = ",";
-
-    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
     @Id
     private Long id;
@@ -33,7 +28,7 @@ public class Generation {
     private Tone tone;
     private String emphasis;
     private String forbidden;
-    private String keywords;
+    private Keywords keywords;
     private boolean photoGuideChecked;
     private Long sourceContentId;
 
@@ -43,7 +38,7 @@ public class Generation {
     private Instant finishedAt;
 
     Generation(Long id, Long memberId, String channels, Purpose purpose, Tone tone,
-        String emphasis, String forbidden, String keywords, boolean photoGuideChecked, Long sourceContentId,
+        String emphasis, String forbidden, Keywords keywords, boolean photoGuideChecked, Long sourceContentId,
         Instant createdAt, Instant finishedAt) {
         this.id = id;
         this.memberId = memberId;
@@ -64,10 +59,7 @@ public class Generation {
         String joined = channels.stream()
             .map(Channel::name)
             .collect(Collectors.joining(CHANNEL_SEPARATOR));
-        String serializedKeywords = keywords == null || keywords.isEmpty()
-            ? null
-            : JSON_MAPPER.writeValueAsString(keywords);
-        return new Generation(null, memberId, joined, purpose, tone, emphasis, forbidden, serializedKeywords,
+        return new Generation(null, memberId, joined, purpose, tone, emphasis, forbidden, new Keywords(keywords),
             photoGuideChecked, null, null, null);
     }
 
@@ -78,11 +70,7 @@ public class Generation {
     }
 
     public List<String> keywordList() {
-        if (keywords == null || keywords.isBlank()) {
-            return List.of();
-        }
-        return JSON_MAPPER.readValue(keywords, new TypeReference<List<String>>() {
-        });
+        return keywords == null ? List.of() : keywords.values();
     }
 
     public List<ChannelResult> channelResults(Instant now, List<GenerationResult> results) {
