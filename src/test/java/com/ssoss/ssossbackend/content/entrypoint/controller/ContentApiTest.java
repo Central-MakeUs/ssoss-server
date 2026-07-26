@@ -148,6 +148,24 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("삭제한 콘텐츠의 작업을 다시 저장하면 409 와 CT0009 를 반환하고 콘텐츠는 삭제된 채로 남는다")
+        void returns409_whenSavingGenerationOfDeletedContent() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-deleted");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+            fixture.deletedContent(signup.accessToken(), contentId);
+
+            fixture.saveContents(signup.accessToken(), generationId)
+                .expectStatus().isEqualTo(HttpStatus.CONFLICT)
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_DELETED.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-deleted"))).hasSize(1);
+            assertThat(channelsOf(memberIdOf("naver-save-deleted"))).hasSize(2)
+                .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isNotNull());
+        }
+
+        @Test
         @DisplayName("채널 하나가 실패한 작업을 저장하면 400 과 CT0003 을 반환한다")
         void returns400_whenOneChannelFailed() {
             SignupResponse signup = fixture.signupActiveMember("naver-save-one-fail");
@@ -781,6 +799,145 @@ class ContentApiTest extends IntegrationTest {
             return contentChannelHistoryRepository.findAll().stream()
                 .filter(history -> history.getContentChannelId().equals(contentChannelId))
                 .toList();
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /v1/contents/{contentId}")
+    class Delete {
+
+        @Test
+        @DisplayName("삭제하면 채널 전부에 삭제 시각이 찍히고 콘텐츠 행은 남는다")
+        void stampsDeletedAtOnEveryChannel_whenContentDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-every-channel");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(),
+                List.of("BLOG", "INSTAGRAM", "THREADS"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            fixture.deleteContent(signup.accessToken(), contentId)
+                .expectStatus().isNoContent();
+
+            assertThat(contentsOf(memberIdOf("naver-delete-every-channel"))).singleElement()
+                .satisfies(content -> assertThat(content.getId()).isEqualTo(contentId));
+            assertThat(channelsOf(memberIdOf("naver-delete-every-channel"))).hasSize(3)
+                .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isNotNull());
+        }
+
+        @Test
+        @DisplayName("삭제한 콘텐츠를 조회하면 404 와 CT0005 를 반환한다")
+        void returns404FromDetail_whenContentDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-detail");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+            fixture.deletedContent(signup.accessToken(), contentId);
+
+            fixture.getContent(signup.accessToken(), contentId)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("이미 삭제한 콘텐츠를 다시 삭제하면 404 와 CT0005 를 반환한다")
+        void returns404_whenDeletingAgain() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-twice");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+            fixture.deletedContent(signup.accessToken(), contentId);
+            Instant deletedAt = channelsOf(memberIdOf("naver-delete-twice")).getFirst().getDeletedAt();
+            clock.advanceBy(Duration.ofMinutes(10));
+
+            fixture.deleteContent(signup.accessToken(), contentId)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+
+            assertThat(channelsOf(memberIdOf("naver-delete-twice")))
+                .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isEqualTo(deletedAt));
+        }
+
+        @Test
+        @DisplayName("삭제한 콘텐츠의 채널을 편집하면 404 와 CT0005 를 반환한다")
+        void returns404FromEdit_whenContentDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-edit");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            fixture.deletedContent(signup.accessToken(), saved.contentId());
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), Map.of(
+                        "title", "직접 고친 제목",
+                        "body", "직접 고친 본문",
+                        "hashtags", List.of()))
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("한 콘텐츠를 삭제해도 다른 콘텐츠는 그대로 조회된다")
+        void keepsOtherContents_whenOneContentDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-one");
+            Long deletedGenerationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long deletedContentId = fixture.savedContentId(signup.accessToken(), deletedGenerationId);
+            Long keptGenerationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "THREADS"));
+            Long keptContentId = fixture.savedContentId(signup.accessToken(), keptGenerationId);
+
+            fixture.deletedContent(signup.accessToken(), deletedContentId);
+
+            assertThat(fixture.contentDetail(signup.accessToken(), keptContentId).contents())
+                .extracting(ContentChannelResponse::channel)
+                .containsExactly("BLOG", "THREADS");
+        }
+
+        @Test
+        @DisplayName("없는 콘텐츠를 삭제하면 404 와 CT0005 를 반환한다")
+        void returns404_whenContentDoesNotExist() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-not-found");
+
+            fixture.deleteContent(signup.accessToken(), 999_999L)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("다른 회원의 콘텐츠를 삭제하면 404 와 CT0005 를 반환하고 콘텐츠는 그대로다")
+        void returns404_whenDeletingOtherMembersContent() {
+            SignupResponse owner = fixture.signupActiveMember("naver-delete-owner");
+            Long generationId = fixture.startedGenerationId(owner.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(owner.accessToken(), generationId);
+            SignupResponse other = fixture.signupActiveMember("naver-delete-other");
+
+            fixture.deleteContent(other.accessToken(), contentId)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+
+            assertThat(fixture.contentDetail(owner.accessToken(), contentId).contents()).hasSize(1);
+            assertThat(channelsOf(memberIdOf("naver-delete-owner")))
+                .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isNull());
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 삭제하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            fixture.client().delete().uri("/v1/contents/1")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 삭제하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenRequests() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-delete-pending");
+
+            fixture.deleteContent(login.accessToken(), 1L)
+                .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
         }
     }
 

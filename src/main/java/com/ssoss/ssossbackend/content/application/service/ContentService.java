@@ -47,14 +47,19 @@ public class ContentService {
             contentWriter.edit(channel, command.title(), command.body(), command.hashtags()));
     }
 
+    public void delete(Long contentId, Long memberId) {
+        contentWriter.delete(contentFinder.get(contentId, memberId));
+    }
+
     public ContentDetailResult getById(Long contentId, Long memberId) {
-        Content content = contentFinder.get(contentId, memberId);
+        ContentWithChannels found = contentFinder.get(contentId, memberId);
+        Content content = found.content();
         return new ContentDetailResult(
             content.getId(),
             content.getPurpose().name(),
             content.getTone().name(),
             content.keywordList(),
-            contentFinder.channelsOf(content.getId()).stream()
+            found.channels().stream()
                 .map(ContentChannelResult::from)
                 .toList());
     }
