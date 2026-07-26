@@ -70,7 +70,6 @@ class GenerationPromptComposer {
         [사진 가이드]
         사진이 들어가면 좋을 자리를 %s 골라, 그 자리에 <photo-guide/> 마커만 담은 원소를 문단 사이에 끼운다.
         마커와 같은 순서로 photoGuides 배열을 채우고 개수를 정확히 맞춘다.
-        type 은 MENU(메뉴·음식), STORE(매장 외관·내부), MOOD(분위기·소품), PEOPLE(사람) 중 하나를 고른다.
         title 은 어떤 사진인지 15자 이내로, description 은 어떻게 찍으면 좋은지 40자 이내로 쓴다.
         마커와 배열 외의 방법으로 사진을 언급하지 않는다.""";
 

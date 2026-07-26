@@ -13,11 +13,11 @@ public record GenerationChannelResultResponse(
     String title,
     @Schema(description = """
         본문.
-        사진 가이드를 체크한 생성이면 본문 안에 `<photo-guide type="..." title="..." description="..."/>` 태그가 섞여 있습니다.
-        닫는 태그가 없는 한 덩어리이고, type 은 MENU·STORE·MOOD·PEOPLE 넷 중 하나입니다.
+        사진 가이드를 체크한 생성이면 본문 안에 `<photo-guide title="..." description="..."/>` 태그가 섞여 있습니다.
+        닫는 태그가 없는 한 덩어리입니다.
         속성값의 &, <, >, " 는 HTML 방식으로 이스케이프됩니다.""",
         example = "이번 주말, 매장에서 아메리카노 1+1 이벤트를 진행합니다..."
-            + "<photo-guide type=\"MENU\" title=\"시그니처 메뉴\" description=\"위에서 내려다보는 각도로 찍어 주세요\"/>...")
+            + "<photo-guide title=\"시그니처 메뉴\" description=\"위에서 내려다보는 각도로 찍어 주세요\"/>...")
     String body,
     @Schema(description = "해시태그 목록 — 당근 비즈는 빈 배열입니다", example = "[\"#카페이벤트\", \"#아메리카노\"]")
     List<String> hashtags

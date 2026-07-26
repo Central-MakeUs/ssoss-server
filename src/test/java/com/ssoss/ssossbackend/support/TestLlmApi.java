@@ -141,7 +141,7 @@ public class TestLlmApi {
     private List<Map<String, Object>> photoGuides() {
         List<Map<String, Object>> guides = new ArrayList<>();
         for (int number = 1; number <= photoGuideCount; number++) {
-            guides.add(Map.of("type", "MENU", "title", "사진 제목 %d".formatted(number),
+            guides.add(Map.of("title", "사진 제목 %d".formatted(number),
                 "description", "사진 설명 %d".formatted(number)));
         }
         return guides;

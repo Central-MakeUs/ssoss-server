@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 class PhotoGuideAssembler {
 
     private static final Pattern MARKER = Pattern.compile("</?photo-guide(?=[\\s/>])[^>]*>");
-    private static final String TAG = "<photo-guide type=\"%s\" title=\"%s\" description=\"%s\"/>";
+    private static final String TAG = "<photo-guide title=\"%s\" description=\"%s\"/>";
     private static final String PARAGRAPH_BREAK = "\n\n";
 
     String assemble(List<String> paragraphs, List<PhotoGuideOutput> photoGuides) {
@@ -21,9 +21,7 @@ class PhotoGuideAssembler {
         String body = paragraphs.stream()
             .filter(paragraph -> paragraph != null && !paragraph.isBlank())
             .collect(Collectors.joining(PARAGRAPH_BREAK));
-        List<PhotoGuideOutput> guides = photoGuides == null
-            ? List.of()
-            : photoGuides.stream().filter(guide -> guide != null && guide.type() != null).toList();
+        List<PhotoGuideOutput> guides = photoGuides == null ? List.of() : photoGuides;
         Matcher matcher = MARKER.matcher(body);
         StringBuilder assembled = new StringBuilder();
         int paired = 0;
@@ -32,10 +30,9 @@ class PhotoGuideAssembler {
                 matcher.appendReplacement(assembled, "");
                 continue;
             }
-            String replacement = paired < guides.size()
-                ? TAG.formatted(guides.get(paired).type(),
-                    new TagAttribute(guides.get(paired).title()),
-                    new TagAttribute(guides.get(paired).description()))
+            PhotoGuideOutput guide = paired < guides.size() ? guides.get(paired) : null;
+            String replacement = guide != null && guide.isComplete()
+                ? TAG.formatted(new TagAttribute(guide.title()), new TagAttribute(guide.description()))
                 : "";
             matcher.appendReplacement(assembled, Matcher.quoteReplacement(replacement));
             paired++;

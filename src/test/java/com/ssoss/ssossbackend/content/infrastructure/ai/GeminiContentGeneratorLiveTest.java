@@ -41,7 +41,7 @@ class GeminiContentGeneratorLiveTest {
         print(reply);
         assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
         assertThat(reply.content().body())
-            .contains("<photo-guide type=")
+            .contains("<photo-guide title=")
             .doesNotContain("<photo-guide/>")
             .doesNotContain("</photo-guide>");
         if (channel == Channel.DAANGN_BIZ) {

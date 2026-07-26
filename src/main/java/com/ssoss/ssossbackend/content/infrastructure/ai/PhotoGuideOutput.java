@@ -1,4 +1,8 @@
 package com.ssoss.ssossbackend.content.infrastructure.ai;
 
-record PhotoGuideOutput(PhotoGuideType type, String title, String description) {
+record PhotoGuideOutput(String title, String description) {
+
+    boolean isComplete() {
+        return title != null && !title.isBlank() && description != null && !description.isBlank();
+    }
 }
