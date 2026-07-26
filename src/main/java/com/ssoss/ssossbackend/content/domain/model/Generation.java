@@ -30,15 +30,15 @@ public class Generation {
     private String forbidden;
     private Keywords keywords;
     private boolean photoGuideChecked;
-    private Long sourceContentId;
+    private Long sourceContentChannelId;
 
     @CreatedDate
     private Instant createdAt;
 
     private Instant finishedAt;
 
-    Generation(Long id, Long memberId, String channels, Purpose purpose, Tone tone,
-        String emphasis, String forbidden, Keywords keywords, boolean photoGuideChecked, Long sourceContentId,
+    Generation(Long id, Long memberId, String channels, Purpose purpose, Tone tone, String emphasis, String forbidden,
+        Keywords keywords, boolean photoGuideChecked, Long sourceContentChannelId,
         Instant createdAt, Instant finishedAt) {
         this.id = id;
         this.memberId = memberId;
@@ -49,7 +49,7 @@ public class Generation {
         this.forbidden = forbidden;
         this.keywords = keywords;
         this.photoGuideChecked = photoGuideChecked;
-        this.sourceContentId = sourceContentId;
+        this.sourceContentChannelId = sourceContentChannelId;
         this.createdAt = createdAt;
         this.finishedAt = finishedAt;
     }
