@@ -2,15 +2,15 @@ package com.ssoss.ssossbackend.content.infrastructure.ai;
 
 import java.util.List;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import com.ssoss.ssossbackend.content.domain.model.PhotoGuideTag;
 
 import org.springframework.stereotype.Component;
 
 @Component
 class PhotoGuideAssembler {
 
-    private static final Pattern MARKER = Pattern.compile("</?photo-guide(?=[\\s/>])[^>]*>");
     private static final String TAG = "<photo-guide title=\"%s\" description=\"%s\"/>";
     private static final String PARAGRAPH_BREAK = "\n\n";
 
@@ -22,7 +22,7 @@ class PhotoGuideAssembler {
             .filter(paragraph -> paragraph != null && !paragraph.isBlank())
             .collect(Collectors.joining(PARAGRAPH_BREAK));
         List<PhotoGuideOutput> guides = photoGuides == null ? List.of() : photoGuides;
-        Matcher matcher = MARKER.matcher(body);
+        Matcher matcher = PhotoGuideTag.markersIn(body);
         StringBuilder assembled = new StringBuilder();
         int paired = 0;
         while (matcher.find()) {
