@@ -30,14 +30,14 @@ class PhotoGuideAssemblerTest {
         void assemblesMarkerElementOnItsOwnLine() {
             List<String> paragraphs = List.of("첫 문단", "<photo-guide/>", "둘째 문단");
             List<PhotoGuideOutput> guides = List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "시그니처 메뉴", "위에서 내려다보며 찍기"));
+                new PhotoGuideOutput("시그니처 메뉴", "위에서 내려다보며 찍기"));
 
             String assembled = assembler.assemble(paragraphs, guides);
 
             assertThat(assembled).isEqualTo("""
                 첫 문단
 
-                <photo-guide type="MENU" title="시그니처 메뉴" description="위에서 내려다보며 찍기"/>
+                <photo-guide title="시그니처 메뉴" description="위에서 내려다보며 찍기"/>
 
                 둘째 문단""");
         }
@@ -61,8 +61,7 @@ class PhotoGuideAssemblerTest {
         @Test
         @DisplayName("문단 배열이 없으면 그대로 null 이 반환된다")
         void returnsNullWhenParagraphsAreNull() {
-            String assembled = assembler.assemble(null, List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "메뉴", "찍기")));
+            String assembled = assembler.assemble(null, List.of(new PhotoGuideOutput("메뉴", "찍기")));
 
             assertThat(assembled).isNull();
         }
@@ -77,32 +76,31 @@ class PhotoGuideAssemblerTest {
         void assemblesInOrder() {
             List<String> paragraphs = List.of("첫 문단", "<photo-guide/>", "둘째 문단", "<photo-guide/>");
             List<PhotoGuideOutput> guides = List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "시그니처 메뉴", "위에서 내려다보며 찍기"),
-                new PhotoGuideOutput(PhotoGuideType.STORE, "매장 외관", "간판이 보이게 찍기"));
+                new PhotoGuideOutput("시그니처 메뉴", "위에서 내려다보며 찍기"),
+                new PhotoGuideOutput("매장 외관", "간판이 보이게 찍기"));
 
             String assembled = assembler.assemble(paragraphs, guides);
 
             assertThat(assembled).isEqualTo("""
                 첫 문단
 
-                <photo-guide type="MENU" title="시그니처 메뉴" description="위에서 내려다보며 찍기"/>
+                <photo-guide title="시그니처 메뉴" description="위에서 내려다보며 찍기"/>
 
                 둘째 문단
 
-                <photo-guide type="STORE" title="매장 외관" description="간판이 보이게 찍기"/>""");
+                <photo-guide title="매장 외관" description="간판이 보이게 찍기"/>""");
         }
 
         @Test
         @DisplayName("마커가 카드보다 많으면 짝 없는 마커는 지워진다")
         void removesUnpairedMarkers() {
             List<String> paragraphs = List.of("앞 <photo-guide/> 뒤 <photo-guide/> 끝");
-            List<PhotoGuideOutput> guides = List.of(
-                new PhotoGuideOutput(PhotoGuideType.MOOD, "창가 자리", "햇빛이 드는 낮에 찍기"));
+            List<PhotoGuideOutput> guides = List.of(new PhotoGuideOutput("창가 자리", "햇빛이 드는 낮에 찍기"));
 
             String assembled = assembler.assemble(paragraphs, guides);
 
             assertThat(assembled)
-                .isEqualTo("앞 <photo-guide type=\"MOOD\" title=\"창가 자리\" description=\"햇빛이 드는 낮에 찍기\"/> 뒤  끝");
+                .isEqualTo("앞 <photo-guide title=\"창가 자리\" description=\"햇빛이 드는 낮에 찍기\"/> 뒤  끝");
         }
 
         @Test
@@ -110,13 +108,13 @@ class PhotoGuideAssemblerTest {
         void dropsGuidesWithoutMarker() {
             List<String> paragraphs = List.of("앞 <photo-guide/> 끝");
             List<PhotoGuideOutput> guides = List.of(
-                new PhotoGuideOutput(PhotoGuideType.PEOPLE, "사장님", "인사하는 모습 찍기"),
-                new PhotoGuideOutput(PhotoGuideType.MENU, "신메뉴", "가까이서 찍기"));
+                new PhotoGuideOutput("사장님", "인사하는 모습 찍기"),
+                new PhotoGuideOutput("신메뉴", "가까이서 찍기"));
 
             String assembled = assembler.assemble(paragraphs, guides);
 
             assertThat(assembled)
-                .isEqualTo("앞 <photo-guide type=\"PEOPLE\" title=\"사장님\" description=\"인사하는 모습 찍기\"/> 끝")
+                .isEqualTo("앞 <photo-guide title=\"사장님\" description=\"인사하는 모습 찍기\"/> 끝")
                 .doesNotContain("신메뉴");
         }
 
@@ -137,10 +135,58 @@ class PhotoGuideAssemblerTest {
         }
 
         @Test
+        @DisplayName("제목이 없는 카드는 버려지고 마커만 지워진다")
+        void dropsGuideWithoutTitle() {
+            List<PhotoGuideOutput> guides = List.of(new PhotoGuideOutput(null, "위에서 내려다보며 찍기"));
+
+            String assembled = assembler.assemble(List.of("앞 <photo-guide/> 뒤"), guides);
+
+            assertThat(assembled).isEqualTo("앞  뒤");
+        }
+
+        @Test
+        @DisplayName("설명이 없는 카드는 버려지고 마커만 지워진다")
+        void dropsGuideWithoutDescription() {
+            List<PhotoGuideOutput> guides = List.of(new PhotoGuideOutput("시그니처 메뉴", null));
+
+            String assembled = assembler.assemble(List.of("앞 <photo-guide/> 뒤"), guides);
+
+            assertThat(assembled).isEqualTo("앞  뒤");
+        }
+
+        @Test
+        @DisplayName("가운데 카드가 버려져도 뒤 카드는 자기 마커 자리를 지킨다")
+        void keepsLaterGuidesInPlace_whenMiddleGuideIsDropped() {
+            List<String> paragraphs = List.of("앞 <photo-guide/> 가운데 <photo-guide/> 또 <photo-guide/> 끝");
+            List<PhotoGuideOutput> guides = List.of(
+                new PhotoGuideOutput("시그니처 메뉴", "위에서 내려다보며 찍기"),
+                new PhotoGuideOutput("매장 외관", "   "),
+                new PhotoGuideOutput("창가 자리", "햇빛이 드는 낮에 찍기"));
+
+            String assembled = assembler.assemble(paragraphs, guides);
+
+            assertThat(assembled).isEqualTo(
+                "앞 <photo-guide title=\"시그니처 메뉴\" description=\"위에서 내려다보며 찍기\"/> 가운데  또 "
+                    + "<photo-guide title=\"창가 자리\" description=\"햇빛이 드는 낮에 찍기\"/> 끝");
+        }
+
+        @Test
+        @DisplayName("제목이나 설명이 공백뿐인 카드는 버려진다")
+        void dropsGuideWithBlankText() {
+            List<PhotoGuideOutput> guides = List.of(
+                new PhotoGuideOutput("   ", "위에서 내려다보며 찍기"),
+                new PhotoGuideOutput("시그니처 메뉴", "   "));
+
+            String assembled = assembler.assemble(List.of("앞 <photo-guide/> 가운데 <photo-guide/> 뒤"), guides);
+
+            assertThat(assembled).isEqualTo("앞  가운데  뒤");
+        }
+
+        @Test
         @DisplayName("마커가 없으면 본문이 그대로 유지된다")
         void keepsBodyWithoutMarkers() {
-            String assembled = assembler.assemble(List.of("마커가 없는 평범한 본문"), List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "메뉴", "찍기")));
+            String assembled = assembler.assemble(List.of("마커가 없는 평범한 본문"),
+                List.of(new PhotoGuideOutput("메뉴", "찍기")));
 
             assertThat(assembled).isEqualTo("마커가 없는 평범한 본문");
         }
@@ -153,38 +199,38 @@ class PhotoGuideAssemblerTest {
         @Test
         @DisplayName("마커에 속성이 딸려 와도 자리로 인정되어 조립된다")
         void pairsMarkerWithAttributes() {
-            String assembled = assembler.assemble(List.of("앞 <photo-guide id=\"1\"/> 뒤"), List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "메뉴", "찍기")));
+            String assembled = assembler.assemble(List.of("앞 <photo-guide id=\"1\"/> 뒤"),
+                List.of(new PhotoGuideOutput("메뉴", "찍기")));
 
-            assertThat(assembled).isEqualTo("앞 <photo-guide type=\"MENU\" title=\"메뉴\" description=\"찍기\"/> 뒤");
+            assertThat(assembled).isEqualTo("앞 <photo-guide title=\"메뉴\" description=\"찍기\"/> 뒤");
         }
 
         @Test
         @DisplayName("마커가 쌍 태그로 오면 여는 쪽만 조립되고 닫는 태그는 지워진다")
         void assemblesOpeningTagAndRemovesClosingTag() {
-            String assembled = assembler.assemble(List.of("앞 <photo-guide id=\"1\"></photo-guide> 뒤"), List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "메뉴", "찍기")));
+            String assembled = assembler.assemble(List.of("앞 <photo-guide id=\"1\"></photo-guide> 뒤"),
+                List.of(new PhotoGuideOutput("메뉴", "찍기")));
 
             assertThat(assembled)
-                .isEqualTo("앞 <photo-guide type=\"MENU\" title=\"메뉴\" description=\"찍기\"/> 뒤")
+                .isEqualTo("앞 <photo-guide title=\"메뉴\" description=\"찍기\"/> 뒤")
                 .doesNotContain("</photo-guide>");
         }
 
         @Test
         @DisplayName("짝 없는 닫는 태그는 카드를 쓰지 않고 지워진다")
         void removesStrayClosingTagWithoutConsumingGuide() {
-            String assembled = assembler.assemble(List.of("앞 </photo-guide> 가운데 <photo-guide/> 뒤"), List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "메뉴", "찍기")));
+            String assembled = assembler.assemble(List.of("앞 </photo-guide> 가운데 <photo-guide/> 뒤"),
+                List.of(new PhotoGuideOutput("메뉴", "찍기")));
 
             assertThat(assembled)
-                .isEqualTo("앞  가운데 <photo-guide type=\"MENU\" title=\"메뉴\" description=\"찍기\"/> 뒤");
+                .isEqualTo("앞  가운데 <photo-guide title=\"메뉴\" description=\"찍기\"/> 뒤");
         }
 
         @Test
         @DisplayName("이름만 비슷한 태그는 마커로 보지 않고 본문에 그대로 둔다")
         void keepsTagsWithSimilarName() {
-            String assembled = assembler.assemble(List.of("앞 <photo-guideline> 가운데 <photo-guide-note/> 뒤"), List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "메뉴", "찍기")));
+            String assembled = assembler.assemble(List.of("앞 <photo-guideline> 가운데 <photo-guide-note/> 뒤"),
+                List.of(new PhotoGuideOutput("메뉴", "찍기")));
 
             assertThat(assembled).isEqualTo("앞 <photo-guideline> 가운데 <photo-guide-note/> 뒤");
         }
@@ -198,22 +244,13 @@ class PhotoGuideAssemblerTest {
         @DisplayName("제목·설명의 따옴표와 꺾쇠는 escape 되어 태그가 깨지지 않는다")
         void escapesAttributeValues() {
             List<PhotoGuideOutput> guides = List.of(
-                new PhotoGuideOutput(PhotoGuideType.MENU, "\"시그니처\" 메뉴", "<b>가까이</b> & 밝게"));
+                new PhotoGuideOutput("\"시그니처\" 메뉴", "<b>가까이</b> & 밝게"));
 
             String assembled = assembler.assemble(List.of("<photo-guide/>"), guides);
 
-            assertThat(assembled).isEqualTo("<photo-guide type=\"MENU\" title=\"&quot;시그니처&quot; 메뉴\" "
+            assertThat(assembled).isEqualTo("<photo-guide title=\"&quot;시그니처&quot; 메뉴\" "
                 + "description=\"&lt;b&gt;가까이&lt;/b&gt; &amp; 밝게\"/>");
         }
 
-        @Test
-        @DisplayName("type 이 없는 카드는 버려지고 마커만 지워진다")
-        void dropsGuideWithoutType() {
-            List<PhotoGuideOutput> guides = List.of(new PhotoGuideOutput(null, "제목", "설명"));
-
-            String assembled = assembler.assemble(List.of("앞 <photo-guide/> 뒤"), guides);
-
-            assertThat(assembled).isEqualTo("앞  뒤");
-        }
     }
 }

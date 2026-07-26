@@ -525,8 +525,8 @@ class GenerationApiTest extends IntegrationTest {
                 .expectBody(GenerationDetailResponse.class)
                 .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
                     assertThat(result.body())
-                        .contains("<photo-guide type=\"MENU\" title=\"사진 제목 1\" description=\"사진 설명 1\"/>")
-                        .contains("<photo-guide type=\"MENU\" title=\"사진 제목 2\" description=\"사진 설명 2\"/>")
+                        .contains("<photo-guide title=\"사진 제목 1\" description=\"사진 설명 1\"/>")
+                        .contains("<photo-guide title=\"사진 제목 2\" description=\"사진 설명 2\"/>")
                         .doesNotContain("<photo-guide/>");
                 }));
         }
@@ -543,7 +543,7 @@ class GenerationApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
                     assertThat(result.title()).isNull();
                     assertThat(result.body())
-                        .contains("<photo-guide type=\"MENU\" title=\"사진 제목 1\" description=\"사진 설명 1\"/>")
+                        .contains("<photo-guide title=\"사진 제목 1\" description=\"사진 설명 1\"/>")
                         .doesNotContain("<photo-guide/>");
                 }));
         }
@@ -574,7 +574,7 @@ class GenerationApiTest extends IntegrationTest {
                 .expectBody(GenerationDetailResponse.class)
                 .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
                     assertThat(result.body())
-                        .containsOnlyOnce("<photo-guide type=")
+                        .containsOnlyOnce("<photo-guide title=")
                         .doesNotContain("<photo-guide/>");
                 }));
         }
@@ -591,7 +591,7 @@ class GenerationApiTest extends IntegrationTest {
                 .expectBody(GenerationDetailResponse.class)
                 .value(body -> assertThat(body.results()).singleElement().satisfies(result -> {
                     assertThat(result.body())
-                        .containsOnlyOnce("<photo-guide type=")
+                        .containsOnlyOnce("<photo-guide title=")
                         .contains("사진 제목 1")
                         .doesNotContain("사진 제목 2");
                 }));
