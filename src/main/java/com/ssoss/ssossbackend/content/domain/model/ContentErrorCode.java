@@ -15,7 +15,10 @@ public enum ContentErrorCode implements ErrorCode {
     GENERATION_NOT_FOUND("CT0002", HttpStatus.NOT_FOUND, "생성 작업을 찾을 수 없습니다"),
     GENERATION_FAILED("CT0003", HttpStatus.BAD_REQUEST, "생성에 실패한 작업은 저장할 수 없습니다"),
     GENERATION_NOT_FINISHED("CT0004", HttpStatus.CONFLICT, "생성이 아직 끝나지 않았습니다. 끝난 뒤 저장해 주세요"),
-    CONTENT_NOT_FOUND("CT0005", HttpStatus.NOT_FOUND, "콘텐츠를 찾을 수 없습니다");
+    CONTENT_NOT_FOUND("CT0005", HttpStatus.NOT_FOUND, "콘텐츠를 찾을 수 없습니다"),
+    CONTENT_CHANNEL_NOT_FOUND("CT0006", HttpStatus.NOT_FOUND, "채널별 콘텐츠를 찾을 수 없습니다"),
+    TITLE_REQUIRED("CT0007", HttpStatus.BAD_REQUEST, "제목을 입력해 주세요"),
+    TITLE_NOT_ALLOWED("CT0008", HttpStatus.BAD_REQUEST, "제목을 쓸 수 없는 채널입니다");
 
     private final String code;
     private final HttpStatus status;

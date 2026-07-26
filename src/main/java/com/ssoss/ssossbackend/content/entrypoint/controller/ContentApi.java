@@ -1,6 +1,8 @@
 package com.ssoss.ssossbackend.content.entrypoint.controller;
 
+import com.ssoss.ssossbackend.content.entrypoint.request.ContentChannelEditRequest;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentSaveRequest;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
@@ -94,7 +96,8 @@ interface ContentApi {
               목록처럼 서버가 본문에서 임시 제목을 만들어 채우지 않습니다.
             - purpose·tone·keywords 는 콘텐츠 전체의 생성 조건입니다. 화면 상단의 "정보성 · 일상형"과 활용 키워드가 이 값들이며, 채널이 달라도 같습니다.
               저장할 때 복사해 두므로 원본 생성 작업이 없어도 그대로 옵니다.
-            - 편집·삭제·채널 변환은 채널마다 다른 contents[].contentChannelId 로 호출합니다.
+            - 편집은 이 콘텐츠의 contentId 와 채널마다 다른 contents[].contentChannelId 를 함께 써서 호출합니다.
+              삭제·채널 변환도 여기서 얻은 id 를 씁니다.
             - 사진 가이드 태그가 섞인 본문은 생성 작업 조회와 같은 형식이라 같은 파서를 쓸 수 있습니다.
             """)
     @ApiResponses({
@@ -159,4 +162,75 @@ interface ContentApi {
                     """)))
     })
     ContentDetailResponse getById(Long memberId, Long contentId);
+
+    @Operation(
+        summary = "채널별 콘텐츠 편집",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            저장한 콘텐츠의 채널 하나를 편집합니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 콘텐츠만 편집할 수 있습니다.
+            - 편집 단위는 채널입니다. 3채널을 저장했다면 채널마다 따로 호출하며, 편집하지 않은 채널은 그대로 남습니다.
+              삭제는 콘텐츠 통째로 하는 것과 단위가 다릅니다.
+            - 제목·본문·해시태그를 통째로 받아 교체합니다. 일부만 바꾸더라도 세 값을 모두 보내세요.
+              해시태그를 전부 지우려면 빈 배열을 보냅니다.
+            - 제목은 채널에 맞춰 보냅니다. 블로그는 필수라 빠지면 400(CT0007)이고,
+              나머지 채널(인스타그램·당근 비즈·스레드)은 제목을 쓸 수 없어 보내면 400(CT0008)입니다.
+              빈 문자열과 공백만 있는 값은 제목을 보내지 않은 것으로 봅니다. 입력칸을 비운 채로 보내도 400 이 아니라 제목 없음으로 처리됩니다.
+            - 상한은 제목 60자, 해시태그 20개입니다. 넘으면 400(C0001)이며 어떤 값도 바뀌지 않습니다.
+            - 편집해도 저장 시각은 움직이지 않습니다. 생성 기록 목록의 정렬 순서가 편집 때문에 흔들리지 않습니다.
+            - 세 값이 모두 그대로면 아무것도 바꾸지 않고 현재 값을 그대로 반환합니다. 같은 요청을 여러 번 보내도 결과가 같습니다.
+            - 응답은 상세 조회의 contents 원소와 같은 형식이라, 편집한 채널 탭만 응답으로 갈아 끼우면 됩니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "편집된 채널별 콘텐츠를 반환합니다",
+            content = @Content(schema = @Schema(implementation = ContentChannelResponse.class),
+                examples = @ExampleObject(name = "블로그 편집", value = """
+                    {
+                      "contentChannelId": 10,
+                      "channel": "BLOG",
+                      "title": "을지로 크루아상 맛집 | 겹겹이 살아있는 결, 보니스커피",
+                      "body": "을지로에서 크루아상 하나를 제대로 먹고 싶다면, 보니스커피를 추천드려요...",
+                      "hashtags": ["#을지로카페", "#을지로크루아상"]
+                    }
+                    """))),
+        @ApiResponse(responseCode = "400",
+            description = "상한을 넘었거나 (C0001) 채널과 제목이 어긋납니다 (CT0007·CT0008)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = {
+                    @ExampleObject(name = "제목 상한 초과", value = """
+                        {"code":"C0001","message":"제목은 60자 이내로 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "해시태그 상한 초과", value = """
+                        {"code":"C0001","message":"해시태그는 최대 20개까지 입력할 수 있습니다"}
+                        """),
+                    @ExampleObject(name = "블로그인데 제목 없음", value = """
+                        {"code":"CT0007","message":"제목을 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "제목 없는 채널에 제목", value = """
+                        {"code":"CT0008","message":"제목을 쓸 수 없는 채널입니다"}
+                        """)})),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404",
+            description = "콘텐츠가 없거나 본인의 콘텐츠가 아니거나 (CT0005) 그 콘텐츠에 없는 채널입니다 (CT0006)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = {
+                    @ExampleObject(name = "콘텐츠 없음", value = """
+                        {"code":"CT0005","message":"콘텐츠를 찾을 수 없습니다"}
+                        """),
+                    @ExampleObject(name = "채널별 콘텐츠 없음", value = """
+                        {"code":"CT0006","message":"채널별 콘텐츠를 찾을 수 없습니다"}
+                        """)}))
+    })
+    ContentChannelResponse edit(Long memberId, Long contentId, Long contentChannelId,
+        ContentChannelEditRequest request);
 }

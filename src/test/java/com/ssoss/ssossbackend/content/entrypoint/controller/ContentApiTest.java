@@ -1,16 +1,21 @@
 package com.ssoss.ssossbackend.content.entrypoint.controller;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
+import com.ssoss.ssossbackend.content.domain.contract.ContentChannelHistoryRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentChannelRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationResultRepository;
 import com.ssoss.ssossbackend.content.domain.model.Content;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
+import com.ssoss.ssossbackend.content.domain.model.ContentChannelHistory;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
 import com.ssoss.ssossbackend.content.domain.model.ContentSource;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
@@ -41,6 +46,9 @@ class ContentApiTest extends IntegrationTest {
 
     @Autowired
     private ContentChannelRepository contentChannelRepository;
+
+    @Autowired
+    private ContentChannelHistoryRepository contentChannelHistoryRepository;
 
     @Autowired
     private GenerationResultRepository generationResultRepository;
@@ -426,6 +434,353 @@ class ContentApiTest extends IntegrationTest {
                 .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT /v1/contents/{contentId}/channels/{contentChannelId}")
+    class Edit {
+
+        private static final Map<String, Object> TITLED_EDIT = Map.of(
+            "title", "직접 고친 제목",
+            "body", "직접 고친 본문",
+            "hashtags", List.of("#직접고친태그"));
+
+        @Test
+        @DisplayName("편집하면 상세 조회에 편집한 값이 온다")
+        void reflectsEditedValues_whenChannelEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-reflect");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            Long contentChannelId = saved.contents().getFirst().contentChannelId();
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
+                .expectStatus().isOk()
+                .expectBody(ContentChannelResponse.class)
+                .value(body -> {
+                    assertThat(body.contentChannelId()).isEqualTo(contentChannelId);
+                    assertThat(body.channel()).isEqualTo("BLOG");
+                    assertThat(body.title()).isEqualTo("직접 고친 제목");
+                    assertThat(body.body()).isEqualTo("직접 고친 본문");
+                    assertThat(body.hashtags()).containsExactly("#직접고친태그");
+                });
+
+            assertThat(fixture.contentDetail(signup.accessToken(), saved.contentId()).contents())
+                .singleElement()
+                .satisfies(content -> {
+                    assertThat(content.title()).isEqualTo("직접 고친 제목");
+                    assertThat(content.body()).isEqualTo("직접 고친 본문");
+                    assertThat(content.hashtags()).containsExactly("#직접고친태그");
+                });
+        }
+
+        @Test
+        @DisplayName("제목 없는 채널은 제목 없이 편집된다")
+        void editsWithoutTitle_whenChannelHasNoTitle() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-untitled");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("INSTAGRAM"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(),
+                    Map.of("body", "직접 고친 본문", "hashtags", List.of("#직접고친태그")))
+                .expectStatus().isOk()
+                .expectBody(ContentChannelResponse.class)
+                .value(body -> {
+                    assertThat(body.title()).isNull();
+                    assertThat(body.body()).isEqualTo("직접 고친 본문");
+                });
+        }
+
+        @Test
+        @DisplayName("편집해도 원본 생성 결과 참조는 유지된다")
+        void keepsSourceGenerationResultId_whenChannelEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-source");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            Long contentChannelId = saved.contents().getFirst().contentChannelId();
+            Long sourceGenerationResultId = channelById(contentChannelId).getSourceGenerationResultId();
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
+                .expectStatus().isOk();
+
+            assertThat(sourceGenerationResultId).isNotNull();
+            assertThat(channelById(contentChannelId).getSourceGenerationResultId())
+                .isEqualTo(sourceGenerationResultId);
+        }
+
+        @Test
+        @DisplayName("편집해도 저장 시각은 바뀌지 않고 수정 시각만 움직인다")
+        void keepsSavedAtAndMovesUpdatedAt_whenChannelEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-saved-at");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            Long contentChannelId = saved.contents().getFirst().contentChannelId();
+            Instant savedAt = contentRepository.findById(saved.contentId()).orElseThrow().getCreatedAt();
+            Instant updatedAt = channelById(contentChannelId).getUpdatedAt();
+            clock.advanceBy(Duration.ofMinutes(10));
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
+                .expectStatus().isOk();
+
+            assertThat(contentRepository.findById(saved.contentId()).orElseThrow().getCreatedAt())
+                .isEqualTo(savedAt);
+            assertThat(channelById(contentChannelId).getUpdatedAt()).isAfter(updatedAt);
+        }
+
+        @Test
+        @DisplayName("한 채널만 편집하면 나머지 채널은 그대로다")
+        void keepsOtherChannels_whenOneChannelEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-one-channel");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "THREADS"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            ContentChannelResponse threads = fixture.contentDetail(signup.accessToken(), saved.contentId())
+                .contents().getLast();
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), TITLED_EDIT)
+                .expectStatus().isOk();
+
+            assertThat(fixture.contentDetail(signup.accessToken(), saved.contentId()).contents().getLast())
+                .isEqualTo(threads);
+        }
+
+        @Test
+        @DisplayName("편집하면 이전 값이 히스토리에 남는다")
+        void writesPreviousValuesToHistory_whenChannelEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-history");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            Long contentChannelId = saved.contents().getFirst().contentChannelId();
+            ContentChannelResponse origin = fixture.contentDetail(signup.accessToken(), saved.contentId())
+                .contents().getFirst();
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
+                .expectStatus().isOk();
+
+            assertThat(historiesOf(contentChannelId))
+                .singleElement()
+                .satisfies(history -> {
+                    assertThat(history.getTitle()).isEqualTo(origin.title());
+                    assertThat(history.getBody()).isEqualTo(origin.body());
+                    assertThat(history.getHashtags().values()).isEqualTo(origin.hashtags());
+                    assertThat(history.getCreatedAt()).isNotNull();
+                });
+        }
+
+        @Test
+        @DisplayName("값이 그대로인 편집은 히스토리를 남기지 않고 수정 시각도 움직이지 않는다")
+        void writesNoHistory_whenValuesUnchanged() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-unchanged");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+            Long contentChannelId = saved.contents().getFirst().contentChannelId();
+            ContentChannelResponse origin = fixture.contentDetail(signup.accessToken(), saved.contentId())
+                .contents().getFirst();
+            Instant updatedAt = channelById(contentChannelId).getUpdatedAt();
+            clock.advanceBy(Duration.ofMinutes(10));
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, Map.of(
+                    "title", origin.title(),
+                    "body", origin.body(),
+                    "hashtags", origin.hashtags()))
+                .expectStatus().isOk();
+
+            assertThat(historiesOf(contentChannelId))
+                .isEmpty();
+            assertThat(channelById(contentChannelId).getUpdatedAt()).isEqualTo(updatedAt);
+        }
+
+        @Test
+        @DisplayName("제목이 60자를 넘으면 400 을 반환한다")
+        void returns400_whenTitleTooLong() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-long-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), Map.of(
+                        "title", "가".repeat(61),
+                        "body", "직접 고친 본문",
+                        "hashtags", List.of()))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("해시태그가 20개를 넘으면 400 을 반환한다")
+        void returns400_whenTooManyHashtags() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-many-hashtags");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), Map.of(
+                        "title", "직접 고친 제목",
+                        "body", "직접 고친 본문",
+                        "hashtags", IntStream.rangeClosed(1, 21).mapToObj(index -> "#태그" + index).toList()))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("본문이 비어 있으면 400 을 반환한다")
+        void returns400_whenBodyBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-blank-body");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), Map.of(
+                        "title", "직접 고친 제목",
+                        "body", " ",
+                        "hashtags", List.of()))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("제목 없는 채널에 제목을 보내면 400 과 CT0008 을 반환한다")
+        void returns400_whenTitleSentToUntitledChannel() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-title-not-allowed");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("INSTAGRAM"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), TITLED_EDIT)
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.TITLE_NOT_ALLOWED.getCode()));
+        }
+
+        @Test
+        @DisplayName("제목 없는 채널에 빈 제목을 보내면 제목 없음으로 편집된다")
+        void treatsBlankTitleAsNoTitle_whenChannelHasNoTitle() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-blank-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("THREADS"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), Map.of(
+                        "title", " ",
+                        "body", "직접 고친 본문",
+                        "hashtags", List.of("#직접고친태그")))
+                .expectStatus().isOk()
+                .expectBody(ContentChannelResponse.class)
+                .value(body -> assertThat(body.title()).isNull());
+        }
+
+        @Test
+        @DisplayName("제목 있는 채널에 제목을 보내지 않으면 400 과 CT0007 을 반환한다")
+        void returns400_whenTitleMissingForTitledChannel() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-title-required");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(),
+                    Map.of("body", "직접 고친 본문", "hashtags", List.of()))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.TITLE_REQUIRED.getCode()));
+        }
+
+        @Test
+        @DisplayName("없는 콘텐츠의 채널을 편집하면 404 와 CT0005 를 반환한다")
+        void returns404_whenContentDoesNotExist() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-no-content");
+
+            fixture.editContentChannel(signup.accessToken(), 999_999L, 999_999L, TITLED_EDIT)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("없는 채널별 콘텐츠를 편집하면 404 와 CT0006 을 반환한다")
+        void returns404_whenContentChannelDoesNotExist() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-no-channel");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(), 999_999L, TITLED_EDIT)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(ContentErrorCode.CONTENT_CHANNEL_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("다른 콘텐츠에 속한 채널을 편집하면 404 와 CT0006 을 반환한다")
+        void returns404_whenChannelBelongsToAnotherContent() {
+            SignupResponse signup = fixture.signupActiveMember("naver-edit-other-content");
+            Long firstGenerationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse first = fixture.contentsOfGeneration(signup.accessToken(), firstGenerationId);
+            Long secondGenerationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse second = fixture.contentsOfGeneration(signup.accessToken(), secondGenerationId);
+
+            fixture.editContentChannel(signup.accessToken(), first.contentId(),
+                    second.contents().getFirst().contentChannelId(), TITLED_EDIT)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(ContentErrorCode.CONTENT_CHANNEL_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("다른 회원의 콘텐츠를 편집하면 404 와 CT0005 를 반환하고 값도 그대로다")
+        void returns404_whenEditingOtherMembersContent() {
+            SignupResponse owner = fixture.signupActiveMember("naver-edit-owner");
+            Long generationId = fixture.startedGenerationId(owner.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(owner.accessToken(), generationId);
+            Long contentChannelId = saved.contents().getFirst().contentChannelId();
+            ContentChannelResponse origin = fixture.contentDetail(owner.accessToken(), saved.contentId())
+                .contents().getFirst();
+            SignupResponse other = fixture.signupActiveMember("naver-edit-other");
+
+            fixture.editContentChannel(other.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+
+            assertThat(fixture.contentDetail(owner.accessToken(), saved.contentId()).contents().getFirst())
+                .isEqualTo(origin);
+            assertThat(historiesOf(contentChannelId))
+                .isEmpty();
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 편집하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            fixture.client().put().uri("/v1/contents/1/channels/1")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 편집하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenRequests() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-edit-pending");
+
+            fixture.editContentChannel(login.accessToken(), 1L, 1L, TITLED_EDIT)
+                .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        private ContentChannel channelById(Long contentChannelId) {
+            return contentChannelRepository.findById(contentChannelId).orElseThrow();
+        }
+
+        private List<ContentChannelHistory> historiesOf(Long contentChannelId) {
+            return contentChannelHistoryRepository.findAll().stream()
+                .filter(history -> history.getContentChannelId().equals(contentChannelId))
+                .toList();
         }
     }
 

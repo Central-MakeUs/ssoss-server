@@ -2,10 +2,13 @@ package com.ssoss.ssossbackend.content.application.service;
 
 import java.util.List;
 
+import com.ssoss.ssossbackend.content.application.command.ContentChannelEditCommand;
 import com.ssoss.ssossbackend.content.application.command.ContentSaveCommand;
+import com.ssoss.ssossbackend.content.application.result.ContentChannelResult;
 import com.ssoss.ssossbackend.content.application.result.ContentDetailResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
 import com.ssoss.ssossbackend.content.domain.model.Content;
+import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
 import com.ssoss.ssossbackend.content.domain.model.ContentWithChannels;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
@@ -37,6 +40,13 @@ public class ContentService {
             .toList());
     }
 
+    public ContentChannelResult edit(ContentChannelEditCommand command) {
+        ContentChannel channel = contentFinder.channelOf(
+            command.contentId(), command.contentChannelId(), command.memberId());
+        return ContentChannelResult.from(
+            contentWriter.edit(channel, command.title(), command.body(), command.hashtags()));
+    }
+
     public ContentDetailResult getById(Long contentId, Long memberId) {
         Content content = contentFinder.get(contentId, memberId);
         return new ContentDetailResult(
@@ -45,8 +55,7 @@ public class ContentService {
             content.getTone().name(),
             content.keywordList(),
             contentFinder.channelsOf(content.getId()).stream()
-                .map(channel -> new ContentDetailResult.Item(channel.getId(), channel.getChannel().name(),
-                    channel.getTitle(), channel.getBody(), channel.hashtagList()))
+                .map(ContentChannelResult::from)
                 .toList());
     }
 }

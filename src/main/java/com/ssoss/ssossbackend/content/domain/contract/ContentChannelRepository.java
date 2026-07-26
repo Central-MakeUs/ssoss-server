@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.content.domain.contract;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
 
@@ -11,4 +12,6 @@ public interface ContentChannelRepository extends ListCrudRepository<ContentChan
     List<ContentChannel> findAllByContentId(Long contentId);
 
     List<ContentChannel> findAllByContentIdAndDeletedAtIsNull(Long contentId);
+
+    Optional<ContentChannel> findByIdAndContentIdAndDeletedAtIsNull(Long id, Long contentId);
 }
