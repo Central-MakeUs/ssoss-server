@@ -86,13 +86,12 @@ public class Generation {
     }
 
     public List<ChannelResult> channelResults(Instant now, List<GenerationResult> results) {
+        if (status(now, results) != GenerationStatus.SUCCEEDED) {
+            return List.of();
+        }
         return channelList().stream()
-            .map(channel -> results.stream()
-                .filter(result -> result.getChannel() == channel)
-                .findFirst()
-                .map(ChannelResult::from)
-                .orElseGet(() -> ChannelResult.of(channel,
-                    isClosed(now) ? ChannelOutcome.TIMED_OUT : ChannelOutcome.PENDING)))
+            .flatMap(channel -> results.stream().filter(result -> result.getChannel() == channel))
+            .map(ChannelResult::from)
             .toList();
     }
 
@@ -119,8 +118,14 @@ public class Generation {
         return finishedAt != null || isExpired(now);
     }
 
-    public GenerationStatus status(Instant now) {
-        return isClosed(now) ? GenerationStatus.COMPLETED : GenerationStatus.IN_PROGRESS;
+    public GenerationStatus status(Instant now, List<GenerationResult> results) {
+        if (!isClosed(now)) {
+            return GenerationStatus.IN_PROGRESS;
+        }
+        boolean everyChannelSucceeded = finishedAt != null && channelList().stream()
+            .allMatch(channel -> results.stream()
+                .anyMatch(result -> result.getChannel() == channel && result.isSucceeded()));
+        return everyChannelSucceeded ? GenerationStatus.SUCCEEDED : GenerationStatus.FAILED;
     }
 
     public boolean finish(Instant now) {

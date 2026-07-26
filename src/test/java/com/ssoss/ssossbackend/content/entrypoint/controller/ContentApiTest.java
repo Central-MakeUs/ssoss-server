@@ -106,25 +106,23 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("일부 채널만 성공한 작업을 저장하면 성공한 결과만 저장된다")
-        void savesOnlySucceededResults_whenPartiallySucceeded() {
-            SignupResponse signup = fixture.signupActiveMember("naver-save-partial");
+        @DisplayName("채널 하나가 실패한 작업을 저장하면 400 과 CT0003 을 반환한다")
+        void returns400_whenOneChannelFailed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-one-fail");
             llmApi.stubEmptyBodyForUntitled();
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
             fixture.saveContents(signup.accessToken(), generationId)
-                .expectStatus().isCreated()
-                .expectBody(ContentSaveResponse.class)
-                .value(body -> assertThat(body.contents()).singleElement()
-                    .satisfies(content -> assertThat(content.channel()).isEqualTo("BLOG")));
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_FAILED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-partial"))).singleElement()
-                .satisfies(content -> assertThat(content.getBody()).isNotBlank());
+            assertThat(contentsOf(memberIdOf("naver-save-one-fail"))).isEmpty();
         }
 
         @Test
-        @DisplayName("성공한 결과가 없는 작업을 저장하면 400 과 CT0003 을 반환한다")
-        void returns400_whenNoSucceededResultExists() {
+        @DisplayName("전 채널이 실패한 작업을 저장하면 400 과 CT0003 을 반환한다")
+        void returns400_whenAllChannelsFailed() {
             SignupResponse signup = fixture.signupActiveMember("naver-save-all-fail");
             llmApi.stubFailure(429);
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
@@ -132,8 +130,7 @@ class ContentApiTest extends IntegrationTest {
             fixture.saveContents(signup.accessToken(), generationId)
                 .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
-                .value(body -> assertThat(body.code())
-                    .isEqualTo(ContentErrorCode.NO_SAVABLE_GENERATION_RESULT.getCode()));
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_FAILED.getCode()));
 
             assertThat(contentsOf(memberIdOf("naver-save-all-fail"))).isEmpty();
         }
@@ -149,7 +146,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectStatus().isEqualTo(HttpStatus.CONFLICT)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code())
-                    .isEqualTo(ContentErrorCode.GENERATION_NOT_COMPLETED.getCode()));
+                    .isEqualTo(ContentErrorCode.GENERATION_NOT_FINISHED.getCode()));
 
             assertThat(contentsOf(memberIdOf("naver-save-in-progress"))).isEmpty();
         }

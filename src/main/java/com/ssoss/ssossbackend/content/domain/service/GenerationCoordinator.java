@@ -6,7 +6,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import com.ssoss.ssossbackend.content.domain.model.Channel;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
 
 import lombok.RequiredArgsConstructor;
@@ -24,9 +26,13 @@ public class GenerationCoordinator {
 
     @Async
     public void run(Generation generation) {
-        List<Callable<Void>> channelTasks = generation.channelList().stream()
+        List<Channel> channels = generation.channelList();
+        AtomicInteger succeededChannels = new AtomicInteger();
+        List<Callable<Void>> channelTasks = channels.stream()
             .<Callable<Void>>map(channel -> () -> {
-                channelGenerationRunner.run(generation, channel);
+                if (channelGenerationRunner.run(generation, channel)) {
+                    succeededChannels.incrementAndGet();
+                }
                 return null;
             })
             .toList();
@@ -36,6 +42,6 @@ public class GenerationCoordinator {
             Thread.currentThread().interrupt();
             return;
         }
-        generationWriter.finish(generation);
+        generationWriter.finish(generation, succeededChannels.get() == channels.size());
     }
 }

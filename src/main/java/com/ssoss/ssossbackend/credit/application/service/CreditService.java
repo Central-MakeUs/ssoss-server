@@ -30,13 +30,13 @@ public class CreditService {
     public void checkDeductible(Long memberId, int channelCount) {
         Credit credit = creditFinder.find(memberId)
             .orElseThrow(() -> new BusinessException(CreditErrorCode.CREDIT_NOT_FOUND));
-        if (!credit.canAfford(Credit.RESULT_DEDUCTION * channelCount)) {
+        if (!credit.canAfford(Credit.CHANNEL_DEDUCTION * channelCount)) {
             throw new BusinessException(CreditErrorCode.CREDIT_INSUFFICIENT);
         }
     }
 
-    public void deduct(Long memberId, Long generationResultId) {
-        creditWriter.deduct(memberId, generationResultId);
+    public void deduct(Long memberId, Long generationId, int channelCount) {
+        creditWriter.deduct(memberId, generationId, channelCount);
     }
 
     public void grant(Long memberId) {

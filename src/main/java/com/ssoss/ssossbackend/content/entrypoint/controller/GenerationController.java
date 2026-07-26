@@ -54,7 +54,6 @@ class GenerationController implements GenerationApi {
             result.keywords(),
             result.results().stream()
                 .map(channelResult -> new GenerationChannelResultResponse(channelResult.channel(),
-                    channelResult.status(), channelResult.message(),
                     channelResult.title(), channelResult.body(), channelResult.hashtags()))
                 .toList());
     }

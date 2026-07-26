@@ -11,7 +11,6 @@ public record GenerationDetailResult(
     List<ChannelDetail> results
 ) {
 
-    public record ChannelDetail(String channel, String status, String message,
-        String title, String body, List<String> hashtags) {
+    public record ChannelDetail(String channel, String title, String body, List<String> hashtags) {
     }
 }

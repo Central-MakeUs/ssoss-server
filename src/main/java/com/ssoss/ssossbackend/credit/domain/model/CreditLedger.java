@@ -17,25 +17,25 @@ public class CreditLedger {
     private Long memberId;
     private CreditLedgerType type;
     private int amount;
-    private Long generationResultId;
+    private Long generationId;
 
     @CreatedDate
     private Instant createdAt;
 
-    CreditLedger(Long id, Long memberId, CreditLedgerType type, int amount, Long generationResultId) {
+    CreditLedger(Long id, Long memberId, CreditLedgerType type, int amount, Long generationId) {
         this.id = id;
         this.memberId = memberId;
         this.type = type;
         this.amount = amount;
-        this.generationResultId = generationResultId;
+        this.generationId = generationId;
     }
 
     public static CreditLedger grant(Long memberId, int amount) {
         return new CreditLedger(null, memberId, CreditLedgerType.GRANT, amount, null);
     }
 
-    public static CreditLedger deduct(Long memberId, int amount, Long generationResultId) {
-        return new CreditLedger(null, memberId, CreditLedgerType.DEDUCT, -amount, generationResultId);
+    public static CreditLedger deduct(Long memberId, int amount, Long generationId) {
+        return new CreditLedger(null, memberId, CreditLedgerType.DEDUCT, -amount, generationId);
     }
 
     public static CreditLedger expire(Long memberId, int amount) {
