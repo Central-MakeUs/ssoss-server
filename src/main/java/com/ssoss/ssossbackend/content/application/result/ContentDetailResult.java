@@ -7,9 +7,6 @@ public record ContentDetailResult(
     String purpose,
     String tone,
     List<String> keywords,
-    List<Item> contents
+    List<ContentChannelResult> contents
 ) {
-
-    public record Item(Long contentChannelId, String channel, String title, String body, List<String> hashtags) {
-    }
 }

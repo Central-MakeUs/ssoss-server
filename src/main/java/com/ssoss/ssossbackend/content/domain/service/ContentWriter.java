@@ -5,10 +5,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.ssoss.ssossbackend.content.domain.contract.ContentChannelHistoryRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentChannelRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentRepository;
 import com.ssoss.ssossbackend.content.domain.model.Content;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
+import com.ssoss.ssossbackend.content.domain.model.ContentChannelHistory;
 import com.ssoss.ssossbackend.content.domain.model.ContentSource;
 import com.ssoss.ssossbackend.content.domain.model.ContentWithChannels;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
@@ -25,6 +27,17 @@ public class ContentWriter {
 
     private final ContentRepository contentRepository;
     private final ContentChannelRepository contentChannelRepository;
+    private final ContentChannelHistoryRepository contentChannelHistoryRepository;
+
+    @Transactional
+    public ContentChannel edit(ContentChannel channel, String title, String body, List<String> hashtags) {
+        ContentChannelHistory previous = ContentChannelHistory.previousOf(channel);
+        if (!channel.edit(title, body, hashtags)) {
+            return channel;
+        }
+        contentChannelHistoryRepository.save(previous);
+        return contentChannelRepository.save(channel);
+    }
 
     @Transactional
     public ContentWithChannels save(Generation generation, List<GenerationResult> results) {

@@ -1,8 +1,10 @@
 package com.ssoss.ssossbackend.content.entrypoint.controller;
 
+import com.ssoss.ssossbackend.content.application.result.ContentChannelResult;
 import com.ssoss.ssossbackend.content.application.result.ContentDetailResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
 import com.ssoss.ssossbackend.content.application.service.ContentService;
+import com.ssoss.ssossbackend.content.entrypoint.request.ContentChannelEditRequest;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentSaveRequest;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelSummaryResponse;
@@ -19,6 +21,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -57,5 +60,18 @@ class ContentController implements ContentApi {
                 .map(content -> new ContentChannelResponse(content.contentChannelId(), content.channel(),
                     content.title(), content.body(), content.hashtags()))
                 .toList());
+    }
+
+    @Override
+    @PutMapping("/v1/contents/{contentId}/channels/{contentChannelId}")
+    public ContentChannelResponse edit(
+        @AuthenticationPrincipal Long memberId,
+        @PathVariable Long contentId,
+        @PathVariable Long contentChannelId,
+        @Valid @RequestBody ContentChannelEditRequest request
+    ) {
+        ContentChannelResult result = contentService.edit(request.toCommand(memberId, contentId, contentChannelId));
+        return new ContentChannelResponse(result.contentChannelId(), result.channel(), result.title(),
+            result.body(), result.hashtags());
     }
 }

@@ -25,6 +25,12 @@ public class ContentFinder {
             .orElseThrow(() -> new BusinessException(ContentErrorCode.CONTENT_NOT_FOUND));
     }
 
+    public ContentChannel channelOf(Long contentId, Long contentChannelId, Long memberId) {
+        Content content = get(contentId, memberId);
+        return contentChannelRepository.findByIdAndContentIdAndDeletedAtIsNull(contentChannelId, content.getId())
+            .orElseThrow(() -> new BusinessException(ContentErrorCode.CONTENT_CHANNEL_NOT_FOUND));
+    }
+
     public List<ContentChannel> channelsOf(Long contentId) {
         return contentChannelRepository.findAllByContentIdAndDeletedAtIsNull(contentId).stream()
             .sorted(ContentChannel.CHANNEL_ORDER)

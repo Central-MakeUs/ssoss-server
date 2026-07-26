@@ -7,6 +7,7 @@ import java.util.Map;
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
+import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
@@ -173,6 +174,23 @@ public class TestFixture {
     public RestTestClient.ResponseSpec getContent(String accessToken, Long contentId) {
         return client.get().uri("/v1/contents/" + contentId)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public ContentDetailResponse contentDetail(String accessToken, Long contentId) {
+        return getContent(accessToken, contentId)
+            .expectStatus().isOk()
+            .expectBody(ContentDetailResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public RestTestClient.ResponseSpec editContentChannel(String accessToken, Long contentId, Long contentChannelId,
+        Map<String, Object> body) {
+        return client.put().uri("/v1/contents/" + contentId + "/channels/" + contentChannelId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
             .exchange();
     }
 
