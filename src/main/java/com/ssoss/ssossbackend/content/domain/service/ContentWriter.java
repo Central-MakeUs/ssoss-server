@@ -47,7 +47,9 @@ public class ContentWriter {
     @Transactional
     public void delete(ContentWithChannels content) {
         Instant deletedAt = clock.instant();
+        content.content().delete(deletedAt);
         content.channels().forEach(channel -> channel.delete(deletedAt));
+        contentRepository.save(content.content());
         contentChannelRepository.saveAll(content.channels());
     }
 
@@ -55,10 +57,10 @@ public class ContentWriter {
     public ContentWithChannels save(Generation generation, List<GenerationResult> results) {
         Content content = contentRepository.findBySourceTypeAndSourceId(ContentSource.GENERATION, generation.getId())
             .orElseGet(() -> contentRepository.save(Content.copyOf(generation)));
-        List<ContentChannel> saved = contentChannelRepository.findAllByContentId(content.getId());
-        if (saved.stream().anyMatch(ContentChannel::isDeleted)) {
+        if (content.isDeleted()) {
             throw new BusinessException(ContentErrorCode.CONTENT_DELETED);
         }
+        List<ContentChannel> saved = contentChannelRepository.findAllByContentId(content.getId());
         Set<Long> savedResultIds = saved.stream()
             .map(ContentChannel::getSourceGenerationResultId)
             .collect(Collectors.toSet());

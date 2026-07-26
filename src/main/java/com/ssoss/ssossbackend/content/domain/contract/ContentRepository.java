@@ -9,7 +9,7 @@ import org.springframework.data.repository.ListCrudRepository;
 
 public interface ContentRepository extends ListCrudRepository<Content, Long> {
 
-    Optional<Content> findByIdAndMemberId(Long id, Long memberId);
+    Optional<Content> findByIdAndMemberIdAndDeletedAtIsNull(Long id, Long memberId);
 
     Optional<Content> findBySourceTypeAndSourceId(ContentSource sourceType, Long sourceId);
 }

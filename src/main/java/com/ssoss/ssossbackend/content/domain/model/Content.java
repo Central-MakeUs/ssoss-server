@@ -25,8 +25,10 @@ public class Content {
     @CreatedDate
     private Instant createdAt;
 
+    private Instant deletedAt;
+
     Content(Long id, Long memberId, ContentSource sourceType, Long sourceId, Purpose purpose, Tone tone,
-        Keywords keywords, Instant createdAt) {
+        Keywords keywords, Instant createdAt, Instant deletedAt) {
         this.id = id;
         this.memberId = memberId;
         this.sourceType = sourceType;
@@ -35,11 +37,20 @@ public class Content {
         this.tone = tone;
         this.keywords = keywords;
         this.createdAt = createdAt;
+        this.deletedAt = deletedAt;
     }
 
     public static Content copyOf(Generation generation) {
         return new Content(null, generation.getMemberId(), ContentSource.GENERATION, generation.getId(),
-            generation.getPurpose(), generation.getTone(), generation.getKeywords(), null);
+            generation.getPurpose(), generation.getTone(), generation.getKeywords(), null, null);
+    }
+
+    public void delete(Instant deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 
     public List<String> keywordList() {
