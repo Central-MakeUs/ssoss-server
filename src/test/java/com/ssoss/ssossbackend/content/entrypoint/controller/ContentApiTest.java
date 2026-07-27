@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.content.entrypoint.controller;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -69,7 +70,7 @@ class ContentApiTest extends IntegrationTest {
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
                 List.of("THREADS", "BLOG", "INSTAGRAM"));
 
-            fixture.saveContents(signup.accessToken(), generationId)
+            fixture.saveGeneratedContents(signup.accessToken(), generationId)
                 .expectStatus().isCreated()
                 .expectBody(ContentSaveResponse.class)
                 .value(body -> {
@@ -86,8 +87,8 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("채널별 콘텐츠는 원본 생성 결과의 채널·제목·본문·해시태그를 그대로 복사한다")
-        void copiesChannelTitleBodyAndHashtags_whenGenerationSaved() {
+        @DisplayName("생성 결과를 그대로 보내면 그 값이 저장되고 원본 생성 결과 참조가 남는다")
+        void savesRequestedValuesWithSourceGenerationResult_whenGenerationSaved() {
             SignupResponse signup = fixture.signupActiveMember("naver-save-copy");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
@@ -106,6 +107,37 @@ class ContentApiTest extends IntegrationTest {
                 assertThat(channel.getHashtags()).isEqualTo(origin.getHashtags());
                 assertThat(channel.getDeletedAt()).isNull();
             });
+        }
+
+        @Test
+        @DisplayName("생성 결과와 다른 제목·본문·해시태그를 보내면 보낸 값이 저장된다")
+        void savesRequestedValues_whenRequestCarriesEditedValues() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-edited");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+
+            ContentSaveResponse saved = fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(
+                        fixture.channelContent("BLOG", "고친 제목", "고친 블로그 본문", List.of("#고친태그")),
+                        fixture.channelContent("INSTAGRAM", null, "고친 인스타 본문", List.of()))))
+                .expectStatus().isCreated()
+                .expectBody(ContentSaveResponse.class)
+                .returnResult()
+                .getResponseBody();
+
+            assertThat(fixture.contentDetail(signup.accessToken(), saved.contentId()).contents()).satisfiesExactly(
+                blog -> {
+                    assertThat(blog.channel()).isEqualTo("BLOG");
+                    assertThat(blog.title()).isEqualTo("고친 제목");
+                    assertThat(blog.body()).isEqualTo("고친 블로그 본문");
+                    assertThat(blog.hashtags()).containsExactly("#고친태그");
+                },
+                instagram -> {
+                    assertThat(instagram.channel()).isEqualTo("INSTAGRAM");
+                    assertThat(instagram.title()).isNull();
+                    assertThat(instagram.body()).isEqualTo("고친 인스타 본문");
+                    assertThat(instagram.hashtags()).isEmpty();
+                });
         }
 
         @Test
@@ -150,6 +182,27 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("같은 작업을 다른 값으로 다시 저장해도 처음 저장한 값이 그대로 남는다")
+        void keepsFirstSavedValues_whenSavedAgainWithOtherValues() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-twice-values");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse first = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("BLOG", "나중 제목", "나중 본문", List.of("#나중태그")))))
+                .expectStatus().isCreated();
+
+            assertThat(fixture.contentDetail(signup.accessToken(), first.contentId()).contents())
+                .singleElement()
+                .satisfies(content -> {
+                    assertThat(content.title()).isEqualTo("테스트 제목");
+                    assertThat(content.body()).isNotEqualTo("나중 본문");
+                    assertThat(content.hashtags()).doesNotContain("#나중태그");
+                });
+        }
+
+        @Test
         @DisplayName("삭제한 콘텐츠의 작업을 다시 저장하면 409 와 CT0009 를 반환하고 콘텐츠는 삭제된 채로 남는다")
         void returns409_whenSavingGenerationOfDeletedContent() {
             SignupResponse signup = fixture.signupActiveMember("naver-save-deleted");
@@ -157,7 +210,7 @@ class ContentApiTest extends IntegrationTest {
             Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
             fixture.deletedContent(signup.accessToken(), contentId);
 
-            fixture.saveContents(signup.accessToken(), generationId)
+            fixture.saveGeneratedContents(signup.accessToken(), generationId)
                 .expectStatus().isEqualTo(HttpStatus.CONFLICT)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_DELETED.getCode()));
@@ -174,7 +227,7 @@ class ContentApiTest extends IntegrationTest {
             llmApi.stubEmptyBodyForUntitled();
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
-            fixture.saveContents(signup.accessToken(), generationId)
+            fixture.saveContents(signup.accessToken(), generationId, List.of("BLOG", "INSTAGRAM"))
                 .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_FAILED.getCode()));
@@ -189,7 +242,7 @@ class ContentApiTest extends IntegrationTest {
             llmApi.stubFailure(429);
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
-            fixture.saveContents(signup.accessToken(), generationId)
+            fixture.saveContents(signup.accessToken(), generationId, List.of("BLOG", "INSTAGRAM"))
                 .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_FAILED.getCode()));
@@ -204,7 +257,7 @@ class ContentApiTest extends IntegrationTest {
             taskExecutor.hold();
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
-            fixture.saveContents(signup.accessToken(), generationId)
+            fixture.saveContents(signup.accessToken(), generationId, List.of("BLOG", "INSTAGRAM"))
                 .expectStatus().isEqualTo(HttpStatus.CONFLICT)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code())
@@ -218,7 +271,7 @@ class ContentApiTest extends IntegrationTest {
         void returns404_whenGenerationDoesNotExist() {
             SignupResponse signup = fixture.signupActiveMember("naver-save-not-found");
 
-            fixture.saveContents(signup.accessToken(), 999_999L)
+            fixture.saveContents(signup.accessToken(), 999_999L, List.of("BLOG"))
                 .expectStatus().isNotFound()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_NOT_FOUND.getCode()));
@@ -231,12 +284,250 @@ class ContentApiTest extends IntegrationTest {
             Long generationId = fixture.startedGenerationId(owner.accessToken(), List.of("BLOG"));
             SignupResponse other = fixture.signupActiveMember("naver-save-other");
 
-            fixture.saveContents(other.accessToken(), generationId)
+            fixture.saveContents(other.accessToken(), generationId, List.of("BLOG"))
                 .expectStatus().isNotFound()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_NOT_FOUND.getCode()));
 
             assertThat(contentsOf(memberIdOf("naver-save-other"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("작업의 채널을 빠뜨리고 저장하면 400 과 CT0010 을 반환한다")
+        void returns400_whenChannelMissingFromRequest() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-missing-channel");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+
+            fixture.saveContents(signup.accessToken(), generationId, List.of("BLOG"))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(ContentErrorCode.SAVE_CHANNELS_MISMATCHED.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-missing-channel"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("작업에 없는 채널을 보내면 400 과 CT0010 을 반환한다")
+        void returns400_whenRequestHasChannelOutsideGeneration() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-extra-channel");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), generationId, List.of("BLOG", "THREADS"))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(ContentErrorCode.SAVE_CHANNELS_MISMATCHED.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-extra-channel"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("같은 채널을 두 번 보내면 400 과 CT0010 을 반환한다")
+        void returns400_whenChannelDuplicated() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-duplicate-channel");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(
+                        fixture.channelContent("BLOG", "제목 하나", "본문 하나", List.of()),
+                        fixture.channelContent("BLOG", "제목 둘", "본문 둘", List.of()))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(ContentErrorCode.SAVE_CHANNELS_MISMATCHED.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-duplicate-channel"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("없는 채널 이름을 보내면 400 과 C0001 을 반환한다")
+        void returns400_whenChannelUnknown() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-unknown-channel");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("FACEBOOK", "제목", "본문", List.of()))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-unknown-channel"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("블로그를 제목 없이 저장하면 400 과 CT0007 을 반환하고 아무것도 저장되지 않는다")
+        void returns400_whenTitleMissingForBlog() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-no-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("BLOG", null, "제목 없는 본문", List.of()))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.TITLE_REQUIRED.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-no-title"))).isEmpty();
+            assertThat(channelsOf(memberIdOf("naver-save-no-title"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("이미 저장한 작업에 제목 없는 블로그를 다시 보내도 400 과 CT0007 을 반환한다")
+        void returns400_whenSavedAgainWithInvalidPayload() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-again-invalid");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("BLOG", null, "제목 없는 본문", List.of()))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.TITLE_REQUIRED.getCode()));
+        }
+
+        @Test
+        @DisplayName("제목 없는 채널에 제목을 보내면 400 과 CT0008 을 반환하고 아무것도 저장되지 않는다")
+        void returns400_whenTitleSentForUntitledChannel() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-extra-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("INSTAGRAM"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("INSTAGRAM", "쓸 수 없는 제목", "본문", List.of()))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.TITLE_NOT_ALLOWED.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-extra-title"))).isEmpty();
+            assertThat(channelsOf(memberIdOf("naver-save-extra-title"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("본문이 비어 있으면 400 과 C0001 을 반환한다")
+        void returns400_whenBodyBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-blank-body");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("BLOG", "제목", " ", List.of()))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-blank-body"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("채널별 콘텐츠 자리에 빈 값을 보내면 400 과 C0001 을 반환한다")
+        void returns400_whenChannelContentNull() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-null-content");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", Collections.singletonList(null)))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-null-content"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("해시태그에 빈 값이 섞이면 400 과 C0001 을 반환한다")
+        void returns400_whenHashtagNull() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-null-hashtag");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(
+                        fixture.channelContent("BLOG", "제목", "본문", Collections.singletonList(null)))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-null-hashtag"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("제목이 60자를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenTitleTooLong() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-long-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("BLOG", "가".repeat(61), "본문", List.of()))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-long-title"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("해시태그가 20개를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenTooManyHashtags() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-many-hashtags");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("BLOG", "제목", "본문",
+                        IntStream.rangeClosed(1, 21).mapToObj(index -> "#태그" + index).toList()))))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-many-hashtags"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("채널별 콘텐츠를 보내지 않으면 400 과 CT0010 을 반환한다")
+        void returns400_whenContentsMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-no-contents");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of("generationId", generationId))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(ContentErrorCode.SAVE_CHANNELS_MISMATCHED.getCode()));
+
+            assertThat(contentsOf(memberIdOf("naver-save-no-contents"))).isEmpty();
+        }
+
+        @Test
+        @DisplayName("진행 중인 작업은 채널별 콘텐츠 없이 저장해도 409 와 CT0004 를 반환한다")
+        void returns409_whenInProgressGenerationSavedWithoutContents() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-in-progress-empty");
+            taskExecutor.hold();
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of("generationId", generationId))
+                .expectStatus().isEqualTo(HttpStatus.CONFLICT)
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(ContentErrorCode.GENERATION_NOT_FINISHED.getCode()));
+        }
+
+        @Test
+        @DisplayName("실패한 작업은 채널별 콘텐츠 없이 저장해도 400 과 CT0003 을 반환한다")
+        void returns400_whenFailedGenerationSavedWithoutContents() {
+            SignupResponse signup = fixture.signupActiveMember("naver-save-failed-empty");
+            llmApi.stubFailure(429);
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            fixture.saveContents(signup.accessToken(), Map.of("generationId", generationId))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_FAILED.getCode()));
         }
 
         @Test
@@ -265,7 +556,7 @@ class ContentApiTest extends IntegrationTest {
         void returns403_whenPendingTokenRequests() {
             SocialLoginResponse login = fixture.naverLoginMember("naver-save-pending");
 
-            fixture.saveContents(login.accessToken(), 1L)
+            fixture.saveContents(login.accessToken(), 1L, List.of("BLOG"))
                 .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));

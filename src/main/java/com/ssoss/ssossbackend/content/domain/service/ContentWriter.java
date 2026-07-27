@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.content.domain.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -10,8 +11,10 @@ import java.util.stream.Stream;
 import com.ssoss.ssossbackend.content.domain.contract.ContentChannelHistoryRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentChannelRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentRepository;
+import com.ssoss.ssossbackend.content.domain.model.Channel;
 import com.ssoss.ssossbackend.content.domain.model.Content;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
+import com.ssoss.ssossbackend.content.domain.model.ContentChannelDraft;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannelHistory;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
 import com.ssoss.ssossbackend.content.domain.model.ContentSource;
@@ -54,7 +57,17 @@ public class ContentWriter {
     }
 
     @Transactional
-    public ContentWithChannels save(Generation generation, List<GenerationResult> results) {
+    public ContentWithChannels save(Generation generation, List<GenerationResult> results,
+        List<ContentChannelDraft> drafts) {
+        Map<Channel, ContentChannelDraft> draftsByChannel = drafts.stream()
+            .collect(Collectors.toMap(ContentChannelDraft::channel, draft -> draft, (first, second) -> first));
+        Set<Channel> resultChannels = results.stream()
+            .map(GenerationResult::getChannel)
+            .collect(Collectors.toSet());
+        if (draftsByChannel.size() != drafts.size() || !draftsByChannel.keySet().equals(resultChannels)) {
+            throw new BusinessException(ContentErrorCode.SAVE_CHANNELS_MISMATCHED);
+        }
+        drafts.forEach(draft -> draft.channel().ensureTitleAllowed(draft.title()));
         Content content = contentRepository.findBySourceTypeAndSourceId(ContentSource.GENERATION, generation.getId())
             .orElseGet(() -> contentRepository.save(Content.copyOf(generation)));
         if (content.isDeleted()) {
@@ -66,7 +79,7 @@ public class ContentWriter {
             .collect(Collectors.toSet());
         List<ContentChannel> added = contentChannelRepository.saveAll(results.stream()
             .filter(result -> !savedResultIds.contains(result.getId()))
-            .map(result -> ContentChannel.copyOf(content, result))
+            .map(result -> ContentChannel.of(content, result, draftsByChannel.get(result.getChannel())))
             .toList());
         return new ContentWithChannels(content, Stream.concat(saved.stream(), added.stream())
             .sorted(ContentChannel.CHANNEL_ORDER)

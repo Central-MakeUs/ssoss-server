@@ -5,8 +5,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-import com.ssoss.ssossbackend.shared.exception.BusinessException;
-
 import lombok.Getter;
 
 import org.springframework.data.annotation.CreatedDate;
@@ -54,19 +52,15 @@ public class ContentChannel {
         this.deletedAt = deletedAt;
     }
 
-    public static ContentChannel copyOf(Content content, GenerationResult result) {
+    public static ContentChannel of(Content content, GenerationResult result, ContentChannelDraft draft) {
+        result.getChannel().ensureTitleAllowed(draft.title());
         return new ContentChannel(null, content.getId(), content.getMemberId(), result.getChannel(), result.getId(),
-            result.getTitle(), result.getBody(), result.getHashtags(), null, null, null);
+            draft.title(), draft.body(), new Hashtags(draft.hashtags()), null, null, null);
     }
 
     public boolean edit(String title, String body, List<String> hashtags) {
         String editedTitle = StringUtils.hasText(title) ? title : null;
-        if (channel.hasTitle() && editedTitle == null) {
-            throw new BusinessException(ContentErrorCode.TITLE_REQUIRED);
-        }
-        if (!channel.hasTitle() && editedTitle != null) {
-            throw new BusinessException(ContentErrorCode.TITLE_NOT_ALLOWED);
-        }
+        channel.ensureTitleAllowed(editedTitle);
         if (Objects.equals(this.title, editedTitle) && Objects.equals(this.body, body)
             && hashtagList().equals(hashtags)) {
             return false;

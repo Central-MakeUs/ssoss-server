@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.support;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -153,8 +154,30 @@ public class TestFixture {
             .getResponseBody();
     }
 
-    public RestTestClient.ResponseSpec saveContents(String accessToken, Long generationId) {
-        return saveContents(accessToken, Map.of("generationId", generationId));
+    public RestTestClient.ResponseSpec saveGeneratedContents(String accessToken, Long generationId) {
+        return saveContents(accessToken, Map.of(
+            "generationId", generationId,
+            "contents", generationDetail(accessToken, generationId).results().stream()
+                .map(result -> channelContent(result.channel(), result.title(), result.body(), result.hashtags()))
+                .toList()));
+    }
+
+    public RestTestClient.ResponseSpec saveContents(String accessToken, Long generationId, List<String> channels) {
+        return saveContents(accessToken, Map.of(
+            "generationId", generationId,
+            "contents", channels.stream()
+                .map(channel -> channelContent(channel, "BLOG".equals(channel) ? "보낸 제목" : null,
+                    "보낸 본문", List.of("#보낸태그")))
+                .toList()));
+    }
+
+    public Map<String, Object> channelContent(String channel, String title, String body, List<String> hashtags) {
+        Map<String, Object> content = new LinkedHashMap<>();
+        content.put("channel", channel);
+        content.put("title", title);
+        content.put("body", body);
+        content.put("hashtags", hashtags);
+        return content;
     }
 
     public RestTestClient.ResponseSpec saveContents(String accessToken, Map<String, Object> body) {
@@ -166,7 +189,7 @@ public class TestFixture {
     }
 
     public ContentSaveResponse contentsOfGeneration(String accessToken, Long generationId) {
-        return saveContents(accessToken, generationId)
+        return saveGeneratedContents(accessToken, generationId)
             .expectStatus().isCreated()
             .expectBody(ContentSaveResponse.class)
             .returnResult()

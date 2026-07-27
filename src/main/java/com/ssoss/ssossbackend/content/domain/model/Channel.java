@@ -22,6 +22,15 @@ public enum Channel {
         return titled;
     }
 
+    public void ensureTitleAllowed(String title) {
+        if (titled && title == null) {
+            throw new BusinessException(ContentErrorCode.TITLE_REQUIRED);
+        }
+        if (!titled && title != null) {
+            throw new BusinessException(ContentErrorCode.TITLE_NOT_ALLOWED);
+        }
+    }
+
     public static Channel from(String value) {
         return Arrays.stream(values())
             .filter(channel -> channel.name().equalsIgnoreCase(value))
