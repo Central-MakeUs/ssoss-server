@@ -36,7 +36,7 @@ public class ContentService {
         Generation generation = generationFinder.get(command.generationId(), command.memberId());
         List<GenerationResult> results = generationFinder.results(generation.getId());
         generationValidator.ensureSavable(generation, results);
-        ContentWithChannels saved = contentWriter.save(generation, results);
+        ContentWithChannels saved = contentWriter.save(generation, results, command.contents());
         return new ContentSaveResult(saved.content().getId(), saved.channels().stream()
             .map(channel -> new ContentSaveResult.Item(channel.getId(), channel.getChannel().name()))
             .toList());
