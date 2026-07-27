@@ -96,6 +96,11 @@ public class TestFixture {
             .exchange();
     }
 
+    public RestTestClient.ResponseSpec appVersion(String os, String version) {
+        return client.get().uri("/v1/app-versions/{os}?version={version}", os, version)
+            .exchange();
+    }
+
     public RestTestClient.ResponseSpec startGeneration(String accessToken, List<String> channels) {
         return startGeneration(accessToken, generationBody(channels, false));
     }
