@@ -304,13 +304,13 @@ class SocialLoginApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("지원하지 않는 프로바이더 경로로 요청하면 404 와 A0002 를 반환한다")
-        void returns404AndAuthErrorCode_whenProviderIsUnsupported() {
+        @DisplayName("지원하지 않는 프로바이더 경로로 요청하면 400 과 A0002 를 반환한다")
+        void returns400AndAuthErrorCode_whenProviderIsUnsupported() {
             fixture.client().post().uri("/v1/social-logins/kakao")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("accessToken", "any-token", "refreshToken", "any-refresh-token"))
                 .exchange()
-                .expectStatus().isNotFound()
+                .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.UNSUPPORTED_SOCIAL_PROVIDER.getCode()));
         }
