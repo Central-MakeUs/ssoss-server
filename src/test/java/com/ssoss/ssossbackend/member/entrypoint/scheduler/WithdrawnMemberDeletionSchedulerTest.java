@@ -17,6 +17,7 @@ import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepo
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
+import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +60,9 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     @Autowired
     private CreditLedgerRepository creditLedgerRepository;
 
+    @Autowired
+    private StoreRepository storeRepository;
+
     @BeforeEach
     void resetDatabase() {
         memberWithdrawalHistoryRepository.deleteAll();
@@ -67,6 +71,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         refreshTokenRepository.deleteAll();
         creditLedgerRepository.deleteAll();
         creditRepository.deleteAll();
+        storeRepository.deleteAll();
         memberRepository.deleteAll();
     }
 
@@ -75,7 +80,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     class DeleteWithdrawnMembers {
 
         @Test
-        @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 회원·약관 동의·refresh token 이 모두 삭제된다")
+        @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 회원·약관 동의·refresh token·매장이 모두 삭제된다")
         void deletesMemberWithRelatedRows_whenGracePeriodHasPassed() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-due");
             Long memberId = memberIdOf("naver-delete-due");
@@ -87,6 +92,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-delete-due")).isEmpty();
             assertThat(termsOf(memberId)).isEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isEmpty();
+            assertThat(storeRepository.findByMemberId(memberId)).isEmpty();
         }
 
         @Test
@@ -191,6 +197,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
                 .satisfies(member -> assertThat(member.getStatus()).isEqualTo(MemberStatus.WITHDRAWN));
             assertThat(termsOf(memberId)).isNotEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isNotEmpty();
+            assertThat(storeRepository.findByMemberId(memberId)).isPresent();
         }
 
         @Test

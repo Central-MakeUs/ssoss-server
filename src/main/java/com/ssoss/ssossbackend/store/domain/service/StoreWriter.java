@@ -1,0 +1,23 @@
+package com.ssoss.ssossbackend.store.domain.service;
+
+import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
+import com.ssoss.ssossbackend.store.domain.model.Store;
+
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class StoreWriter {
+
+    private final StoreRepository storeRepository;
+
+    public void create(Long memberId) {
+        storeRepository.save(Store.create(memberId));
+    }
+
+    public void deleteByMemberId(Long memberId) {
+        storeRepository.deleteByMemberId(memberId);
+    }
+}
