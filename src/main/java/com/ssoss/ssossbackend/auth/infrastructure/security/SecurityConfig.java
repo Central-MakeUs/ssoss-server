@@ -34,6 +34,7 @@ class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/v1/social-logins/*").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/tokens").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/logout").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/app-versions/*").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/signup").hasAuthority(MemberStatus.PENDING.name())
                 .requestMatchers(HttpMethod.POST, "/v1/members/me/recovery").hasAuthority(MemberStatus.WITHDRAWN.name())
                 .anyRequest().hasAuthority(MemberStatus.ACTIVE.name()))
