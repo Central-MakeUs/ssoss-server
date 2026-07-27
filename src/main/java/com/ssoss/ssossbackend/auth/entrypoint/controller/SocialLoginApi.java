@@ -57,6 +57,7 @@ interface SocialLoginApi {
                 })),
         @ApiResponse(responseCode = "400", description = """
             accessToken 또는 refreshToken 이 누락되었거나 공백입니다 (C0001) — 요청 본문을 확인해 주세요.
+            또는 지원하지 않는 프로바이더입니다 (A0002) — {provider} 경로 값을 확인해 주세요.
             또는 소셜 계정이 이메일을 제공하지 않아 가입할 수 없습니다 (A0008) — 프로바이더에서 이메일 제공에 동의한 뒤 다시 로그인해 주세요.
             또는 탈퇴 후 재가입 제한 기간이 지나지 않았습니다 (M0005) — 탈퇴일로부터 2개월이 지나야 같은 소셜 계정으로 다시 가입할 수 있습니다.
             안내 메시지를 그대로 노출해 주세요.
@@ -69,6 +70,9 @@ interface SocialLoginApi {
                     @ExampleObject(name = "refreshToken 누락(C0001)", value = """
                         {"code":"C0001","message":"소셜 리프레시 토큰을 입력해 주세요"}
                         """),
+                    @ExampleObject(name = "지원하지 않는 프로바이더(A0002)", value = """
+                        {"code":"A0002","message":"지원하지 않는 소셜 로그인입니다"}
+                        """),
                     @ExampleObject(name = "이메일 미제공 가입 실패(A0008)", value = """
                         {"code":"A0008","message":"소셜 계정에서 이메일을 확인할 수 없어 가입할 수 없습니다. 이메일 제공에 동의해 주세요"}
                         """),
@@ -80,11 +84,6 @@ interface SocialLoginApi {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """
                     {"code":"A0001","message":"소셜 인증에 실패했습니다. 다시 로그인해 주세요"}
-                    """))),
-        @ApiResponse(responseCode = "404", description = "지원하지 않는 프로바이더입니다 (A0002) — {provider} 경로 값을 확인해 주세요",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
-                examples = @ExampleObject(value = """
-                    {"code":"A0002","message":"지원하지 않는 소셜 로그인입니다"}
                     """))),
         @ApiResponse(responseCode = "503", description = "소셜 프로바이더 장애입니다 (A0003) — 잠시 후 다시 시도해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
