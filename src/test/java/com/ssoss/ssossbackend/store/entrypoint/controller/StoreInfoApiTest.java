@@ -327,4 +327,283 @@ class StoreInfoApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
         }
     }
+
+    @Nested
+    @DisplayName("PUT /v1/stores/me/operation")
+    class SaveOperationInfo {
+
+        @Test
+        @DisplayName("네 가지를 다 채워 저장하면 조회에 그대로 담기고 운영 정보가 작성 완료가 된다")
+        void savesAllFields_whenEveryFieldGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-full");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY", "TUESDAY"), "09:00", "22:00",
+                        List.of("크루아상", "바닐라 라떼"), true, false, true))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY", "TUESDAY"), "09:00", "22:00",
+                    List.of("크루아상", "바닐라 라떼"), true, false, true, COMPLETED.name()));
+        }
+
+        @Test
+        @DisplayName("온보딩처럼 대표 메뉴 없이 저장하면 대표 메뉴가 빈 채로 작성 중이 된다")
+        void savesWithoutSignatureMenus_whenOnboardingOmitsThem() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-no-menus");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "22:00", null, true, false, false))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY"), "09:00", "22:00", List.of(),
+                    true, false, false, IN_PROGRESS.name()));
+        }
+
+        @Test
+        @DisplayName("대표 메뉴를 빼고 다시 저장하면 이전에 저장한 대표 메뉴가 비워진다")
+        void clearsSignatureMenus_whenSavedAgainWithoutThem() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-replace");
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "22:00", List.of("크루아상"),
+                        true, true, true))
+                .expectStatus().isNoContent();
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    Map.of("businessDays", List.of("TUESDAY"), "openTime", "10:00", "closeTime", "20:00"))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of("TUESDAY"), "10:00", "20:00", List.of(),
+                    false, false, false, IN_PROGRESS.name()));
+        }
+
+        @Test
+        @DisplayName("종료 시각이 시작 시각보다 일러도 자정을 넘긴 것으로 봐 그대로 저장된다")
+        void savesOvernightHours_whenCloseTimeIsEarlierThanOpenTime() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-overnight");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("FRIDAY"), "18:00", "02:00", null, false, false, false))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of("FRIDAY"), "18:00", "02:00", List.of(),
+                    false, false, false, IN_PROGRESS.name()));
+        }
+
+        @Test
+        @DisplayName("같은 요일을 여러 번 보내면 한 번만 저장되고 월요일부터의 순서로 정리된다")
+        void normalizesBusinessDays_whenDuplicatedOrUnordered() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-duplicated-days");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("WEDNESDAY", "MONDAY", "WEDNESDAY"), null, null, null,
+                        false, false, false))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation().businessDays())
+                .containsExactly("MONDAY", "WEDNESDAY");
+        }
+
+        @Test
+        @DisplayName("편의 시설을 안 보내면 셋 다 불가로 저장된다")
+        void savesAmenitiesAsUnavailable_whenOmitted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-no-amenities");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    Map.of("businessDays", List.of("MONDAY")))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY"), null, null, List.of(),
+                    false, false, false, IN_PROGRESS.name()));
+        }
+
+        @Test
+        @DisplayName("네 가지를 다 비워 저장하면 운영 정보가 미작성이 된다")
+        void marksNotWritten_whenNothingGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-empty");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(null, null, null, null, false, false, false))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of(), null, null, List.of(),
+                    false, false, false, NOT_WRITTEN.name()));
+        }
+
+        @Test
+        @DisplayName("영업 시각이 HH:mm 형식이 아니면 400 과 C0001 을 반환한다")
+        void returns400_whenTimeFormatInvalid() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-bad-time");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "9시", "22:00", null, false, false, false))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("영업 시각이 24시간 범위를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenTimeOutOfRange() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-out-of-range-time");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "24:00", null, false, false, false))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("영업 시작 시각만 보내면 400 과 C0001 을 반환한다")
+        void returns400_whenOnlyOpenTimeGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-only-open-time");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", null, null, false, false, false))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("영업 종료 시각만 보내면 400 과 C0001 을 반환한다")
+        void returns400_whenOnlyCloseTimeGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-only-close-time");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), null, "22:00", null, false, false, false))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("목록에 없는 영업 요일이면 400 과 C0001 을 반환한다")
+        void returns400_whenBusinessDayNotInList() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-unknown-day");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("월요일"), null, null, null, false, false, false))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("대표 메뉴가 10개를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenSignatureMenusTooMany() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-many-menus");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(null, null, null,
+                        List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"), false, false, false))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("대표 메뉴 하나가 30자를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenSignatureMenuTooLong() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-long-menu");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(null, null, null, List.of("가".repeat(31)), false, false, false))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("대표 메뉴에 공백만 담긴 값이 있으면 400 과 C0001 을 반환한다")
+        void returns400_whenSignatureMenuBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-blank-menu");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(null, null, null, List.of("크루아상", "   "), false, false, false))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("400 이 나면 이전에 저장한 값이 그대로 남는다")
+        void keepsSavedValues_whenValidationFails() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-rejected");
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "22:00", List.of("크루아상"),
+                        true, false, true))
+                .expectStatus().isNoContent();
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("TUESDAY"), "9시", null, null, false, false, false))
+                .expectStatus().isBadRequest();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY"), "09:00", "22:00", List.of("크루아상"),
+                    true, false, true, COMPLETED.name()));
+        }
+
+        @Test
+        @DisplayName("기본 정보를 저장한 뒤 운영 정보를 저장해도 기본 정보는 그대로 남는다")
+        void keepsBasicInfo_whenOperationInfoSaved() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-keeps-basic");
+            fixture.saveStoreBasicInfo(signup.accessToken(),
+                    fixture.storeBasicInfoBody("보니스커피", "CAFE", "서울 중구 을지로 100", "을지로 크루아상 카페"))
+                .expectStatus().isNoContent();
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "22:00", List.of("크루아상"),
+                        true, false, true))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).basic())
+                .isEqualTo(new StoreBasicInfoResponse("보니스커피", "CAFE", "서울 중구 을지로 100", "을지로 크루아상 카페",
+                    COMPLETED.name()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 저장하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenSaves() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-store-operation-pending");
+
+            fixture.saveStoreOperationInfo(login.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "22:00", null, false, false, false))
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("탈퇴 대기(WITHDRAWN) 토큰으로 저장하면 403 과 A0007 을 반환한다")
+        void returns403_whenWithdrawnTokenSaves() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-withdrawn");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-store-operation-withdrawn");
+
+            fixture.saveStoreOperationInfo(withdrawnLogin.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "22:00", null, false, false, false))
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 저장하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().put().uri("/v1/stores/me/operation")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "22:00", null, false, false, false))
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
 }

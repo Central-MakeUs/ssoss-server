@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.store.entrypoint.controller;
 
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.store.entrypoint.request.StoreBasicInfoRequest;
+import com.ssoss.ssossbackend.store.entrypoint.request.StoreOperationInfoRequest;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -140,4 +141,66 @@ interface StoreInfoApi {
                     """)))
     })
     void saveBasicInfo(Long memberId, StoreBasicInfoRequest request);
+
+    @Operation(
+        summary = "매장 운영 정보 저장",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            가입 회원(ACTIVE)이 자기 매장의 운영 정보를 저장합니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 입니다.
+            - 온보딩 화면과 마이페이지 운영 정보 화면이 이 API 하나를 함께 씁니다.
+              온보딩 화면에는 대표 메뉴 입력란이 없어 그때는 대표 메뉴가 빈 채로 저장되고, 나중에 마이페이지에서 채웁니다.
+            - 운영 정보 그룹을 통째로 교체합니다. 보내지 않은 값은 비워지므로, 대표 메뉴를 빼고 다시 저장하면 이전 대표 메뉴가 사라집니다.
+            - 네 가지 모두 선택이라 아무것도 보내지 않아도 저장됩니다. 그때는 작성 상태가 미작성이 됩니다.
+            - 영업 시간은 요일 집합과 공통 시작·종료 시각 한 쌍입니다. 요일마다 다른 시각을 두지 않습니다.
+            - 영업 요일은 MONDAY~SUNDAY 이며 목록에 없는 값은 400(C0001)입니다.
+              같은 요일을 여러 번 보내면 한 번만 저장되고 월요일부터의 순서로 정리됩니다.
+            - 영업 시각은 24시간 `HH:mm` 문자열이고 형식이 아니면 400(C0001)입니다. 오전·오후 표기는 클라이언트가 만듭니다.
+              종료가 시작보다 일러도 다음날로 보고 그대로 저장합니다 — 18시부터 새벽 2시까지 여는 매장이 있어 서버가 검증하지 않습니다.
+            - 영업 시각은 시작·종료 한 쌍이라 둘 다 보내거나 둘 다 빼야 하며, 한쪽만 보내면 400(C0001)입니다.
+              영업 시각을 지우려면 둘 다 빼고 보냅니다.
+            - 대표 메뉴는 최대 10개, 개당 30자입니다. 넘으면 400(C0001)이며 어떤 값도 바뀌지 않습니다.
+              빈 문자열이나 공백만 있는 대표 메뉴도 400(C0001)입니다. 대표 메뉴를 비우려면 목록에서 빼고 보냅니다.
+            - 편의 시설은 포장·예약·주차 세 가지의 boolean 이며, 보내지 않으면 불가로 저장됩니다.
+              미입력과 불가를 구분하지 않습니다.
+            - 기본 정보·콘텐츠 정보는 이 호출로 바뀌지 않습니다. 그룹마다 저장 API 가 따로 있습니다.
+            - 저장 결과는 응답 본문 대신 매장 정보 조회로 확인합니다. 작성 상태도 그 응답에 함께 담깁니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "저장되었습니다"),
+        @ApiResponse(responseCode = "400",
+            description = "영업 요일이 목록에 없거나 영업 시각 형식·짝이 맞지 않거나 대표 메뉴 상한을 넘었습니다 (C0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = {
+                    @ExampleObject(name = "목록에 없는 영업 요일", value = """
+                        {"code":"C0001","message":"입력값을 다시 확인해 주세요"}
+                        """),
+                    @ExampleObject(name = "영업 시각 형식 오류", value = """
+                        {"code":"C0001","message":"영업 시작 시각은 24시간 HH:mm 형식으로 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "영업 시각을 한쪽만 보냄", value = """
+                        {"code":"C0001","message":"입력값을 다시 확인해 주세요"}
+                        """),
+                    @ExampleObject(name = "대표 메뉴 개수 초과", value = """
+                        {"code":"C0001","message":"대표 메뉴는 최대 10개까지 입력할 수 있습니다"}
+                        """),
+                    @ExampleObject(name = "대표 메뉴 글자 수 초과", value = """
+                        {"code":"C0001","message":"대표 메뉴는 30자 이내로 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "빈 대표 메뉴", value = """
+                        {"code":"C0001","message":"빈 대표 메뉴는 보낼 수 없습니다"}
+                        """)})),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """)))
+    })
+    void saveOperationInfo(Long memberId, StoreOperationInfoRequest request);
 }

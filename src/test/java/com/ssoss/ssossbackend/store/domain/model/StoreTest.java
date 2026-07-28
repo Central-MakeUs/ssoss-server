@@ -45,6 +45,36 @@ class StoreTest {
     }
 
     @Nested
+    @DisplayName("writeOperationInfo")
+    class WriteOperationInfo {
+
+        @Test
+        @DisplayName("운영 정보만 바뀌고 기본 정보와 콘텐츠 정보는 그대로 남는다")
+        void keepsOtherGroups_whenOperationInfoWritten() {
+            Store store = StoreStub.filled();
+
+            store.writeOperationInfo(new BusinessDays(List.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)), "18:00", "02:00",
+                new SignatureMenus(List.of("바닐라 라떼")), false, true, false);
+
+            assertThat(store.businessDayValues()).containsExactly(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
+            assertThat(store.getOpenTime()).isEqualTo("18:00");
+            assertThat(store.getCloseTime()).isEqualTo("02:00");
+            assertThat(store.signatureMenuValues()).containsExactly("바닐라 라떼");
+            assertThat(store.isTakeoutAvailable()).isFalse();
+            assertThat(store.isReservationAvailable()).isTrue();
+            assertThat(store.isParkingAvailable()).isFalse();
+            assertThat(store.getName()).isEqualTo("보니스커피");
+            assertThat(store.getType()).isEqualTo(StoreType.CAFE);
+            assertThat(store.getAddress()).isEqualTo("서울 중구 을지로 100");
+            assertThat(store.getIntroduction()).isEqualTo("을지로 크루아상 카페");
+            assertThat(store.getStrength()).isEqualTo("직접 굽는 크루아상");
+            assertThat(store.keywordValues()).containsExactly("디저트");
+            assertThat(store.getForbidden()).isEqualTo("과장 표현");
+            assertThat(store.getTone()).isEqualTo(Tone.CASUAL);
+        }
+    }
+
+    @Nested
     @DisplayName("basicInfoStatus")
     class BasicInfoStatus {
 

@@ -129,6 +129,28 @@ public class TestFixture {
         return body;
     }
 
+    public RestTestClient.ResponseSpec saveStoreOperationInfo(String accessToken, Map<String, Object> body) {
+        return client.put().uri("/v1/stores/me/operation")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public Map<String, Object> storeOperationInfoBody(List<String> businessDays, String openTime, String closeTime,
+        List<String> signatureMenus, Boolean takeoutAvailable, Boolean reservationAvailable,
+        Boolean parkingAvailable) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("businessDays", businessDays);
+        body.put("openTime", openTime);
+        body.put("closeTime", closeTime);
+        body.put("signatureMenus", signatureMenus);
+        body.put("takeoutAvailable", takeoutAvailable);
+        body.put("reservationAvailable", reservationAvailable);
+        body.put("parkingAvailable", parkingAvailable);
+        return body;
+    }
+
     public RestTestClient.ResponseSpec appVersion(String os, String version) {
         return client.get().uri("/v1/app-versions/{os}?version={version}", os, version)
             .exchange();
