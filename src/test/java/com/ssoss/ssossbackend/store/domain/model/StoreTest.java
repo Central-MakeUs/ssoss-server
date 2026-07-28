@@ -34,9 +34,7 @@ class StoreTest {
             assertThat(store.getOpenTime()).isEqualTo("09:00");
             assertThat(store.getCloseTime()).isEqualTo("22:00");
             assertThat(store.signatureMenuValues()).containsExactly("크루아상");
-            assertThat(store.isTakeoutAvailable()).isTrue();
-            assertThat(store.isReservationAvailable()).isFalse();
-            assertThat(store.isParkingAvailable()).isTrue();
+            assertThat(store.getAmenities()).isEqualTo(new Amenities(true, false, true));
             assertThat(store.getStrength()).isEqualTo("직접 굽는 크루아상");
             assertThat(store.keywordValues()).containsExactly("디저트");
             assertThat(store.getForbidden()).isEqualTo("과장 표현");
@@ -54,15 +52,13 @@ class StoreTest {
             Store store = StoreStub.filled();
 
             store.writeOperationInfo(new BusinessDays(List.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)), "18:00", "02:00",
-                new SignatureMenus(List.of("바닐라 라떼")), false, true, false);
+                new SignatureMenus(List.of("바닐라 라떼")), new Amenities(false, true, false));
 
             assertThat(store.businessDayValues()).containsExactly(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
             assertThat(store.getOpenTime()).isEqualTo("18:00");
             assertThat(store.getCloseTime()).isEqualTo("02:00");
             assertThat(store.signatureMenuValues()).containsExactly("바닐라 라떼");
-            assertThat(store.isTakeoutAvailable()).isFalse();
-            assertThat(store.isReservationAvailable()).isTrue();
-            assertThat(store.isParkingAvailable()).isFalse();
+            assertThat(store.getAmenities()).isEqualTo(new Amenities(false, true, false));
             assertThat(store.getName()).isEqualTo("보니스커피");
             assertThat(store.getType()).isEqualTo(StoreType.CAFE);
             assertThat(store.getAddress()).isEqualTo("서울 중구 을지로 100");
@@ -112,43 +108,43 @@ class StoreTest {
         @Test
         @DisplayName("네 가지가 모두 비고 편의 시설이 셋 다 불가면 미작성이다")
         void notWritten_whenNothingWrittenAndNoAmenityAvailable() {
-            assertThat(StoreStub.operation(null, null, null, null, false, false, false).operationInfoStatus())
-                .isEqualTo(NOT_WRITTEN);
+            assertThat(StoreStub.operation(null, null, null, null, new Amenities(false, false, false))
+                .operationInfoStatus()).isEqualTo(NOT_WRITTEN);
         }
 
         @Test
         @DisplayName("목록이 빈 배열이면 값이 없는 것으로 봐 미작성이다")
         void notWritten_whenListsAreEmpty() {
             assertThat(StoreStub.operation(new BusinessDays(List.of()), null, null, new SignatureMenus(List.of()),
-                false, false, false).operationInfoStatus()).isEqualTo(NOT_WRITTEN);
+                new Amenities(false, false, false)).operationInfoStatus()).isEqualTo(NOT_WRITTEN);
         }
 
         @Test
         @DisplayName("영업 시각이 시작만 있으면 값이 없는 것으로 봐 미작성이다")
         void notWritten_whenOnlyOpenTimeWritten() {
-            assertThat(StoreStub.operation(null, "09:00", null, null, false, false, false).operationInfoStatus())
-                .isEqualTo(NOT_WRITTEN);
+            assertThat(StoreStub.operation(null, "09:00", null, null, new Amenities(false, false, false))
+                .operationInfoStatus()).isEqualTo(NOT_WRITTEN);
         }
 
         @Test
         @DisplayName("영업 시각은 시작과 종료가 둘 다 있어야 값이 있는 것으로 봐 작성 중이 된다")
         void inProgress_whenBothOpenAndCloseTimeWritten() {
-            assertThat(StoreStub.operation(null, "09:00", "22:00", null, false, false, false).operationInfoStatus())
-                .isEqualTo(IN_PROGRESS);
+            assertThat(StoreStub.operation(null, "09:00", "22:00", null, new Amenities(false, false, false))
+                .operationInfoStatus()).isEqualTo(IN_PROGRESS);
         }
 
         @Test
         @DisplayName("편의 시설 하나만 가능해도 값이 있는 것으로 봐 작성 중이 된다")
         void inProgress_whenSingleAmenityAvailable() {
-            assertThat(StoreStub.operation(null, null, null, null, false, false, true).operationInfoStatus())
-                .isEqualTo(IN_PROGRESS);
+            assertThat(StoreStub.operation(null, null, null, null, new Amenities(false, false, true))
+                .operationInfoStatus()).isEqualTo(IN_PROGRESS);
         }
 
         @Test
         @DisplayName("네 가지가 모두 있으면 작성 완료다")
         void completed_whenAllWritten() {
             assertThat(StoreStub.operation(new BusinessDays(List.of(DayOfWeek.MONDAY)), "09:00", "22:00",
-                new SignatureMenus(List.of("크루아상")), true, false, false).operationInfoStatus())
+                new SignatureMenus(List.of("크루아상")), new Amenities(true, false, false)).operationInfoStatus())
                 .isEqualTo(COMPLETED);
         }
 
@@ -156,7 +152,7 @@ class StoreTest {
         @DisplayName("편의 시설이 셋 다 불가면 나머지를 다 채워도 작성 중에 머문다")
         void inProgress_whenEverythingButAmenitiesWritten() {
             assertThat(StoreStub.operation(new BusinessDays(List.of(DayOfWeek.MONDAY)), "09:00", "22:00",
-                new SignatureMenus(List.of("크루아상")), false, false, false).operationInfoStatus())
+                new SignatureMenus(List.of("크루아상")), new Amenities(false, false, false)).operationInfoStatus())
                 .isEqualTo(IN_PROGRESS);
         }
     }

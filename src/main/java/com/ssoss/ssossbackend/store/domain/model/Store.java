@@ -10,6 +10,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.annotation.Version;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.util.StringUtils;
 
@@ -28,9 +29,10 @@ public class Store {
     private String openTime;
     private String closeTime;
     private SignatureMenus signatureMenus;
-    private boolean takeoutAvailable;
-    private boolean reservationAvailable;
-    private boolean parkingAvailable;
+
+    @Embedded.Empty
+    private Amenities amenities;
+
     private String strength;
     private StoreKeywords keywords;
     private String forbidden;
@@ -47,8 +49,7 @@ public class Store {
 
     Store(Long id, Long memberId, String name, StoreType type, String address, String introduction,
         BusinessDays businessDays, String openTime, String closeTime, SignatureMenus signatureMenus,
-        boolean takeoutAvailable, boolean reservationAvailable, boolean parkingAvailable,
-        String strength, StoreKeywords keywords, String forbidden, Tone tone) {
+        Amenities amenities, String strength, StoreKeywords keywords, String forbidden, Tone tone) {
         this.id = id;
         this.memberId = memberId;
         this.name = name;
@@ -59,9 +60,7 @@ public class Store {
         this.openTime = openTime;
         this.closeTime = closeTime;
         this.signatureMenus = signatureMenus;
-        this.takeoutAvailable = takeoutAvailable;
-        this.reservationAvailable = reservationAvailable;
-        this.parkingAvailable = parkingAvailable;
+        this.amenities = amenities;
         this.strength = strength;
         this.keywords = keywords;
         this.forbidden = forbidden;
@@ -70,7 +69,7 @@ public class Store {
 
     public static Store create(Long memberId) {
         return new Store(null, memberId, null, null, null, null, null, null, null, null,
-            false, false, false, null, null, null, null);
+            new Amenities(false, false, false), null, null, null, null);
     }
 
     public void writeBasicInfo(String name, StoreType type, String address, String introduction) {
@@ -81,15 +80,12 @@ public class Store {
     }
 
     public void writeOperationInfo(BusinessDays businessDays, String openTime, String closeTime,
-        SignatureMenus signatureMenus, boolean takeoutAvailable, boolean reservationAvailable,
-        boolean parkingAvailable) {
+        SignatureMenus signatureMenus, Amenities amenities) {
         this.businessDays = businessDays;
         this.openTime = openTime;
         this.closeTime = closeTime;
         this.signatureMenus = signatureMenus;
-        this.takeoutAvailable = takeoutAvailable;
-        this.reservationAvailable = reservationAvailable;
-        this.parkingAvailable = parkingAvailable;
+        this.amenities = amenities;
     }
 
     public List<DayOfWeek> businessDayValues() {
@@ -125,7 +121,7 @@ public class Store {
             !businessDayValues().isEmpty(),
             openTime != null && closeTime != null,
             !signatureMenuValues().isEmpty(),
-            takeoutAvailable || reservationAvailable || parkingAvailable);
+            amenities.anyAvailable());
     }
 
     public StoreInfoStatus contentInfoStatus() {

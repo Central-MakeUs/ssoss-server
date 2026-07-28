@@ -31,13 +31,13 @@ public record StoreOperationInfoRequest(
         @Size(max = 30, message = "대표 메뉴는 30자 이내로 입력해 주세요") String> signatureMenus,
     @Schema(description = "포장 가능 여부 (선택) — 보내지 않으면 불가로 저장됩니다", example = "true", defaultValue = "false",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-    Boolean takeoutAvailable,
+    boolean takeoutAvailable,
     @Schema(description = "예약 가능 여부 (선택) — 보내지 않으면 불가로 저장됩니다", example = "false", defaultValue = "false",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-    Boolean reservationAvailable,
+    boolean reservationAvailable,
     @Schema(description = "주차 가능 여부 (선택) — 보내지 않으면 불가로 저장됩니다", example = "true", defaultValue = "false",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-    Boolean parkingAvailable
+    boolean parkingAvailable
 ) {
 
     public StoreOperationInfoCommand toCommand(Long memberId) {

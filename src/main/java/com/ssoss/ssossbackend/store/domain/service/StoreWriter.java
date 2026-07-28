@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.store.domain.service;
 
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
+import com.ssoss.ssossbackend.store.domain.model.Amenities;
 import com.ssoss.ssossbackend.store.domain.model.BusinessDays;
 import com.ssoss.ssossbackend.store.domain.model.SignatureMenus;
 import com.ssoss.ssossbackend.store.domain.model.Store;
@@ -26,10 +27,8 @@ public class StoreWriter {
     }
 
     public void writeOperationInfo(Store store, BusinessDays businessDays, String openTime, String closeTime,
-        SignatureMenus signatureMenus, boolean takeoutAvailable, boolean reservationAvailable,
-        boolean parkingAvailable) {
-        store.writeOperationInfo(businessDays, openTime, closeTime, signatureMenus, takeoutAvailable,
-            reservationAvailable, parkingAvailable);
+        SignatureMenus signatureMenus, Amenities amenities) {
+        store.writeOperationInfo(businessDays, openTime, closeTime, signatureMenus, amenities);
         storeRepository.save(store);
     }
 

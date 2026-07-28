@@ -28,8 +28,7 @@ public class StoreService {
 
     public void saveOperationInfo(StoreOperationInfoCommand command) {
         storeWriter.writeOperationInfo(storeFinder.get(command.memberId()), command.businessDays(),
-            command.openTime(), command.closeTime(), command.signatureMenus(), command.takeoutAvailable(),
-            command.reservationAvailable(), command.parkingAvailable());
+            command.openTime(), command.closeTime(), command.signatureMenus(), command.amenities());
     }
 
     public void create(Long memberId) {
