@@ -1,9 +1,9 @@
 package com.ssoss.ssossbackend.store.domain.service;
 
-import java.util.Optional;
-
+import com.ssoss.ssossbackend.shared.exception.BusinessException;
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.store.domain.model.Store;
+import com.ssoss.ssossbackend.store.domain.model.StoreErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -15,7 +15,8 @@ public class StoreFinder {
 
     private final StoreRepository storeRepository;
 
-    public Optional<Store> find(Long memberId) {
-        return storeRepository.findByMemberId(memberId);
+    public Store get(Long memberId) {
+        return storeRepository.findByMemberId(memberId)
+            .orElseThrow(() -> new BusinessException(StoreErrorCode.STORE_NOT_FOUND));
     }
 }

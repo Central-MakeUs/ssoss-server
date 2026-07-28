@@ -1,8 +1,7 @@
 package com.ssoss.ssossbackend.store.application.service;
 
-import com.ssoss.ssossbackend.shared.exception.BusinessException;
+import com.ssoss.ssossbackend.store.application.command.StoreBasicInfoCommand;
 import com.ssoss.ssossbackend.store.application.result.StoreInfoResult;
-import com.ssoss.ssossbackend.store.domain.model.StoreErrorCode;
 import com.ssoss.ssossbackend.store.domain.service.StoreFinder;
 import com.ssoss.ssossbackend.store.domain.service.StoreWriter;
 
@@ -18,8 +17,12 @@ public class StoreService {
     private final StoreWriter storeWriter;
 
     public StoreInfoResult getInfo(Long memberId) {
-        return StoreInfoResult.from(storeFinder.find(memberId)
-            .orElseThrow(() -> new BusinessException(StoreErrorCode.STORE_NOT_FOUND)));
+        return StoreInfoResult.from(storeFinder.get(memberId));
+    }
+
+    public void saveBasicInfo(StoreBasicInfoCommand command) {
+        storeWriter.writeBasicInfo(storeFinder.get(command.memberId()), command.name(), command.type(),
+            command.address(), command.introduction());
     }
 
     public void create(Long memberId) {

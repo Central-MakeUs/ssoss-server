@@ -5,15 +5,22 @@ import com.ssoss.ssossbackend.store.application.result.StoreContentInfoResult;
 import com.ssoss.ssossbackend.store.application.result.StoreOperationInfoResult;
 import com.ssoss.ssossbackend.store.application.result.StoreInfoResult;
 import com.ssoss.ssossbackend.store.application.service.StoreService;
+import com.ssoss.ssossbackend.store.entrypoint.request.StoreBasicInfoRequest;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreBasicInfoResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreContentInfoResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreOperationInfoResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
 
+import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -37,5 +44,15 @@ class StoreInfoController implements StoreInfoApi {
                 operation.parkingAvailable(), operation.status()),
             new StoreContentInfoResponse(content.strength(), content.keywords(), content.forbidden(), content.tone(),
                 content.status()));
+    }
+
+    @Override
+    @PutMapping("/v1/stores/me/basic")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void saveBasicInfo(
+        @AuthenticationPrincipal Long memberId,
+        @Valid @RequestBody StoreBasicInfoRequest request
+    ) {
+        storeService.saveBasicInfo(request.toCommand(memberId));
     }
 }

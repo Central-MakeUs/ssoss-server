@@ -10,6 +10,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Table;
+import org.springframework.util.StringUtils;
 
 @Getter
 @Table("store")
@@ -66,6 +67,13 @@ public class Store {
     public static Store create(Long memberId) {
         return new Store(null, memberId, null, null, null, null, null, null, null, null,
             false, false, false, null, null, null, null);
+    }
+
+    public void writeBasicInfo(String name, StoreType type, String address, String introduction) {
+        this.name = name;
+        this.type = type;
+        this.address = address;
+        this.introduction = StringUtils.hasText(introduction) ? introduction : null;
     }
 
     public List<DayOfWeek> businessDayValues() {

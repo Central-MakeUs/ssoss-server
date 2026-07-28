@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.store.domain.service;
 
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.store.domain.model.Store;
+import com.ssoss.ssossbackend.store.domain.model.StoreType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -15,6 +16,11 @@ public class StoreWriter {
 
     public void create(Long memberId) {
         storeRepository.save(Store.create(memberId));
+    }
+
+    public void writeBasicInfo(Store store, String name, StoreType type, String address, String introduction) {
+        store.writeBasicInfo(name, type, address, introduction);
+        storeRepository.save(store);
     }
 
     public void deleteByMemberId(Long memberId) {
