@@ -1,6 +1,8 @@
 package com.ssoss.ssossbackend.store.domain.model;
 
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.util.List;
 
 import lombok.Getter;
 
@@ -64,5 +66,49 @@ public class Store {
     public static Store create(Long memberId) {
         return new Store(null, memberId, null, null, null, null, null, null, null, null,
             false, false, false, null, null, null, null);
+    }
+
+    public List<DayOfWeek> businessDayValues() {
+        return businessDays == null ? List.of() : businessDays.values();
+    }
+
+    public List<String> signatureMenuValues() {
+        return signatureMenus == null ? List.of() : signatureMenus.values();
+    }
+
+    public List<String> keywordValues() {
+        return keywords == null ? List.of() : keywords.values();
+    }
+
+    public String typeName() {
+        return type == null ? null : type.name();
+    }
+
+    public String toneName() {
+        return tone == null ? null : tone.name();
+    }
+
+    public StoreInfoStatus basicInfoStatus() {
+        return StoreInfoStatus.of(
+            name != null,
+            type != null,
+            address != null,
+            introduction != null);
+    }
+
+    public StoreInfoStatus operationInfoStatus() {
+        return StoreInfoStatus.of(
+            !businessDayValues().isEmpty(),
+            openTime != null && closeTime != null,
+            !signatureMenuValues().isEmpty(),
+            takeoutAvailable || reservationAvailable || parkingAvailable);
+    }
+
+    public StoreInfoStatus contentInfoStatus() {
+        return StoreInfoStatus.of(
+            strength != null,
+            !keywordValues().isEmpty(),
+            forbidden != null,
+            tone != null);
     }
 }
