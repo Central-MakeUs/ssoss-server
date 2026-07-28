@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.store.entrypoint.controller;
 
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
+import com.ssoss.ssossbackend.store.entrypoint.request.StoreBasicInfoRequest;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -82,4 +83,61 @@ interface StoreInfoApi {
                     """)))
     })
     StoreInfoResponse getInfo(Long memberId);
+
+    @Operation(
+        summary = "매장 기본 정보 저장",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            가입 회원(ACTIVE)이 자기 매장의 기본 정보를 저장합니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 입니다.
+            - 온보딩 화면과 마이페이지 기본 정보 화면이 이 API 하나를 함께 씁니다.
+              온보딩에서 건너뛰기는 이 API 를 호출하지 않는 것이며, 건너뛴 회원은 기본 정보가 빈 채로 남습니다.
+            - 기본 정보 그룹을 통째로 교체합니다. 네 필드를 모두 보내며, 보내지 않은 필드는 비워집니다.
+              매장 한 줄 소개만 지우고 싶다면 나머지 셋을 그대로 담고 소개만 빼서 보냅니다.
+            - 매장명·매장 유형·주소는 필수라 빠지면 400(C0001)입니다. 매장 한 줄 소개만 선택입니다.
+            - 빈 문자열과 공백만 있는 값은 매장 한 줄 소개를 보내지 않은 것으로 봅니다.
+              입력칸을 비운 채로 보내도 400 이 아니라 소개 없음으로 저장되며, 작성 상태도 그렇게 셉니다.
+            - 매장 유형은 카페·디저트 카페·베이커리·베이커리 카페·브런치 카페·로스터리 카페·카페바 일곱 중 하나이며,
+              목록에 없는 값은 400(C0001)입니다. "기타"는 없습니다.
+            - 상한은 매장명 50자, 주소 200자, 매장 한 줄 소개 100자입니다. 넘으면 400(C0001)이며 어떤 값도 바뀌지 않습니다.
+            - 운영 정보·콘텐츠 정보는 이 호출로 바뀌지 않습니다. 그룹마다 저장 API 가 따로 있습니다.
+            - 저장 결과는 응답 본문 대신 매장 정보 조회로 확인합니다. 작성 상태도 그 응답에 함께 담깁니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "저장되었습니다"),
+        @ApiResponse(responseCode = "400",
+            description = "필수 값이 없거나 매장 유형이 목록에 없거나 상한을 넘었습니다 (C0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = {
+                    @ExampleObject(name = "매장명 없음", value = """
+                        {"code":"C0001","message":"매장명을 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "매장 유형 없음", value = """
+                        {"code":"C0001","message":"매장 유형을 선택해 주세요"}
+                        """),
+                    @ExampleObject(name = "주소 없음", value = """
+                        {"code":"C0001","message":"주소를 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "목록에 없는 매장 유형", value = """
+                        {"code":"C0001","message":"입력값을 다시 확인해 주세요"}
+                        """),
+                    @ExampleObject(name = "매장명 상한 초과", value = """
+                        {"code":"C0001","message":"매장명은 50자 이내로 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "매장 한 줄 소개 상한 초과", value = """
+                        {"code":"C0001","message":"매장 한 줄 소개는 100자 이내로 입력해 주세요"}
+                        """)})),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """)))
+    })
+    void saveBasicInfo(Long memberId, StoreBasicInfoRequest request);
 }

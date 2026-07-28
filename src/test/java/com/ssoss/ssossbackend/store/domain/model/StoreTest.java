@@ -16,6 +16,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StoreTest {
 
     @Nested
+    @DisplayName("writeBasicInfo")
+    class WriteBasicInfo {
+
+        @Test
+        @DisplayName("기본 정보만 바뀌고 운영 정보와 콘텐츠 정보는 그대로 남는다")
+        void keepsOtherGroups_whenBasicInfoWritten() {
+            Store store = StoreStub.filled();
+
+            store.writeBasicInfo("보니스베이커리", StoreType.BAKERY, "서울 중구 을지로 200", null);
+
+            assertThat(store.getName()).isEqualTo("보니스베이커리");
+            assertThat(store.getType()).isEqualTo(StoreType.BAKERY);
+            assertThat(store.getAddress()).isEqualTo("서울 중구 을지로 200");
+            assertThat(store.getIntroduction()).isNull();
+            assertThat(store.businessDayValues()).containsExactly(DayOfWeek.MONDAY);
+            assertThat(store.getOpenTime()).isEqualTo("09:00");
+            assertThat(store.getCloseTime()).isEqualTo("22:00");
+            assertThat(store.signatureMenuValues()).containsExactly("크루아상");
+            assertThat(store.isTakeoutAvailable()).isTrue();
+            assertThat(store.isReservationAvailable()).isFalse();
+            assertThat(store.isParkingAvailable()).isTrue();
+            assertThat(store.getStrength()).isEqualTo("직접 굽는 크루아상");
+            assertThat(store.keywordValues()).containsExactly("디저트");
+            assertThat(store.getForbidden()).isEqualTo("과장 표현");
+            assertThat(store.getTone()).isEqualTo(Tone.CASUAL);
+        }
+    }
+
+    @Nested
     @DisplayName("basicInfoStatus")
     class BasicInfoStatus {
 

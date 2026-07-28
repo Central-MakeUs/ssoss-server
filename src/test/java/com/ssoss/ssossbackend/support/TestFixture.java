@@ -13,6 +13,7 @@ import com.ssoss.ssossbackend.content.entrypoint.response.ContentListResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
+import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -97,10 +98,35 @@ public class TestFixture {
             .exchange();
     }
 
-    public RestTestClient.ResponseSpec storeInfo(String accessToken) {
+    public RestTestClient.ResponseSpec getStoreInfo(String accessToken) {
         return client.get().uri("/v1/stores/me")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .exchange();
+    }
+
+    public StoreInfoResponse storeInfo(String accessToken) {
+        return getStoreInfo(accessToken)
+            .expectStatus().isOk()
+            .expectBody(StoreInfoResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public RestTestClient.ResponseSpec saveStoreBasicInfo(String accessToken, Map<String, Object> body) {
+        return client.put().uri("/v1/stores/me/basic")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public Map<String, Object> storeBasicInfoBody(String name, String type, String address, String introduction) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", name);
+        body.put("type", type);
+        body.put("address", address);
+        body.put("introduction", introduction);
+        return body;
     }
 
     public RestTestClient.ResponseSpec appVersion(String os, String version) {
