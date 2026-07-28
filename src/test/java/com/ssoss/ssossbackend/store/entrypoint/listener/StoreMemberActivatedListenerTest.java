@@ -44,9 +44,9 @@ class StoreMemberActivatedListenerTest extends IntegrationTest {
                     assertThat(store.getOpenTime()).isNull();
                     assertThat(store.getCloseTime()).isNull();
                     assertThat(store.getSignatureMenus()).isNull();
-                    assertThat(store.getTakeoutAvailable()).isNull();
-                    assertThat(store.getReservationAvailable()).isNull();
-                    assertThat(store.getParkingAvailable()).isNull();
+                    assertThat(store.isTakeoutAvailable()).isFalse();
+                    assertThat(store.isReservationAvailable()).isFalse();
+                    assertThat(store.isParkingAvailable()).isFalse();
                     assertThat(store.getStrength()).isNull();
                     assertThat(store.getKeywords()).isNull();
                     assertThat(store.getForbidden()).isNull();

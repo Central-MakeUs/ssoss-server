@@ -24,9 +24,9 @@ public class Store {
     private String openTime;
     private String closeTime;
     private SignatureMenus signatureMenus;
-    private Boolean takeoutAvailable;
-    private Boolean reservationAvailable;
-    private Boolean parkingAvailable;
+    private boolean takeoutAvailable;
+    private boolean reservationAvailable;
+    private boolean parkingAvailable;
     private String strength;
     private StoreKeywords keywords;
     private String forbidden;
@@ -40,7 +40,7 @@ public class Store {
 
     Store(Long id, Long memberId, String name, StoreType type, String address, String introduction,
         BusinessDays businessDays, String openTime, String closeTime, SignatureMenus signatureMenus,
-        Boolean takeoutAvailable, Boolean reservationAvailable, Boolean parkingAvailable,
+        boolean takeoutAvailable, boolean reservationAvailable, boolean parkingAvailable,
         String strength, StoreKeywords keywords, String forbidden, Tone tone) {
         this.id = id;
         this.memberId = memberId;
@@ -63,6 +63,6 @@ public class Store {
 
     public static Store create(Long memberId) {
         return new Store(null, memberId, null, null, null, null, null, null, null, null,
-            null, null, null, null, null, null, null);
+            false, false, false, null, null, null, null);
     }
 }
