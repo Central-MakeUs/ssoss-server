@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.store.entrypoint.listener;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
+import com.ssoss.ssossbackend.store.domain.model.Amenities;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
 import org.junit.jupiter.api.DisplayName;
@@ -44,9 +45,7 @@ class StoreMemberActivatedListenerTest extends IntegrationTest {
                     assertThat(store.getOpenTime()).isNull();
                     assertThat(store.getCloseTime()).isNull();
                     assertThat(store.getSignatureMenus()).isNull();
-                    assertThat(store.isTakeoutAvailable()).isFalse();
-                    assertThat(store.isReservationAvailable()).isFalse();
-                    assertThat(store.isParkingAvailable()).isFalse();
+                    assertThat(store.getAmenities()).isEqualTo(new Amenities(false, false, false));
                     assertThat(store.getStrength()).isNull();
                     assertThat(store.getKeywords()).isNull();
                     assertThat(store.getForbidden()).isNull();

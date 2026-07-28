@@ -422,6 +422,20 @@ class StoreInfoApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("편의 시설을 null 로 보내도 불가로 저장된다")
+        void savesAmenitiesAsUnavailable_whenSentAsNull() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-operation-null-amenities");
+
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), null, null, null, null, null, null))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY"), null, null, List.of(),
+                    false, false, false, IN_PROGRESS.name()));
+        }
+
+        @Test
         @DisplayName("네 가지를 다 비워 저장하면 운영 정보가 미작성이 된다")
         void marksNotWritten_whenNothingGiven() {
             SignupResponse signup = fixture.signupActiveMember("naver-store-operation-empty");
