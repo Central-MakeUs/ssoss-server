@@ -6,6 +6,7 @@ import com.ssoss.ssossbackend.store.application.result.StoreOperationInfoResult;
 import com.ssoss.ssossbackend.store.application.result.StoreInfoResult;
 import com.ssoss.ssossbackend.store.application.service.StoreService;
 import com.ssoss.ssossbackend.store.entrypoint.request.StoreBasicInfoRequest;
+import com.ssoss.ssossbackend.store.entrypoint.request.StoreOperationInfoRequest;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreBasicInfoResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreContentInfoResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreOperationInfoResponse;
@@ -54,5 +55,15 @@ class StoreInfoController implements StoreInfoApi {
         @Valid @RequestBody StoreBasicInfoRequest request
     ) {
         storeService.saveBasicInfo(request.toCommand(memberId));
+    }
+
+    @Override
+    @PutMapping("/v1/stores/me/operation")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void saveOperationInfo(
+        @AuthenticationPrincipal Long memberId,
+        @Valid @RequestBody StoreOperationInfoRequest request
+    ) {
+        storeService.saveOperationInfo(request.toCommand(memberId));
     }
 }

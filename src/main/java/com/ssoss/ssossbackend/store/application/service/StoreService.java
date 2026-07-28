@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.store.application.service;
 
 import com.ssoss.ssossbackend.store.application.command.StoreBasicInfoCommand;
+import com.ssoss.ssossbackend.store.application.command.StoreOperationInfoCommand;
 import com.ssoss.ssossbackend.store.application.result.StoreInfoResult;
 import com.ssoss.ssossbackend.store.domain.service.StoreFinder;
 import com.ssoss.ssossbackend.store.domain.service.StoreWriter;
@@ -23,6 +24,12 @@ public class StoreService {
     public void saveBasicInfo(StoreBasicInfoCommand command) {
         storeWriter.writeBasicInfo(storeFinder.get(command.memberId()), command.name(), command.type(),
             command.address(), command.introduction());
+    }
+
+    public void saveOperationInfo(StoreOperationInfoCommand command) {
+        storeWriter.writeOperationInfo(storeFinder.get(command.memberId()), command.businessDays(),
+            command.openTime(), command.closeTime(), command.signatureMenus(), command.takeoutAvailable(),
+            command.reservationAvailable(), command.parkingAvailable());
     }
 
     public void create(Long memberId) {

@@ -80,6 +80,18 @@ public class Store {
         this.introduction = StringUtils.hasText(introduction) ? introduction : null;
     }
 
+    public void writeOperationInfo(BusinessDays businessDays, String openTime, String closeTime,
+        SignatureMenus signatureMenus, boolean takeoutAvailable, boolean reservationAvailable,
+        boolean parkingAvailable) {
+        this.businessDays = businessDays;
+        this.openTime = openTime;
+        this.closeTime = closeTime;
+        this.signatureMenus = signatureMenus;
+        this.takeoutAvailable = takeoutAvailable;
+        this.reservationAvailable = reservationAvailable;
+        this.parkingAvailable = parkingAvailable;
+    }
+
     public List<DayOfWeek> businessDayValues() {
         return businessDays == null ? List.of() : businessDays.values();
     }
