@@ -97,6 +97,12 @@ public class TestFixture {
             .exchange();
     }
 
+    public RestTestClient.ResponseSpec storeInfo(String accessToken) {
+        return client.get().uri("/v1/stores/me")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
     public RestTestClient.ResponseSpec appVersion(String os, String version) {
         return client.get().uri("/v1/app-versions/{os}?version={version}", os, version)
             .exchange();
