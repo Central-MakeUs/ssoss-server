@@ -18,9 +18,9 @@ public class MemberTerm {
     @Id
     private Long id;
     private Long memberId;
+    private boolean ageOver14Agreed;
     private boolean serviceTermsAgreed;
     private boolean privacyPolicyAgreed;
-    private boolean marketingAgreed;
 
     @CreatedDate
     private Instant createdAt;
@@ -28,20 +28,20 @@ public class MemberTerm {
     @LastModifiedDate
     private Instant updatedAt;
 
-    MemberTerm(Long id, Long memberId, boolean serviceTermsAgreed, boolean privacyPolicyAgreed,
-        boolean marketingAgreed) {
+    MemberTerm(Long id, Long memberId, boolean ageOver14Agreed, boolean serviceTermsAgreed,
+        boolean privacyPolicyAgreed) {
         this.id = id;
         this.memberId = memberId;
+        this.ageOver14Agreed = ageOver14Agreed;
         this.serviceTermsAgreed = serviceTermsAgreed;
         this.privacyPolicyAgreed = privacyPolicyAgreed;
-        this.marketingAgreed = marketingAgreed;
     }
 
-    public static MemberTerm record(Long memberId, boolean serviceTermsAgreed, boolean privacyPolicyAgreed,
-        boolean marketingAgreed) {
-        if (!serviceTermsAgreed || !privacyPolicyAgreed) {
+    public static MemberTerm record(Long memberId, boolean ageOver14Agreed, boolean serviceTermsAgreed,
+        boolean privacyPolicyAgreed) {
+        if (!ageOver14Agreed || !serviceTermsAgreed || !privacyPolicyAgreed) {
             throw new BusinessException(TermErrorCode.REQUIRED_TERMS_NOT_AGREED);
         }
-        return new MemberTerm(null, memberId, serviceTermsAgreed, privacyPolicyAgreed, marketingAgreed);
+        return new MemberTerm(null, memberId, ageOver14Agreed, serviceTermsAgreed, privacyPolicyAgreed);
     }
 }

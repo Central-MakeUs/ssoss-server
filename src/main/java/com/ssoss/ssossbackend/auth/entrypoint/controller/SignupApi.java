@@ -25,9 +25,8 @@ interface SignupApi {
             **처리 순서**
             1. 소셜 로그인에서 받은 가입 대기(PENDING) accessToken 을 Bearer 헤더로 전달합니다.
                - 가입 대기 토큰 전용 API 입니다. 가입 회원(ACTIVE) 토큰으로 호출하면 403 을 응답합니다.
-            2. 약관 3종(`serviceTermsAgreed`·`privacyPolicyAgreed`·`marketingAgreed`) 전체의 동의 여부를 제출합니다.
-               - 서비스 이용약관·개인정보 수집·이용은 필수 — 동의하지 않으면 400 을 응답합니다.
-               - 마케팅 수신은 선택 — 미동의(false)로도 회원가입이 되며, 미동의 사실과 시각이 기록됩니다.
+            2. 약관 3종(`ageOver14Agreed`·`serviceTermsAgreed`·`privacyPolicyAgreed`) 전체의 동의 여부를 제출합니다.
+               - 세 항목 모두 필수 — 하나라도 동의하지 않으면 400 을 응답합니다.
             3. 완료되면 가입 회원(ACTIVE)으로 전환되고 role=ACTIVE 토큰 쌍(access + refresh)이 새로 발급됩니다.
                이후 API 는 새 accessToken 으로 호출합니다.
             """)
@@ -44,7 +43,7 @@ interface SignupApi {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = {
                     @ExampleObject(name = "약관 필드 누락(C0001)", value = """
-                        {"code":"C0001","message":"마케팅 수신 동의 여부를 입력해 주세요"}
+                        {"code":"C0001","message":"만 14세 이상 동의 여부를 입력해 주세요"}
                         """),
                     @ExampleObject(name = "필수 약관 미동의(T0001)", value = """
                         {"code":"T0001","message":"필수 약관에 모두 동의해야 회원가입할 수 있습니다"}

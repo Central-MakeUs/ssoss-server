@@ -52,7 +52,7 @@ class SignupApiTest extends IntegrationTest {
     class Signup {
 
         @Test
-        @DisplayName("필수 약관과 마케팅 수신에 모두 동의하면 가입 회원으로 전환되고 ACTIVE 토큰 쌍이 발급된다")
+        @DisplayName("필수 약관에 모두 동의하면 가입 회원으로 전환되고 ACTIVE 토큰 쌍이 발급된다")
         void activatesMemberAndIssuesActiveTokenPair_whenAllTermsAgreed() {
             SocialLoginResponse login = fixture.naverLogin("naver-signup-all")
                 .expectStatus().isOk()
@@ -78,40 +78,33 @@ class SignupApiTest extends IntegrationTest {
                 .filteredOn(term -> term.getMemberId().equals(memberId))
                 .singleElement()
                 .satisfies(term -> {
+                    assertThat(term.isAgeOver14Agreed()).isTrue();
                     assertThat(term.isServiceTermsAgreed()).isTrue();
                     assertThat(term.isPrivacyPolicyAgreed()).isTrue();
-                    assertThat(term.isMarketingAgreed()).isTrue();
                     assertThat(term.getCreatedAt()).isNotNull();
+                    assertThat(term.getUpdatedAt()).isNotNull();
                 });
         }
 
         @Test
-        @DisplayName("마케팅 수신에 동의하지 않아도 회원가입이 되고 미동의 사실과 시각이 기록된다")
-        void signsUpAndRecordsDisagreement_whenMarketingNotAgreed() {
-            SocialLoginResponse login = fixture.naverLogin("naver-signup-no-marketing")
+        @DisplayName("만 14세 이상에 동의하지 않으면 400 과 T0001 을 반환하고 가입 대기 상태가 유지된다")
+        void returns400AndKeepsPending_whenAgeOver14NotAgreed() {
+            SocialLoginResponse login = fixture.naverLogin("naver-signup-under-14")
                 .expectStatus().isOk()
                 .expectBody(SocialLoginResponse.class)
                 .returnResult()
                 .getResponseBody();
 
-            fixture.signup(login.accessToken(), true, true, false)
-                .expectStatus().isOk()
-                .expectBody(SignupResponse.class)
-                .value(body -> assertThat(body.status()).isEqualTo("ACTIVE"));
+            fixture.signup(login.accessToken(), false, true, true)
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(TermErrorCode.REQUIRED_TERMS_NOT_AGREED.getCode()));
 
-            Long memberId = memberRepository.findByProviderAndSocialId(NAVER, "naver-signup-no-marketing")
+            assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-signup-under-14")
                 .orElseThrow()
-                .getId();
-            assertThat(memberTermRepository.findAll())
-                .filteredOn(term -> term.getMemberId().equals(memberId))
-                .singleElement()
-                .satisfies(term -> {
-                    assertThat(term.isServiceTermsAgreed()).isTrue();
-                    assertThat(term.isPrivacyPolicyAgreed()).isTrue();
-                    assertThat(term.isMarketingAgreed()).isFalse();
-                    assertThat(term.getCreatedAt()).isNotNull();
-                    assertThat(term.getUpdatedAt()).isNotNull();
-                });
+                .getStatus())
+                .isEqualTo(MemberStatus.PENDING);
+            assertThat(memberTermRepository.findAll()).isEmpty();
         }
 
         @Test
@@ -123,7 +116,7 @@ class SignupApiTest extends IntegrationTest {
                 .returnResult()
                 .getResponseBody();
 
-            fixture.signup(login.accessToken(), true, false, true)
+            fixture.signup(login.accessToken(), true, true, false)
                 .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(TermErrorCode.REQUIRED_TERMS_NOT_AGREED.getCode()));
@@ -147,7 +140,7 @@ class SignupApiTest extends IntegrationTest {
             fixture.client().post().uri("/v1/signup")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + login.accessToken())
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("privacyPolicyAgreed", true, "marketingAgreed", true))
+                .body(Map.of("ageOver14Agreed", true, "privacyPolicyAgreed", true))
                 .exchange()
                 .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
@@ -160,9 +153,9 @@ class SignupApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("마케팅 수신 항목을 제출하지 않으면 400 과 C0001 을 반환한다")
-        void returns400_whenMarketingEntryMissing() {
-            SocialLoginResponse login = fixture.naverLogin("naver-signup-marketing-missing")
+        @DisplayName("만 14세 이상 항목을 제출하지 않으면 400 과 C0001 을 반환한다")
+        void returns400_whenAgeOver14EntryMissing() {
+            SocialLoginResponse login = fixture.naverLogin("naver-signup-age-missing")
                 .expectStatus().isOk()
                 .expectBody(SocialLoginResponse.class)
                 .returnResult()
@@ -183,7 +176,7 @@ class SignupApiTest extends IntegrationTest {
         void returns401_whenAccessTokenMissing() {
             fixture.client().post().uri("/v1/signup")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("serviceTermsAgreed", true, "privacyPolicyAgreed", true, "marketingAgreed", true))
+                .body(Map.of("ageOver14Agreed", true, "serviceTermsAgreed", true, "privacyPolicyAgreed", true))
                 .exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)

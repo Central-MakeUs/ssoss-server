@@ -45,11 +45,11 @@ public class MemberService {
     }
 
     @Transactional
-    public MemberIdentity signup(Long memberId, boolean serviceTermsAgreed, boolean privacyPolicyAgreed,
-        boolean marketingAgreed) {
+    public MemberIdentity signup(Long memberId, boolean ageOver14Agreed, boolean serviceTermsAgreed,
+        boolean privacyPolicyAgreed) {
         Member member = memberWriter.activate(memberId);
         memberTermWriter.record(MemberTerm.record(
-            member.getId(), serviceTermsAgreed, privacyPolicyAgreed, marketingAgreed));
+            member.getId(), ageOver14Agreed, serviceTermsAgreed, privacyPolicyAgreed));
         eventPublisher.publishEvent(new MemberActivatedEvent(member.getId()));
         return MemberIdentity.from(member);
     }
