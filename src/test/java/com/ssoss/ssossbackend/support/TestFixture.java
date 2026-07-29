@@ -53,13 +53,13 @@ public class TestFixture {
         return signup(accessToken, true, true, true);
     }
 
-    public RestTestClient.ResponseSpec signup(String accessToken, boolean serviceTermsAgreed,
-        boolean privacyPolicyAgreed, boolean marketingAgreed) {
+    public RestTestClient.ResponseSpec signup(String accessToken, boolean ageOver14Agreed,
+        boolean serviceTermsAgreed, boolean privacyPolicyAgreed) {
         return client.post().uri("/v1/signup")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .contentType(MediaType.APPLICATION_JSON)
-            .body(Map.of("serviceTermsAgreed", serviceTermsAgreed, "privacyPolicyAgreed", privacyPolicyAgreed,
-                "marketingAgreed", marketingAgreed))
+            .body(Map.of("ageOver14Agreed", ageOver14Agreed, "serviceTermsAgreed", serviceTermsAgreed,
+                "privacyPolicyAgreed", privacyPolicyAgreed))
             .exchange();
     }
 

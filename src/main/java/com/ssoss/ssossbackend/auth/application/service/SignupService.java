@@ -22,9 +22,9 @@ public class SignupService {
     public SignupResult signup(SignupCommand command) {
         MemberIdentity member = memberService.signup(
             command.memberId(),
+            command.ageOver14Agreed(),
             command.serviceTermsAgreed(),
-            command.privacyPolicyAgreed(),
-            command.marketingAgreed());
+            command.privacyPolicyAgreed());
         MemberStatus status = MemberStatus.valueOf(member.status());
         LoginToken loginToken = tokenIssuer.issue(member.id(), status);
         return new SignupResult(status.name(), loginToken.accessToken(), loginToken.refreshToken());
