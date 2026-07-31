@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static com.ssoss.ssossbackend.store.domain.model.StoreInfoStatus.COMPLETED;
-import static com.ssoss.ssossbackend.store.domain.model.StoreInfoStatus.IN_PROGRESS;
 import static com.ssoss.ssossbackend.store.domain.model.StoreInfoStatus.NOT_WRITTEN;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -81,16 +80,16 @@ class StoreTest {
         }
 
         @Test
-        @DisplayName("필수 세 필드만 있고 한 줄 소개가 비면 작성 중이다")
-        void inProgress_whenIntroductionMissing() {
+        @DisplayName("필수 세 필드만 있고 한 줄 소개가 비어도 작성 완료다")
+        void completed_whenIntroductionMissing() {
             assertThat(StoreStub.basic("보니스커피", StoreType.CAFE, "서울 중구 을지로 100", null).basicInfoStatus())
-                .isEqualTo(IN_PROGRESS);
+                .isEqualTo(COMPLETED);
         }
 
         @Test
-        @DisplayName("한 줄 소개만 있어도 작성 중이다")
-        void inProgress_whenOnlyIntroductionWritten() {
-            assertThat(StoreStub.basic(null, null, null, "을지로 크루아상 카페").basicInfoStatus()).isEqualTo(IN_PROGRESS);
+        @DisplayName("한 줄 소개만 있어도 작성 완료다")
+        void completed_whenOnlyIntroductionWritten() {
+            assertThat(StoreStub.basic(null, null, null, "을지로 크루아상 카페").basicInfoStatus()).isEqualTo(COMPLETED);
         }
 
         @Test
@@ -127,17 +126,17 @@ class StoreTest {
         }
 
         @Test
-        @DisplayName("영업 시각은 시작과 종료가 둘 다 있어야 값이 있는 것으로 봐 작성 중이 된다")
-        void inProgress_whenBothOpenAndCloseTimeWritten() {
+        @DisplayName("영업 시각은 시작과 종료가 둘 다 있어야 값이 있는 것으로 봐 작성 완료가 된다")
+        void completed_whenBothOpenAndCloseTimeWritten() {
             assertThat(StoreStub.operation(null, "09:00", "22:00", null, new Amenities(false, false, false))
-                .operationInfoStatus()).isEqualTo(IN_PROGRESS);
+                .operationInfoStatus()).isEqualTo(COMPLETED);
         }
 
         @Test
-        @DisplayName("편의 시설 하나만 가능해도 값이 있는 것으로 봐 작성 중이 된다")
-        void inProgress_whenSingleAmenityAvailable() {
+        @DisplayName("편의 시설 하나만 가능해도 값이 있는 것으로 봐 작성 완료가 된다")
+        void completed_whenSingleAmenityAvailable() {
             assertThat(StoreStub.operation(null, null, null, null, new Amenities(false, false, true))
-                .operationInfoStatus()).isEqualTo(IN_PROGRESS);
+                .operationInfoStatus()).isEqualTo(COMPLETED);
         }
 
         @Test
@@ -146,14 +145,6 @@ class StoreTest {
             assertThat(StoreStub.operation(new BusinessDays(List.of(DayOfWeek.MONDAY)), "09:00", "22:00",
                 new SignatureMenus(List.of("크루아상")), new Amenities(true, false, false)).operationInfoStatus())
                 .isEqualTo(COMPLETED);
-        }
-
-        @Test
-        @DisplayName("편의 시설이 셋 다 불가면 나머지를 다 채워도 작성 중에 머문다")
-        void inProgress_whenEverythingButAmenitiesWritten() {
-            assertThat(StoreStub.operation(new BusinessDays(List.of(DayOfWeek.MONDAY)), "09:00", "22:00",
-                new SignatureMenus(List.of("크루아상")), new Amenities(false, false, false)).operationInfoStatus())
-                .isEqualTo(IN_PROGRESS);
         }
     }
 
@@ -175,9 +166,9 @@ class StoreTest {
         }
 
         @Test
-        @DisplayName("톤만 골라도 작성 중이다")
-        void inProgress_whenOnlyToneWritten() {
-            assertThat(StoreStub.content(null, null, null, Tone.CASUAL).contentInfoStatus()).isEqualTo(IN_PROGRESS);
+        @DisplayName("톤만 골라도 작성 완료다")
+        void completed_whenOnlyToneWritten() {
+            assertThat(StoreStub.content(null, null, null, Tone.CASUAL).contentInfoStatus()).isEqualTo(COMPLETED);
         }
 
         @Test

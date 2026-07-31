@@ -17,9 +17,8 @@ public record StoreContentInfoResponse(
     @Schema(description = "콘텐츠 작성 톤 — CASUAL: 일상형, EMOTIONAL: 감성형, INFORMATIVE: 정보형, PROMOTIONAL: 홍보형",
         allowableValues = {"CASUAL", "EMOTIONAL", "INFORMATIVE", "PROMOTIONAL"}, example = "CASUAL", nullable = true)
     String tone,
-    @Schema(description = "작성 상태 — NOT_WRITTEN: 미작성(네 필드 다 빔), IN_PROGRESS: 작성 중(일부만 있음), "
-        + "COMPLETED: 작성 완료(네 필드 다 있음)",
-        allowableValues = {"NOT_WRITTEN", "IN_PROGRESS", "COMPLETED"}, example = "NOT_WRITTEN")
+    @Schema(description = "작성 상태 — NOT_WRITTEN: 미작성(네 필드 다 빔), COMPLETED: 작성 완료(하나라도 있음)",
+        allowableValues = {"NOT_WRITTEN", "COMPLETED"}, example = "NOT_WRITTEN")
     String status
 ) {
 }

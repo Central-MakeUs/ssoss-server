@@ -16,9 +16,8 @@ public record StoreBasicInfoResponse(
     @Schema(description = "매장 한 줄 소개 — 선택 입력이라 채우지 않았으면 null 입니다",
         example = "매일 아침 굽는 크루아상이 있는 을지로 카페", nullable = true)
     String introduction,
-    @Schema(description = "작성 상태 — NOT_WRITTEN: 미작성(네 필드 다 빔), IN_PROGRESS: 작성 중(일부만 있음), "
-        + "COMPLETED: 작성 완료(네 필드 다 있음)",
-        allowableValues = {"NOT_WRITTEN", "IN_PROGRESS", "COMPLETED"}, example = "NOT_WRITTEN")
+    @Schema(description = "작성 상태 — NOT_WRITTEN: 미작성(네 필드 다 빔), COMPLETED: 작성 완료(하나라도 있음)",
+        allowableValues = {"NOT_WRITTEN", "COMPLETED"}, example = "NOT_WRITTEN")
     String status
 ) {
 }

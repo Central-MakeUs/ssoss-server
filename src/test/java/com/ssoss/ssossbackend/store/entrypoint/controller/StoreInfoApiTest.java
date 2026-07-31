@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
 import static com.ssoss.ssossbackend.store.domain.model.StoreInfoStatus.COMPLETED;
-import static com.ssoss.ssossbackend.store.domain.model.StoreInfoStatus.IN_PROGRESS;
 import static com.ssoss.ssossbackend.store.domain.model.StoreInfoStatus.NOT_WRITTEN;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -113,8 +112,8 @@ class StoreInfoApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("한 줄 소개 없이 저장하면 기본 정보가 작성 중이 된다")
-        void marksInProgress_whenIntroductionOmitted() {
+        @DisplayName("한 줄 소개를 보내지 않으면 비운 것으로 본다")
+        void treatsOmittedIntroductionAsAbsent() {
             SignupResponse signup = fixture.signupActiveMember("naver-store-basic-no-introduction");
 
             fixture.saveStoreBasicInfo(signup.accessToken(),
@@ -123,11 +122,11 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).basic())
                 .isEqualTo(new StoreBasicInfoResponse("보니스커피", "CAFE", "서울 중구 을지로 100", null,
-                    IN_PROGRESS.name()));
+                    COMPLETED.name()));
         }
 
         @Test
-        @DisplayName("한 줄 소개를 빈 문자열로 저장하면 비운 것으로 봐 작성 중이 된다")
+        @DisplayName("한 줄 소개를 빈 문자열로 저장하면 비운 것으로 본다")
         void treatsEmptyIntroductionAsAbsent() {
             SignupResponse signup = fixture.signupActiveMember("naver-store-basic-empty-introduction");
 
@@ -137,11 +136,11 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).basic())
                 .isEqualTo(new StoreBasicInfoResponse("보니스커피", "CAFE", "서울 중구 을지로 100", null,
-                    IN_PROGRESS.name()));
+                    COMPLETED.name()));
         }
 
         @Test
-        @DisplayName("한 줄 소개를 공백만 담아 저장하면 비운 것으로 봐 작성 중이 된다")
+        @DisplayName("한 줄 소개를 공백만 담아 저장하면 비운 것으로 본다")
         void treatsBlankIntroductionAsAbsent() {
             SignupResponse signup = fixture.signupActiveMember("naver-store-basic-blank-introduction");
 
@@ -151,7 +150,7 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).basic())
                 .isEqualTo(new StoreBasicInfoResponse("보니스커피", "CAFE", "서울 중구 을지로 100", null,
-                    IN_PROGRESS.name()));
+                    COMPLETED.name()));
         }
 
         @Test
@@ -168,7 +167,7 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).basic())
                 .isEqualTo(new StoreBasicInfoResponse("보니스커피", "CAFE", "서울 중구 을지로 100", null,
-                    IN_PROGRESS.name()));
+                    COMPLETED.name()));
         }
 
         @Test
@@ -185,7 +184,7 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).basic())
                 .isEqualTo(new StoreBasicInfoResponse("보니스베이커리", "BAKERY", "서울 중구 을지로 200", null,
-                    IN_PROGRESS.name()));
+                    COMPLETED.name()));
         }
 
         @Test
@@ -348,7 +347,7 @@ class StoreInfoApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("온보딩처럼 대표 메뉴 없이 저장하면 대표 메뉴가 빈 채로 작성 중이 된다")
+        @DisplayName("온보딩처럼 대표 메뉴 없이 저장하면 대표 메뉴가 빈 채로 작성 완료가 된다")
         void savesWithoutSignatureMenus_whenOnboardingOmitsThem() {
             SignupResponse signup = fixture.signupActiveMember("naver-store-operation-no-menus");
 
@@ -358,7 +357,7 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).operation())
                 .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY"), "09:00", "22:00", List.of(),
-                    true, false, false, IN_PROGRESS.name()));
+                    true, false, false, COMPLETED.name()));
         }
 
         @Test
@@ -376,7 +375,7 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).operation())
                 .isEqualTo(new StoreOperationInfoResponse(List.of("TUESDAY"), "10:00", "20:00", List.of(),
-                    false, false, false, IN_PROGRESS.name()));
+                    false, false, false, COMPLETED.name()));
         }
 
         @Test
@@ -390,7 +389,7 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).operation())
                 .isEqualTo(new StoreOperationInfoResponse(List.of("FRIDAY"), "18:00", "02:00", List.of(),
-                    false, false, false, IN_PROGRESS.name()));
+                    false, false, false, COMPLETED.name()));
         }
 
         @Test
@@ -418,7 +417,7 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).operation())
                 .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY"), null, null, List.of(),
-                    false, false, false, IN_PROGRESS.name()));
+                    false, false, false, COMPLETED.name()));
         }
 
         @Test
@@ -432,7 +431,7 @@ class StoreInfoApiTest extends IntegrationTest {
 
             assertThat(fixture.storeInfo(signup.accessToken()).operation())
                 .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY"), null, null, List.of(),
-                    false, false, false, IN_PROGRESS.name()));
+                    false, false, false, COMPLETED.name()));
         }
 
         @Test
