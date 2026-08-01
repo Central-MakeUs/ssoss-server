@@ -14,7 +14,7 @@ public record ContentListResponse(
     int size,
     @Schema(description = "다음 페이지가 있는지 여부", example = "false")
     boolean hasNext,
-    @Schema(description = "저장 시각 최신순 카드 목록")
+    @Schema(description = "고른 정렬 방향의 카드 목록")
     List<ContentSummaryResponse> contents
 ) {
 }

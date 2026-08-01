@@ -54,8 +54,8 @@ public class ContentService {
     }
 
     public ContentListResult list(ContentListCommand command) {
-        return ContentListResult.from(
-            contentFinder.list(command.memberId(), command.channel(), command.page(), command.size()));
+        return ContentListResult.from(contentFinder.list(
+            command.memberId(), command.channel(), command.sort(), command.page(), command.size()));
     }
 
     public ContentDetailResult getById(Long contentId, Long memberId) {
