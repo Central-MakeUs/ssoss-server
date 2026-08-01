@@ -13,6 +13,10 @@ public record ContentListRequest(
         allowableValues = {"BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"}, example = "BLOG",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     String channel,
+    @Schema(description = "정렬 (선택) — LATEST 는 저장 시각 최신순, OLDEST 는 오래된 순입니다. 생략하면 LATEST 입니다",
+        allowableValues = {"LATEST", "OLDEST"}, example = "OLDEST", defaultValue = "LATEST",
+        requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    String sort,
     @Schema(description = "페이지 번호 (선택) — 0 부터 셉니다", example = "0", defaultValue = "0",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     @Min(value = 0, message = "페이지 번호는 0 부터 시작합니다")
@@ -33,6 +37,6 @@ public record ContentListRequest(
     }
 
     public ContentListCommand toCommand(Long memberId) {
-        return ContentListCommand.of(memberId, channel, page, size);
+        return ContentListCommand.of(memberId, channel, sort, page, size);
     }
 }

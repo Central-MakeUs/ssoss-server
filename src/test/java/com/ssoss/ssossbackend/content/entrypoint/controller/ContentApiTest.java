@@ -601,6 +601,87 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("sort 를 LATEST 로 부르면 생략한 것과 같이 최신순으로 온다")
+        void returnsContentsInSavedAtDescendingOrder_whenLatestRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-latest-explicit");
+            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+
+            assertThat(fixture.contentList(signup.accessToken(), "?sort=LATEST").contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(newestId, oldestId);
+        }
+
+        @Test
+        @DisplayName("sort 를 빈 값으로 보내면 생략한 것과 같이 최신순으로 온다")
+        void returnsContentsInSavedAtDescendingOrder_whenSortBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-blank-sort");
+            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+
+            assertThat(fixture.contentList(signup.accessToken(), "?sort=").contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(newestId, oldestId);
+        }
+
+        @Test
+        @DisplayName("sort 를 OLDEST 로 부르면 저장 시각 오래된 순으로 온다")
+        void returnsContentsInSavedAtAscendingOrder_whenOldestRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-oldest");
+            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long middleId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
+            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+
+            assertThat(fixture.contentList(signup.accessToken(), "?sort=OLDEST").contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(oldestId, middleId, newestId);
+        }
+
+        @Test
+        @DisplayName("sort 를 OLDEST 로 부르고 페이지를 넘겨도 오래된 순이 이어진다")
+        void keepsAscendingOrderAcrossPages_whenOldestRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-oldest-paging");
+            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long middleId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
+            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+
+            ContentListResponse firstPage = fixture.contentList(signup.accessToken(), "?sort=OLDEST&page=0&size=2");
+            ContentListResponse secondPage = fixture.contentList(signup.accessToken(), "?sort=OLDEST&page=1&size=2");
+
+            assertThat(firstPage.totalCount()).isEqualTo(3);
+            assertThat(firstPage.hasNext()).isTrue();
+            assertThat(firstPage.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(oldestId, middleId);
+            assertThat(secondPage.totalCount()).isEqualTo(3);
+            assertThat(secondPage.hasNext()).isFalse();
+            assertThat(secondPage.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(newestId);
+        }
+
+        @Test
+        @DisplayName("콘텐츠를 편집해도 목록 정렬 순서는 그대로다")
+        void keepsOrder_whenContentEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-edited-order");
+            ContentSaveResponse oldest = fixture.contentsOfGeneration(signup.accessToken(),
+                fixture.startedGenerationId(signup.accessToken(), List.of("BLOG")));
+            clock.advanceBy(Duration.ofMinutes(1));
+            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+
+            fixture.editContentChannel(signup.accessToken(), oldest.contentId(),
+                    oldest.contents().getFirst().contentChannelId(), Map.of(
+                        "title", "직접 고친 제목",
+                        "body", "직접 고친 본문",
+                        "hashtags", List.of()))
+                .expectStatus().isOk();
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(newestId, oldest.contentId());
+        }
+
+        @Test
         @DisplayName("page 와 size 로 페이지를 넘겨도 전체 건수는 그대로이고 마지막 페이지는 hasNext 가 false 다")
         void returnsRequestedPageWithTotalCountAndHasNext() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-paging");
@@ -854,6 +935,22 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("채널로 걸러도 고른 정렬이 그대로 적용된다")
+        void appliesChosenOrderToFilteredList() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-filter-oldest");
+            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
+            savedContent(signup.accessToken(), List.of("THREADS"));
+            Long newestId = savedContent(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+
+            ContentListResponse filtered = fixture.contentList(signup.accessToken(), "?channel=BLOG&sort=OLDEST");
+
+            assertThat(filtered.totalCount()).isEqualTo(2);
+            assertThat(filtered.contents())
+                .extracting(ContentSummaryResponse::contentId)
+                .containsExactly(oldestId, newestId);
+        }
+
+        @Test
         @DisplayName("채널로 걸러도 삭제한 콘텐츠는 목록과 전체 건수에서 빠진다")
         void excludesDeletedContentsFromFilteredList() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-filter-deleted");
@@ -887,6 +984,17 @@ class ContentApiTest extends IntegrationTest {
             SignupResponse signup = fixture.signupActiveMember("naver-list-huge-size");
 
             fixture.getContents(signup.accessToken(), "?size=51")
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("없는 정렬 값으로 부르면 400 과 C0001 을 반환한다")
+        void returns400_whenSortUnknown() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-bad-sort");
+
+            fixture.getContents(signup.accessToken(), "?sort=POPULAR")
                 .expectStatus().isBadRequest()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));

@@ -115,13 +115,14 @@ interface ContentApi {
         summary = "생성 기록 목록 조회",
         security = @SecurityRequirement(name = "bearerAuth"),
         description = """
-            저장한 콘텐츠를 저장 시각 최신순으로 조회합니다.
+            저장한 콘텐츠를 저장 시각순으로 조회합니다.
 
             - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 콘텐츠만 조회됩니다.
             - 카드 1건은 저장하기 1회로 만들어진 콘텐츠 하나입니다. 3채널을 저장했어도 카드는 1건이고 channels 에 채널 셋이 담깁니다.
             - channels 는 블로그 → 인스타그램 → 당근 비즈 → 스레드 순으로 담깁니다. 저장·상세 응답과 같은 규칙입니다.
             - 삭제한 콘텐츠는 목록에도 totalCount 에도 들어가지 않습니다.
-            - 정렬은 저장 시각 최신순 고정입니다. 편집해도 저장 시각은 움직이지 않아 순서가 흔들리지 않으며, 정렬 파라미터는 받지 않습니다.
+            - 정렬 기준은 저장 시각이고 sort 로 방향만 고릅니다. LATEST 는 최신순, OLDEST 는 오래된 순이며 생략하면 LATEST 입니다.
+              편집해도 저장 시각은 움직이지 않아 순서가 흔들리지 않습니다.
             - page 는 0 부터 세고 size 는 기본 20·최대 50 입니다. 홈의 "최근 생성된 콘텐츠"는 size=3 으로 부르면 됩니다.
             - title 과 hashtags 는 channels 의 첫 채널에서 가져옵니다. 채널마다 제목이 다르지만 카드에는 하나만 보이기 때문입니다.
             - title 은 20자까지만 옵니다. 넘으면 서버가 20자에서 자르고 말줄임표(…)를 붙이므로 화면에서 다시 자르지 않아도 됩니다.
@@ -129,7 +130,7 @@ interface ContentApi {
             - 본문은 담기지 않습니다. 카드를 눌러 들어갈 때 상세 조회로 받으세요.
             """)
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "저장 시각 최신순 카드 목록과 전체 건수를 반환합니다",
+        @ApiResponse(responseCode = "200", description = "고른 정렬 방향의 카드 목록과 전체 건수를 반환합니다",
             content = @Content(schema = @Schema(implementation = ContentListResponse.class),
                 examples = @ExampleObject(name = "2건", description = "두 번째 카드는 제목 없는 채널이라 본문에서 제목을 채웠고, 둘 다 20자를 넘어 잘렸습니다",
                     value = """
@@ -160,13 +161,13 @@ interface ContentApi {
                           ]
                         }
                         """))),
-        @ApiResponse(responseCode = "400", description = "channel 이 없는 값이거나 page·size 가 허용 범위를 벗어났습니다 (C0001)",
+        @ApiResponse(responseCode = "400", description = "channel·sort 가 없는 값이거나 page·size 가 허용 범위를 벗어났습니다 (C0001)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = {
                     @ExampleObject(name = "size 상한 초과", value = """
                         {"code":"C0001","message":"한 번에 최대 50건까지 조회할 수 있습니다"}
                         """),
-                    @ExampleObject(name = "없는 채널", value = """
+                    @ExampleObject(name = "없는 채널·정렬", value = """
                         {"code":"C0001","message":"입력값을 다시 확인해 주세요"}
                         """)})),
         @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
