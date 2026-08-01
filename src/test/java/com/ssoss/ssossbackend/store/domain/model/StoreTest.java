@@ -70,6 +70,34 @@ class StoreTest {
     }
 
     @Nested
+    @DisplayName("writeContentInfo")
+    class WriteContentInfo {
+
+        @Test
+        @DisplayName("콘텐츠 정보만 바뀌고 기본 정보와 운영 정보는 그대로 남는다")
+        void keepsOtherGroups_whenContentInfoWritten() {
+            Store store = StoreStub.filled();
+
+            store.writeContentInfo("직접 로스팅한 원두", new StoreKeywords(List.of("스페셜티", "을지로")), "최저가 표현",
+                Tone.INFORMATIVE);
+
+            assertThat(store.getStrength()).isEqualTo("직접 로스팅한 원두");
+            assertThat(store.keywordValues()).containsExactly("스페셜티", "을지로");
+            assertThat(store.getForbidden()).isEqualTo("최저가 표현");
+            assertThat(store.getTone()).isEqualTo(Tone.INFORMATIVE);
+            assertThat(store.getName()).isEqualTo("보니스커피");
+            assertThat(store.getType()).isEqualTo(StoreType.CAFE);
+            assertThat(store.getAddress()).isEqualTo("서울 중구 을지로 100");
+            assertThat(store.getIntroduction()).isEqualTo("을지로 크루아상 카페");
+            assertThat(store.businessDayValues()).containsExactly(DayOfWeek.MONDAY);
+            assertThat(store.getOpenTime()).isEqualTo("09:00");
+            assertThat(store.getCloseTime()).isEqualTo("22:00");
+            assertThat(store.signatureMenuValues()).containsExactly("크루아상");
+            assertThat(store.getAmenities()).isEqualTo(new Amenities(true, false, true));
+        }
+    }
+
+    @Nested
     @DisplayName("basicInfoStatus")
     class BasicInfoStatus {
 

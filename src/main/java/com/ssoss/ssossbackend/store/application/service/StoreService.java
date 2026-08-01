@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.store.application.service;
 
 import com.ssoss.ssossbackend.store.application.command.StoreBasicInfoCommand;
+import com.ssoss.ssossbackend.store.application.command.StoreContentInfoCommand;
 import com.ssoss.ssossbackend.store.application.command.StoreOperationInfoCommand;
 import com.ssoss.ssossbackend.store.application.result.StoreInfoResult;
 import com.ssoss.ssossbackend.store.domain.service.StoreFinder;
@@ -29,6 +30,11 @@ public class StoreService {
     public void saveOperationInfo(StoreOperationInfoCommand command) {
         storeWriter.writeOperationInfo(storeFinder.get(command.memberId()), command.businessDays(),
             command.openTime(), command.closeTime(), command.signatureMenus(), command.amenities());
+    }
+
+    public void saveContentInfo(StoreContentInfoCommand command) {
+        storeWriter.writeContentInfo(storeFinder.get(command.memberId()), command.strength(), command.keywords(),
+            command.forbidden(), command.tone());
     }
 
     public void create(Long memberId) {

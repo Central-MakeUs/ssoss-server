@@ -166,6 +166,24 @@ public class TestFixture {
         return body;
     }
 
+    public RestTestClient.ResponseSpec saveStoreContentInfo(String accessToken, Map<String, Object> body) {
+        return client.put().uri("/v1/stores/me/content")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public Map<String, Object> storeContentInfoBody(String strength, List<String> keywords, String forbidden,
+        String tone) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("strength", strength);
+        body.put("keywords", keywords);
+        body.put("forbidden", forbidden);
+        body.put("tone", tone);
+        return body;
+    }
+
     public RestTestClient.ResponseSpec appVersion(String os, String version) {
         return client.get().uri("/v1/app-versions/{os}?version={version}", os, version)
             .exchange();

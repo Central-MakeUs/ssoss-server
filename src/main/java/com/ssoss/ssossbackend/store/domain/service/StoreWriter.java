@@ -5,7 +5,9 @@ import com.ssoss.ssossbackend.store.domain.model.Amenities;
 import com.ssoss.ssossbackend.store.domain.model.BusinessDays;
 import com.ssoss.ssossbackend.store.domain.model.SignatureMenus;
 import com.ssoss.ssossbackend.store.domain.model.Store;
+import com.ssoss.ssossbackend.store.domain.model.StoreKeywords;
 import com.ssoss.ssossbackend.store.domain.model.StoreType;
+import com.ssoss.ssossbackend.store.domain.model.Tone;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +31,11 @@ public class StoreWriter {
     public void writeOperationInfo(Store store, BusinessDays businessDays, String openTime, String closeTime,
         SignatureMenus signatureMenus, Amenities amenities) {
         store.writeOperationInfo(businessDays, openTime, closeTime, signatureMenus, amenities);
+        storeRepository.save(store);
+    }
+
+    public void writeContentInfo(Store store, String strength, StoreKeywords keywords, String forbidden, Tone tone) {
+        store.writeContentInfo(strength, keywords, forbidden, tone);
         storeRepository.save(store);
     }
 

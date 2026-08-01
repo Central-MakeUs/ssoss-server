@@ -88,6 +88,13 @@ public class Store {
         this.amenities = amenities;
     }
 
+    public void writeContentInfo(String strength, StoreKeywords keywords, String forbidden, Tone tone) {
+        this.strength = StringUtils.hasText(strength) ? strength : null;
+        this.keywords = keywords;
+        this.forbidden = StringUtils.hasText(forbidden) ? forbidden : null;
+        this.tone = tone;
+    }
+
     public List<DayOfWeek> businessDayValues() {
         return businessDays == null ? List.of() : businessDays.values();
     }
