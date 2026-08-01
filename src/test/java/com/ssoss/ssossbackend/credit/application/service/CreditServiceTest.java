@@ -23,7 +23,7 @@ class CreditServiceTest {
         @DisplayName("회원 한 명의 갱신이 실패해도 배치가 중단되지 않고 나머지 회원은 갱신된다")
         void continuesRenewingOtherMembers_whenOneMemberRenewalFails() {
             List<Long> renewedMemberIds = new ArrayList<>();
-            CreditFinder creditFinder = new CreditFinder(null) {
+            CreditFinder creditFinder = new CreditFinder(null, null) {
                 @Override
                 public List<Long> findAllMemberIds() {
                     return List.of(1L, 2L, 3L);

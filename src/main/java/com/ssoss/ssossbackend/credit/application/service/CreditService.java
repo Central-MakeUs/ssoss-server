@@ -27,6 +27,11 @@ public class CreditService {
         return new CreditBalanceResult(credit.balance());
     }
 
+    public CreditLedgerListResult listLedgers(CreditLedgerListCommand command) {
+        return CreditLedgerListResult.from(creditFinder.listLedgers(command.memberId(), command.tab(),
+            command.page(), command.size()));
+    }
+
     public void checkDeductible(Long memberId, int channelCount) {
         Credit credit = creditFinder.find(memberId)
             .orElseThrow(() -> new BusinessException(CreditErrorCode.CREDIT_NOT_FOUND));
@@ -35,8 +40,8 @@ public class CreditService {
         }
     }
 
-    public void deduct(Long memberId, Long generationId, int channelCount) {
-        creditWriter.deduct(memberId, generationId, channelCount);
+    public void deduct(Long memberId, Long generationId, int channelCount, String description) {
+        creditWriter.deduct(memberId, generationId, channelCount, description);
     }
 
     public void grant(Long memberId) {

@@ -16,6 +16,7 @@ public class GenerationCreditListener {
 
     @EventListener
     public void deductCredit(GenerationSucceededEvent event) {
-        creditService.deduct(event.memberId(), event.generationId(), event.channelCount());
+        creditService.deduct(event.memberId(), event.generationId(), event.channelCount(),
+            event.deductionDescription());
     }
 }

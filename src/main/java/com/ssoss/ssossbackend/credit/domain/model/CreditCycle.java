@@ -17,4 +17,8 @@ public record CreditCycle(Instant startsAt) {
         }
         return new CreditCycle(anchor.atStartOfDay(ANCHOR_ZONE).toInstant());
     }
+
+    public int month() {
+        return startsAt.atZone(ANCHOR_ZONE).getMonthValue();
+    }
 }

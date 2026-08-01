@@ -7,19 +7,25 @@ import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 
 public enum Channel {
 
-    BLOG(true),
-    INSTAGRAM(false),
-    DAANGN_BIZ(false),
-    THREADS(false);
+    BLOG(true, "블로그"),
+    INSTAGRAM(false, "인스타그램"),
+    DAANGN_BIZ(false, "당근 비즈"),
+    THREADS(false, "스레드");
 
     private final boolean titled;
+    private final String displayName;
 
-    Channel(boolean titled) {
+    Channel(boolean titled, String displayName) {
         this.titled = titled;
+        this.displayName = displayName;
     }
 
     public boolean hasTitle() {
         return titled;
+    }
+
+    public String displayName() {
+        return displayName;
     }
 
     public void ensureTitleAllowed(String title) {
