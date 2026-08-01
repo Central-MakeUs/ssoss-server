@@ -40,7 +40,7 @@ out/
 .claude/
 CLAUDE.md
 CONTEXT.md
-docs/adr/
+docs/
 
 ### Environment ###
 .env
