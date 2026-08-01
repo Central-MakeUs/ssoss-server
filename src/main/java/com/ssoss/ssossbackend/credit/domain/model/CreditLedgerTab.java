@@ -8,18 +8,19 @@ import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 
 public enum CreditLedgerTab {
 
-    USE(List.of(CreditLedgerType.DEDUCT)),
-    GAIN(List.of(CreditLedgerType.GRANT, CreditLedgerType.CHARGE));
+    ALL,
+    USE(CreditLedgerType.DEDUCT),
+    GAIN(CreditLedgerType.GRANT, CreditLedgerType.CHARGE);
 
-    private static final List<CreditLedgerType> LISTED_TYPES = Arrays.stream(values())
+    private static final List<CreditLedgerType> EVERY_TAB_TYPES = Arrays.stream(values())
         .flatMap(tab -> tab.types.stream())
         .distinct()
         .toList();
 
     private final List<CreditLedgerType> types;
 
-    CreditLedgerTab(List<CreditLedgerType> types) {
-        this.types = types;
+    CreditLedgerTab(CreditLedgerType... types) {
+        this.types = List.of(types);
     }
 
     public static CreditLedgerTab from(String value) {
@@ -29,7 +30,7 @@ public enum CreditLedgerTab {
             .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_INPUT));
     }
 
-    public static List<CreditLedgerType> typesOf(CreditLedgerTab tab) {
-        return tab == null ? LISTED_TYPES : tab.types;
+    public List<CreditLedgerType> types() {
+        return types.isEmpty() ? EVERY_TAB_TYPES : types;
     }
 }

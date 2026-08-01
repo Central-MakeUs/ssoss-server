@@ -9,8 +9,8 @@ import jakarta.validation.constraints.Min;
 
 @Schema(description = "크레딧 내역 목록 조회 요청")
 public record CreditLedgerListRequest(
-    @Schema(description = "탭 (선택) — 생략하면 전체입니다. USE 는 사용, GAIN 은 지급과 충전입니다",
-        allowableValues = {"USE", "GAIN"}, example = "USE",
+    @Schema(description = "탭 (선택) — ALL 은 전체, USE 는 사용, GAIN 은 지급과 충전입니다. 생략하면 ALL 입니다",
+        allowableValues = {"ALL", "USE", "GAIN"}, example = "USE",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     String type,
     @Schema(description = "페이지 번호 (선택) — 0 부터 셉니다", example = "0", defaultValue = "0",

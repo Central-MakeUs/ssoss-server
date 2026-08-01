@@ -125,7 +125,7 @@ class CreditLedgerApiTest extends IntegrationTest {
             clock.moveTo(SEPTEMBER_CYCLE);
             creditCycleScheduler.renewCycles();
 
-            List<String> everyQuery = List.of("", "?type=USE", "?type=GAIN");
+            List<String> everyQuery = List.of("", "?type=ALL", "?type=USE", "?type=GAIN");
 
             assertThat(everyQuery).allSatisfy(query ->
                 assertThat(fixture.creditLedgerList(signup.accessToken(), query).ledgers())
@@ -164,6 +164,19 @@ class CreditLedgerApiTest extends IntegrationTest {
             fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
 
             CreditLedgerListResponse body = fixture.creditLedgerList(signup.accessToken(), "");
+
+            assertThat(body.totalCount()).isEqualTo(2);
+            assertThat(body.ledgers()).extracting(CreditLedgerResponse::type)
+                .containsExactly("DEDUCT", "GRANT");
+        }
+
+        @Test
+        @DisplayName("전체 탭으로 조회하면 탭을 생략한 것과 같이 담긴다")
+        void listsEveryType_whenAllTabRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-ledger-all-explicit");
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            CreditLedgerListResponse body = fixture.creditLedgerList(signup.accessToken(), "?type=ALL");
 
             assertThat(body.totalCount()).isEqualTo(2);
             assertThat(body.ledgers()).extracting(CreditLedgerResponse::type)
