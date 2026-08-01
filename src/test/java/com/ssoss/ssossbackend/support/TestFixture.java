@@ -13,6 +13,7 @@ import com.ssoss.ssossbackend.content.entrypoint.response.ContentListResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
+import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
 
 import org.springframework.http.HttpHeaders;
@@ -96,6 +97,20 @@ public class TestFixture {
         return client.get().uri("/v1/credits/me")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .exchange();
+    }
+
+    public RestTestClient.ResponseSpec getCreditLedgers(String accessToken, String query) {
+        return client.get().uri("/v1/credits/me/ledgers" + query)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public CreditLedgerListResponse creditLedgerList(String accessToken, String query) {
+        return getCreditLedgers(accessToken, query)
+            .expectStatus().isOk()
+            .expectBody(CreditLedgerListResponse.class)
+            .returnResult()
+            .getResponseBody();
     }
 
     public RestTestClient.ResponseSpec getStoreInfo(String accessToken) {

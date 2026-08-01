@@ -64,7 +64,7 @@ public class GenerationWriter {
         generationRepository.save(generation);
         if (everyChannelSucceeded) {
             eventPublisher.publishEvent(new GenerationSucceededEvent(generation.getMemberId(), generation.getId(),
-                generation.channelList().size()));
+                generation.channelList().size(), generation.deductionDescription()));
         }
     }
 }

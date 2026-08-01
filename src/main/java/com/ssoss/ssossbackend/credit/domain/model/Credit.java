@@ -51,6 +51,10 @@ public class Credit {
         return this;
     }
 
+    public CreditCycle grantedCycle() {
+        return new CreditCycle(grantedCycleAt);
+    }
+
     public boolean isGrantedFor(CreditCycle cycle) {
         return cycle.startsAt().equals(grantedCycleAt);
     }

@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.content.domain.model;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,6 +20,8 @@ public class Generation {
     public static final Duration DEADLINE = Duration.ofSeconds(60);
 
     private static final String CHANNEL_SEPARATOR = ",";
+    private static final String OTHER_CHANNELS_DESCRIPTION = " 외 %d건";
+    private static final String DEDUCTION_DESCRIPTION_SUFFIX = " 콘텐츠 생성";
 
     @Id
     private Long id;
@@ -67,6 +70,15 @@ public class Generation {
         return Arrays.stream(channels.split(CHANNEL_SEPARATOR))
             .map(Channel::valueOf)
             .toList();
+    }
+
+    public String deductionDescription() {
+        List<Channel> chosen = channelList();
+        String leading = chosen.stream().min(Comparator.naturalOrder()).orElseThrow().displayName();
+        if (chosen.size() == 1) {
+            return leading + DEDUCTION_DESCRIPTION_SUFFIX;
+        }
+        return leading + OTHER_CHANNELS_DESCRIPTION.formatted(chosen.size() - 1) + DEDUCTION_DESCRIPTION_SUFFIX;
     }
 
     public List<String> keywordList() {

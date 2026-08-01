@@ -28,16 +28,16 @@ public class CreditWriter {
     public void grant(Long memberId) {
         CreditCycle cycle = CreditCycle.current(clock.instant());
         creditRepository.save(Credit.create(memberId).grant(Credit.CYCLE_FREE_GRANT, cycle));
-        creditLedgerRepository.save(CreditLedger.grant(memberId, Credit.CYCLE_FREE_GRANT));
+        creditLedgerRepository.save(CreditLedger.signupGrant(memberId, Credit.CYCLE_FREE_GRANT));
     }
 
     @Transactional
-    public void deduct(Long memberId, Long generationId, int channelCount) {
+    public void deduct(Long memberId, Long generationId, int channelCount, String description) {
         int amount = Credit.CHANNEL_DEDUCTION * channelCount;
         Credit credit = creditRepository.findWithLockByMemberId(memberId)
             .orElseThrow(() -> new BusinessException(CreditErrorCode.CREDIT_NOT_FOUND));
         creditRepository.save(credit.deduct(amount));
-        creditLedgerRepository.save(CreditLedger.deduct(memberId, amount, generationId));
+        creditLedgerRepository.save(CreditLedger.deduct(memberId, amount, generationId, description));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -48,12 +48,13 @@ public class CreditWriter {
         if (credit.isGrantedFor(cycle)) {
             return false;
         }
+        CreditCycle expiringCycle = credit.grantedCycle();
         int expired = credit.expireFree();
         if (expired > 0) {
-            creditLedgerRepository.save(CreditLedger.expire(memberId, expired));
+            creditLedgerRepository.save(CreditLedger.expire(memberId, expired, expiringCycle));
         }
         creditRepository.save(credit.grant(Credit.CYCLE_FREE_GRANT, cycle));
-        creditLedgerRepository.save(CreditLedger.grant(memberId, Credit.CYCLE_FREE_GRANT));
+        creditLedgerRepository.save(CreditLedger.cycleGrant(memberId, Credit.CYCLE_FREE_GRANT, cycle));
         return true;
     }
 
