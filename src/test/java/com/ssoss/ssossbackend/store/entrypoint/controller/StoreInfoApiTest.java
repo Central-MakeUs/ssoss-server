@@ -619,4 +619,262 @@ class StoreInfoApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
         }
     }
+
+    @Nested
+    @DisplayName("PUT /v1/stores/me/content")
+    class SaveContentInfo {
+
+        @Test
+        @DisplayName("네 필드를 다 채워 저장하면 조회에 그대로 담기고 콘텐츠 정보가 작성 완료가 된다")
+        void savesAllFields_whenEveryFieldGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-full");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody("매일 아침 직접 굽는 크루아상과 직접 로스팅한 원두",
+                        List.of("디저트", "크루아상", "을지로베이커리"), "최저가, 1위 같은 과장 표현", "CASUAL"))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).content())
+                .isEqualTo(new StoreContentInfoResponse("매일 아침 직접 굽는 크루아상과 직접 로스팅한 원두",
+                    List.of("디저트", "크루아상", "을지로베이커리"), "최저가, 1위 같은 과장 표현", "CASUAL", COMPLETED.name()));
+        }
+
+        @Test
+        @DisplayName("서버는 키워드의 # 를 붙이지도 떼지도 않고 받은 그대로 저장한다")
+        void keepsKeywordsAsSent() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-keywords");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null, List.of("디저트", "#크루아상"), null, null))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).content().keywords())
+                .containsExactly("디저트", "#크루아상");
+        }
+
+        @Test
+        @DisplayName("키워드를 빼고 다시 저장하면 이전에 저장한 키워드가 비워진다")
+        void clearsKeywords_whenSavedAgainWithoutThem() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-replace");
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody("직접 로스팅한 원두", List.of("디저트", "크루아상"), "과장 표현", "CASUAL"))
+                .expectStatus().isNoContent();
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    Map.of("strength", "매일 굽는 빵", "tone", "INFORMATIVE"))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).content())
+                .isEqualTo(new StoreContentInfoResponse("매일 굽는 빵", List.of(), null, "INFORMATIVE",
+                    COMPLETED.name()));
+        }
+
+        @Test
+        @DisplayName("네 필드를 다 비워 저장하면 콘텐츠 정보가 미작성이 된다")
+        void marksNotWritten_whenNothingGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-empty");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null, null, null, null))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).content())
+                .isEqualTo(new StoreContentInfoResponse(null, List.of(), null, null, NOT_WRITTEN.name()));
+        }
+
+        @Test
+        @DisplayName("매장 강점·금지 내용·톤을 빈 문자열로 저장하면 비운 것으로 본다")
+        void treatsEmptyTextAsAbsent() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-empty-text");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody("", null, "", ""))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).content())
+                .isEqualTo(new StoreContentInfoResponse(null, List.of(), null, null, NOT_WRITTEN.name()));
+        }
+
+        @Test
+        @DisplayName("매장 강점·금지 내용·톤을 공백만 담아 저장하면 비운 것으로 본다")
+        void treatsBlankTextAsAbsent() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-blank-text");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody("   ", null, "   ", "   "))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).content())
+                .isEqualTo(new StoreContentInfoResponse(null, List.of(), null, null, NOT_WRITTEN.name()));
+        }
+
+        @Test
+        @DisplayName("톤을 빈 문자열로 다시 저장하면 이전에 고른 톤이 비워진다")
+        void clearsTone_whenSavedAgainWithEmptyValue() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-clear-tone");
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null, null, null, "CASUAL"))
+                .expectStatus().isNoContent();
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null, null, null, ""))
+                .expectStatus().isNoContent();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).content())
+                .isEqualTo(new StoreContentInfoResponse(null, List.of(), null, null, NOT_WRITTEN.name()));
+        }
+
+        @Test
+        @DisplayName("매장 강점이 500자를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenStrengthTooLong() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-long-strength");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody("가".repeat(501), null, null, null))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("금지 내용이 500자를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenForbiddenTooLong() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-long-forbidden");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null, null, "가".repeat(501), null))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("키워드가 10개를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenKeywordsTooMany() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-many-keywords");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null,
+                        List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"), null, null))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("키워드 하나가 30자를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenKeywordTooLong() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-long-keyword");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null, List.of("가".repeat(31)), null, null))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("키워드에 공백만 담긴 값이 있으면 400 과 C0001 을 반환한다")
+        void returns400_whenKeywordBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-blank-keyword");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null, List.of("디저트", "   "), null, null))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("목록에 없는 톤이면 400 과 C0001 을 반환한다")
+        void returns400_whenToneNotInList() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-unknown-tone");
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody(null, null, null, "FRIENDLY"))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("400 이 나면 이전에 저장한 값이 그대로 남는다")
+        void keepsSavedValues_whenValidationFails() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-rejected");
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody("직접 로스팅한 원두", List.of("디저트"), "과장 표현", "CASUAL"))
+                .expectStatus().isNoContent();
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody("가".repeat(501), null, null, null))
+                .expectStatus().isBadRequest();
+
+            assertThat(fixture.storeInfo(signup.accessToken()).content())
+                .isEqualTo(new StoreContentInfoResponse("직접 로스팅한 원두", List.of("디저트"), "과장 표현", "CASUAL",
+                    COMPLETED.name()));
+        }
+
+        @Test
+        @DisplayName("콘텐츠 정보를 저장해도 기본 정보·운영 정보는 그대로 남는다")
+        void keepsOtherGroups_whenContentInfoSaved() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-keeps-others");
+            fixture.saveStoreBasicInfo(signup.accessToken(),
+                    fixture.storeBasicInfoBody("보니스커피", "CAFE", "서울 중구 을지로 100", "을지로 크루아상 카페"))
+                .expectStatus().isNoContent();
+            fixture.saveStoreOperationInfo(signup.accessToken(),
+                    fixture.storeOperationInfoBody(List.of("MONDAY"), "09:00", "22:00", List.of("크루아상"),
+                        true, false, true))
+                .expectStatus().isNoContent();
+
+            fixture.saveStoreContentInfo(signup.accessToken(),
+                    fixture.storeContentInfoBody("직접 로스팅한 원두", List.of("디저트"), "과장 표현", "CASUAL"))
+                .expectStatus().isNoContent();
+
+            StoreInfoResponse info = fixture.storeInfo(signup.accessToken());
+            assertThat(info.basic())
+                .isEqualTo(new StoreBasicInfoResponse("보니스커피", "CAFE", "서울 중구 을지로 100", "을지로 크루아상 카페",
+                    COMPLETED.name()));
+            assertThat(info.operation())
+                .isEqualTo(new StoreOperationInfoResponse(List.of("MONDAY"), "09:00", "22:00", List.of("크루아상"),
+                    true, false, true, COMPLETED.name()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 저장하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenSaves() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-store-content-pending");
+
+            fixture.saveStoreContentInfo(login.accessToken(),
+                    fixture.storeContentInfoBody("직접 로스팅한 원두", null, null, "CASUAL"))
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("탈퇴 대기(WITHDRAWN) 토큰으로 저장하면 403 과 A0007 을 반환한다")
+        void returns403_whenWithdrawnTokenSaves() {
+            SignupResponse signup = fixture.signupActiveMember("naver-store-content-withdrawn");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-store-content-withdrawn");
+
+            fixture.saveStoreContentInfo(withdrawnLogin.accessToken(),
+                    fixture.storeContentInfoBody("직접 로스팅한 원두", null, null, "CASUAL"))
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 저장하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().put().uri("/v1/stores/me/content")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(fixture.storeContentInfoBody("직접 로스팅한 원두", null, null, "CASUAL"))
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
 }
