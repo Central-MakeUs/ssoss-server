@@ -38,7 +38,7 @@ public class CreditFinder {
 
     @Transactional(readOnly = true)
     public Page<CreditLedger> listLedgers(Long memberId, CreditLedgerTab tab, int page, int size) {
-        return creditLedgerRepository.findAllByMemberIdAndTypeIn(memberId, CreditLedgerTab.typesOf(tab),
+        return creditLedgerRepository.findAllByMemberIdAndTypeIn(memberId, tab.types(),
             PageRequest.of(page, size, OCCURRED_AT_DESC));
     }
 }
