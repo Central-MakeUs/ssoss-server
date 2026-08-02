@@ -11,7 +11,7 @@ public record ContentSummaryResponse(
     Long contentId,
     @Schema(description = "저장 시각 — 목록의 정렬 기준이며 편집해도 움직이지 않습니다", example = "2026-09-01T09:41:00Z")
     Instant savedAt,
-    @Schema(description = "콘텐츠에 담긴 채널 목록. 블로그 → 인스타그램 → 당근 비즈 → 스레드 고정 순서입니다",
+    @Schema(description = "콘텐츠에 담긴 채널 목록. 블로그 → 인스타그램 → 스레드 → 당근 비즈 고정 순서입니다",
         example = "[\"BLOG\", \"INSTAGRAM\"]")
     List<String> channels,
     @Schema(description = "목적 — INFORMATION: 정보성, EVENT_DISCOUNT: 이벤트/할인, NEW_MENU_PROMOTION: 신메뉴/홍보",

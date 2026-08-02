@@ -17,7 +17,7 @@ public record ContentDetailResponse(
     @Schema(description = "생성에 쓴 키워드 목록 — 입력하지 않았으면 빈 배열입니다",
         example = "[\"디저트\", \"크루아상\", \"을지로베이커리\"]")
     List<String> keywords,
-    @Schema(description = "콘텐츠에 담긴 채널별 본문. 블로그 → 인스타그램 → 당근 비즈 → 스레드 고정 순서입니다")
+    @Schema(description = "콘텐츠에 담긴 채널별 본문. 블로그 → 인스타그램 → 스레드 → 당근 비즈 고정 순서입니다")
     List<ContentChannelResponse> contents
 ) {
 }

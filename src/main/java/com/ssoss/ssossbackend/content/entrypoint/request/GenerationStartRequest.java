@@ -13,7 +13,7 @@ import jakarta.validation.constraints.Size;
 @Schema(description = "생성 작업 생성 요청")
 public record GenerationStartRequest(
     @Schema(description = "콘텐츠를 만들 채널 목록 (1~4개, 중복 불가)",
-        allowableValues = {"BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"}, example = "[\"BLOG\", \"INSTAGRAM\"]",
+        allowableValues = {"BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ"}, example = "[\"BLOG\", \"INSTAGRAM\"]",
         requiredMode = Schema.RequiredMode.REQUIRED)
     @NotEmpty(message = "채널을 1개 이상 선택해 주세요")
     @Size(max = 4, message = "채널은 최대 4개까지 선택할 수 있습니다")
