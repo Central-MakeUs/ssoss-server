@@ -3,8 +3,6 @@ package com.ssoss.ssossbackend.member.application.service;
 import java.util.List;
 import java.util.Optional;
 
-import com.ssoss.ssossbackend.member.application.event.MemberActivatedEvent;
-import com.ssoss.ssossbackend.member.application.event.MemberDeletedEvent;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
@@ -13,12 +11,12 @@ import com.ssoss.ssossbackend.member.domain.service.MemberFinder;
 import com.ssoss.ssossbackend.member.domain.service.MemberTermWriter;
 import com.ssoss.ssossbackend.member.domain.service.MemberWithdrawalHistoryCleaner;
 import com.ssoss.ssossbackend.member.domain.service.MemberWriter;
+import com.ssoss.ssossbackend.member.event.MemberActivatedEvent;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -63,17 +61,15 @@ public class MemberService {
         return MemberIdentity.from(memberWriter.recover(memberId));
     }
 
-    public List<Long> findAllDueForDeletion() {
-        return memberWriter.findAllDueForDeletion();
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void deleteWithdrawn(Long memberId) {
-        if (!memberWriter.deleteWithdrawn(memberId)) {
-            return;
+    public WithdrawnMemberDeletionResult deleteWithdrawnMembers() {
+        List<Long> memberIds = memberWriter.findAllDueForDeletion();
+        long deleted = 0;
+        for (Long memberId : memberIds) {
+            if (memberWriter.deleteWithdrawn(memberId)) {
+                deleted++;
+            }
         }
-        memberTermWriter.deleteAllByMemberId(memberId);
-        eventPublisher.publishEvent(new MemberDeletedEvent(memberId));
+        return new WithdrawnMemberDeletionResult(memberIds.size(), deleted);
     }
 
     public int cleanUpWithdrawalHistories() {

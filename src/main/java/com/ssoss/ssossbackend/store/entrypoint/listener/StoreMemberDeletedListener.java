@@ -1,6 +1,6 @@
 package com.ssoss.ssossbackend.store.entrypoint.listener;
 
-import com.ssoss.ssossbackend.member.application.event.MemberDeletedEvent;
+import com.ssoss.ssossbackend.member.event.MemberDeletedEvent;
 import com.ssoss.ssossbackend.store.application.service.StoreService;
 
 import lombok.RequiredArgsConstructor;
