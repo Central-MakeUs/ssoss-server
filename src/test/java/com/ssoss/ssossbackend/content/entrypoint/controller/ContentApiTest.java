@@ -829,8 +829,8 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("해시태그는 대표 채널의 앞 2개만 온다")
-        void returnsAtMostTwoHashtagsOfRepresentativeChannel() {
+        @DisplayName("해시태그는 앞 2개만 온다")
+        void returnsAtMostTwoHashtags() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-hashtags");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
@@ -847,8 +847,8 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("스레드와 당근 비즈를 저장하면 고정 순서에서 앞선 당근 비즈가 대표 채널이 된다")
-        void picksLeadingChannelAsRepresentative_whenThreadsAndDaangnBizSaved() {
+        @DisplayName("스레드와 당근 비즈를 저장하면 고정 순서에서 앞선 당근 비즈가 채널 목록의 첫 채널이 된다")
+        void listsLeadingChannelFirst_whenThreadsAndDaangnBizSaved() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-representative");
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
                 List.of("THREADS", "DAANGN_BIZ"));
@@ -856,10 +856,32 @@ class ContentApiTest extends IntegrationTest {
 
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .singleElement()
-                .satisfies(content -> {
-                    assertThat(content.channels()).containsExactly("DAANGN_BIZ", "THREADS");
-                    assertThat(content.hashtags()).isEmpty();
-                });
+                .satisfies(content -> assertThat(content.channels()).containsExactly("DAANGN_BIZ", "THREADS"));
+        }
+
+        @Test
+        @DisplayName("첫 채널에 해시태그가 없으면 해시태그가 있는 다음 채널에서 가져온다")
+        void returnsHashtagsOfFirstChannelHavingThem_whenLeadingChannelHasNone() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-hashtag-source");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(),
+                List.of("THREADS", "DAANGN_BIZ"));
+            fixture.savedContentId(signup.accessToken(), generationId);
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.hashtags()).containsExactly("#테스트", "#쏘쓰"));
+        }
+
+        @Test
+        @DisplayName("어느 채널에도 해시태그가 없으면 빈 배열이 온다")
+        void returnsNoHashtags_whenEveryChannelHasNone() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-hashtag-none");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("DAANGN_BIZ"));
+            fixture.savedContentId(signup.accessToken(), generationId);
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.hashtags()).isEmpty());
         }
 
         @Test

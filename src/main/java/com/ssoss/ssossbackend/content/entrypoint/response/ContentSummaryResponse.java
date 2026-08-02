@@ -27,7 +27,7 @@ public record ContentSummaryResponse(
         줄바꿈과 연속 공백은 공백 하나로 합쳐집니다.""",
         example = "을지로 크루아상 맛집 | 겹겹이 살…")
     String title,
-    @Schema(description = "카드에 보여줄 해시태그. 제목과 같은 채널에서 앞 2개만 담기며, 해시태그가 없는 채널이면 빈 배열입니다",
+    @Schema(description = "카드에 보여줄 해시태그. 채널 목록에서 해시태그가 있는 첫 채널의 앞 2개만 담기며, 어느 채널에도 없으면 빈 배열입니다",
         example = "[\"#을지로카페\", \"#을지로크루아상\"]")
     List<String> hashtags
 ) {

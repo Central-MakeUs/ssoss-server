@@ -34,9 +34,7 @@ public class ContentCardAssembler {
                 .collect(Collectors.toMap(ContentChannel::getContentId, representative -> representative));
         return new PageImpl<>(contents.stream()
             .filter(content -> viewsByContentId.containsKey(content.getId()))
-            .map(content -> new ContentCard(
-                content,
-                viewsByContentId.get(content.getId()).stream().map(ContentChannelView::channel).toList(),
+            .map(content -> ContentCard.of(content, viewsByContentId.get(content.getId()),
                 representatives.get(content.getId())))
             .toList(), contents.getPageable(), contents.getTotalElements());
     }
