@@ -2,7 +2,7 @@ package com.ssoss.ssossbackend.auth.entrypoint.listener;
 
 import com.ssoss.ssossbackend.auth.application.service.RefreshTokenService;
 import com.ssoss.ssossbackend.auth.application.service.SocialLoginService;
-import com.ssoss.ssossbackend.member.application.event.MemberDeletedEvent;
+import com.ssoss.ssossbackend.member.event.MemberDeletedEvent;
 
 import lombok.RequiredArgsConstructor;
 

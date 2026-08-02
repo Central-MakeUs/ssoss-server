@@ -14,13 +14,16 @@ import com.ssoss.ssossbackend.member.domain.model.MemberWithdrawalHistory;
 import com.ssoss.ssossbackend.member.domain.model.MemberWithdrawalReason;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.member.domain.model.WithdrawalReason;
+import com.ssoss.ssossbackend.member.event.MemberDeletedEvent;
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -31,6 +34,8 @@ public class MemberWriter {
     private final MemberRepository memberRepository;
     private final MemberWithdrawalHistoryRepository memberWithdrawalHistoryRepository;
     private final MemberWithdrawalReasonRepository memberWithdrawalReasonRepository;
+    private final MemberTermWriter memberTermWriter;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public Member register(SocialProvider provider, String socialId, String email) {
@@ -90,6 +95,7 @@ public class MemberWriter {
             .toList();
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean deleteWithdrawn(Long memberId) {
         Instant threshold = clock.instant().minus(Member.RECOVERY_GRACE_PERIOD);
         int deleted = memberRepository.deleteByIdAndStatusAndLastWithdrawnAtBefore(
@@ -98,6 +104,8 @@ public class MemberWriter {
             log.info("삭제 시점에 대상이 아니어서 건너뛴 회원: memberId={}", memberId);
             return false;
         }
+        memberTermWriter.deleteAllByMemberId(memberId);
+        eventPublisher.publishEvent(new MemberDeletedEvent(memberId));
         log.info("복구 유예 기간이 지난 탈퇴 회원 삭제: memberId={}", memberId);
         return true;
     }

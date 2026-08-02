@@ -3,7 +3,7 @@ package com.ssoss.ssossbackend.support;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.ssoss.ssossbackend.member.application.event.MemberDeletedEvent;
+import com.ssoss.ssossbackend.member.event.MemberDeletedEvent;
 
 import org.springframework.context.event.EventListener;
 

@@ -1,7 +1,7 @@
 package com.ssoss.ssossbackend.credit.entrypoint.listener;
 
 import com.ssoss.ssossbackend.credit.application.service.CreditService;
-import com.ssoss.ssossbackend.member.application.event.MemberDeletedEvent;
+import com.ssoss.ssossbackend.member.event.MemberDeletedEvent;
 
 import lombok.RequiredArgsConstructor;
 
