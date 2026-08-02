@@ -68,22 +68,22 @@ class ContentApiTest extends IntegrationTest {
         void savesOneContentWithEveryChannelInChannelOrder_whenGenerationSaved() {
             SignupResponse signup = fixture.signupActiveMember("naver-save-multi");
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
-                List.of("THREADS", "BLOG", "INSTAGRAM"));
+                List.of("DAANGN_BIZ", "THREADS", "BLOG", "INSTAGRAM"));
 
             fixture.saveGeneratedContents(signup.accessToken(), generationId)
                 .expectStatus().isCreated()
                 .expectBody(ContentSaveResponse.class)
                 .value(body -> {
                     assertThat(body.contentId()).isNotNull();
-                    assertThat(body.contents()).hasSize(3)
+                    assertThat(body.contents()).hasSize(4)
                         .allSatisfy(content -> assertThat(content.contentChannelId()).isNotNull());
                     assertThat(body.contents())
                         .extracting(ContentChannelSummaryResponse::channel)
-                        .containsExactly("BLOG", "INSTAGRAM", "THREADS");
+                        .containsExactly("BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ");
                 });
 
             assertThat(contentsOf(memberIdOf("naver-save-multi"))).hasSize(1);
-            assertThat(channelsOf(memberIdOf("naver-save-multi"))).hasSize(3);
+            assertThat(channelsOf(memberIdOf("naver-save-multi"))).hasSize(4);
         }
 
         @Test
@@ -847,6 +847,22 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("스레드와 당근 비즈를 저장하면 고정 순서에서 앞선 스레드가 대표 채널이 된다")
+        void picksLeadingChannelAsRepresentative_whenThreadsAndDaangnBizSaved() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-representative");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(),
+                List.of("DAANGN_BIZ", "THREADS"));
+            fixture.savedContentId(signup.accessToken(), generationId);
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> {
+                    assertThat(content.channels()).containsExactly("THREADS", "DAANGN_BIZ");
+                    assertThat(content.hashtags()).containsExactly("#테스트", "#쏘쓰");
+                });
+        }
+
+        @Test
         @DisplayName("카드에 저장할 때의 목적·톤과 저장 시각이 담긴다")
         void returnsPurposeToneAndSavedAt() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-condition");
@@ -1062,7 +1078,7 @@ class ContentApiTest extends IntegrationTest {
         void returnsEveryChannelInChannelOrder_whenContentRequested() {
             SignupResponse signup = fixture.signupActiveMember("naver-detail-unit");
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
-                List.of("THREADS", "BLOG", "INSTAGRAM"));
+                List.of("DAANGN_BIZ", "THREADS", "BLOG", "INSTAGRAM"));
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
 
             fixture.getContent(signup.accessToken(), saved.contentId())
@@ -1071,7 +1087,7 @@ class ContentApiTest extends IntegrationTest {
                 .value(body -> {
                     assertThat(body.contents())
                         .extracting(ContentChannelResponse::channel)
-                        .containsExactly("BLOG", "INSTAGRAM", "THREADS");
+                        .containsExactly("BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ");
                     assertThat(body.contents())
                         .extracting(ContentChannelResponse::contentChannelId)
                         .containsExactlyInAnyOrderElementsOf(saved.contents().stream()

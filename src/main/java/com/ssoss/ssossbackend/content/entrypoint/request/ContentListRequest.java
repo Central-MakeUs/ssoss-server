@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Min;
 @Schema(description = "생성 기록 목록 조회 요청")
 public record ContentListRequest(
     @Schema(description = "채널 (선택) — 생략하면 전체입니다. 그 채널을 포함한 저장 건이 걸러집니다",
-        allowableValues = {"BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"}, example = "BLOG",
+        allowableValues = {"BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ"}, example = "BLOG",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     String channel,
     @Schema(description = "정렬 (선택) — LATEST 는 저장 시각 최신순, OLDEST 는 오래된 순입니다. 생략하면 LATEST 입니다",

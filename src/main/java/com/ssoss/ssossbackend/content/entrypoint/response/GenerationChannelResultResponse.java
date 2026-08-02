@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "채널별 생성 결과")
 public record GenerationChannelResultResponse(
-    @Schema(description = "채널", allowableValues = {"BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"}, example = "BLOG")
+    @Schema(description = "채널", allowableValues = {"BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ"}, example = "BLOG")
     String channel,
     @Schema(description = "제목 — 블로그만 있고 나머지 채널은 null 입니다",
         example = "주말엔 아메리카노 1+1, 놓치면 아쉬운 이벤트", nullable = true)

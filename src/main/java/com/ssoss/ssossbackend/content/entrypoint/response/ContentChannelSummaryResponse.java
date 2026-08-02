@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ContentChannelSummaryResponse(
     @Schema(description = "채널별 콘텐츠 id — 편집·삭제·채널 변환에 쓰입니다", example = "10")
     Long contentChannelId,
-    @Schema(description = "채널", allowableValues = {"BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"}, example = "BLOG")
+    @Schema(description = "채널", allowableValues = {"BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ"}, example = "BLOG")
     String channel
 ) {
 }
