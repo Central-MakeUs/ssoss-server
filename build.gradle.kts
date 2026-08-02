@@ -80,12 +80,27 @@ tasks.test {
 }
 
 tasks.register<Test>("liveTest") {
-    description = "실제 외부 API 를 호출하는 라이브 테스트 (Gemini — GEMINI_API_KEY 필요)"
+    description = "실제 외부 API 를 호출하는 라이브 테스트 (Gemini — GEMINI_API_KEY 를 환경변수나 .env 에서 읽는다)"
     group = "verification"
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform {
         includeTags("live")
+    }
+    val dotEnvFile = layout.projectDirectory.file(".env").asFile
+    doFirst {
+        if (System.getenv("GEMINI_API_KEY").isNullOrBlank()) {
+            val fromDotEnv = dotEnvFile.takeIf { it.exists() }
+                ?.readLines()
+                ?.firstOrNull { it.startsWith("GEMINI_API_KEY=") }
+                ?.substringAfter("=")
+                ?.trim()
+                ?.trim('"')
+            require(!fromDotEnv.isNullOrBlank()) {
+                "GEMINI_API_KEY 가 환경변수에도 .env 에도 없습니다"
+            }
+            environment("GEMINI_API_KEY", fromDotEnv)
+        }
     }
     systemProperty("live.channel", providers.systemProperty("live.channel").getOrElse("BLOG"))
     outputs.upToDateWhen { false }
