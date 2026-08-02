@@ -16,7 +16,7 @@ public class WithdrawalService {
     private final SocialUnlinker socialUnlinker;
 
     public void withdraw(WithdrawalCommand command) {
-        memberService.withdraw(command.memberId());
+        memberService.withdraw(command.memberId(), command.reason(), command.detail());
         socialUnlinker.unlink(command.memberId());
     }
 }

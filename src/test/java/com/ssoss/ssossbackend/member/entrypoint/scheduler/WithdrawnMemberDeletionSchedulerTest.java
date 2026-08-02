@@ -14,9 +14,11 @@ import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberTermRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepository;
+import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalReasonRepository;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
+import com.ssoss.ssossbackend.member.domain.model.WithdrawalReason;
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
@@ -49,6 +51,9 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     private MemberWithdrawalHistoryRepository memberWithdrawalHistoryRepository;
 
     @Autowired
+    private MemberWithdrawalReasonRepository memberWithdrawalReasonRepository;
+
+    @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
@@ -66,6 +71,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     @BeforeEach
     void resetDatabase() {
         memberWithdrawalHistoryRepository.deleteAll();
+        memberWithdrawalReasonRepository.deleteAll();
         memberTermRepository.deleteAll();
         socialLoginRepository.deleteAll();
         refreshTokenRepository.deleteAll();
@@ -180,6 +186,20 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
                     assertThat(history.getProvider()).isEqualTo(NAVER);
                     assertThat(history.getSocialId()).isEqualTo("naver-delete-history");
                 });
+        }
+
+        @Test
+        @DisplayName("회원이 삭제되어도 회원을 식별하지 않는 탈퇴 사유는 남는다")
+        void keepsWithdrawalReason_whenMemberIsDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-reason");
+            fixture.withdraw(signup.accessToken(), "HARD_TO_USE", null).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(memberWithdrawalReasonRepository.findAll())
+                .singleElement()
+                .satisfies(collected -> assertThat(collected.getReason()).isEqualTo(WithdrawalReason.HARD_TO_USE));
         }
 
         @Test

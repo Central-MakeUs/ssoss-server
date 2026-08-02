@@ -8,6 +8,7 @@ import com.ssoss.ssossbackend.member.application.event.MemberDeletedEvent;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
+import com.ssoss.ssossbackend.member.domain.model.WithdrawalReason;
 import com.ssoss.ssossbackend.member.domain.service.MemberFinder;
 import com.ssoss.ssossbackend.member.domain.service.MemberTermWriter;
 import com.ssoss.ssossbackend.member.domain.service.MemberWithdrawalHistoryCleaner;
@@ -54,8 +55,8 @@ public class MemberService {
         return MemberIdentity.from(member);
     }
 
-    public void withdraw(Long memberId) {
-        memberWriter.withdraw(memberId);
+    public void withdraw(Long memberId, String reason, String detail) {
+        memberWriter.withdraw(memberId, reason == null ? null : WithdrawalReason.from(reason), detail);
     }
 
     public MemberIdentity recover(Long memberId) {
