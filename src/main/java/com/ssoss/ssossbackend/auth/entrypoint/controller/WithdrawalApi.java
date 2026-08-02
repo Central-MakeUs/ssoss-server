@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.auth.entrypoint.controller;
 
+import com.ssoss.ssossbackend.auth.entrypoint.request.WithdrawalRequest;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +21,9 @@ interface WithdrawalApi {
         description = """
             가입 회원(ACTIVE)이 자신의 회원 리소스 삭제(탈퇴)를 요청해 탈퇴 대기(WITHDRAWN)로 전환합니다.
 
-            - 가입 회원(ACTIVE) accessToken 전용 API 입니다. 요청 본문은 없습니다.
+            - 가입 회원(ACTIVE) accessToken 전용 API 입니다.
+            - 요청 본문은 선택입니다. 탈퇴 사유를 함께 남길 때만 싣고, 남기지 않으면 본문 없이 호출합니다.
+              사유를 보내지 않아도 탈퇴는 그대로 성립합니다.
             - 탈퇴하면 모든 기기의 리프레시 토큰이 무효화되어 토큰 재발급이 불가합니다.
               액세스 토큰은 즉시 무효화되지 않고 자체 만료 시각까지 유효합니다.
             - 탈퇴하면 서버가 소셜 프로바이더에 연결 해제를 요청합니다. 로그인할 때 받아 둔 리프레시 토큰을 씁니다.
@@ -30,6 +33,11 @@ interface WithdrawalApi {
             """)
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "탈퇴 처리되어 탈퇴 대기(WITHDRAWN)로 전환되었습니다"),
+        @ApiResponse(responseCode = "400", description = "정해진 사유 값이 아니거나 자유 입력이 500자를 넘습니다 (C0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"C0001","message":"입력값을 다시 확인해 주세요"}
+                    """))),
         @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """
@@ -46,5 +54,5 @@ interface WithdrawalApi {
                     {"code":"M0003","message":"이미 탈퇴한 회원입니다"}
                     """)))
     })
-    void withdraw(Long memberId);
+    void withdraw(Long memberId, WithdrawalRequest request);
 }

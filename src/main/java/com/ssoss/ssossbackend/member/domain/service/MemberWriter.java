@@ -6,11 +6,14 @@ import java.util.List;
 
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepository;
+import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalReasonRepository;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberErrorCode;
 import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
 import com.ssoss.ssossbackend.member.domain.model.MemberWithdrawalHistory;
+import com.ssoss.ssossbackend.member.domain.model.MemberWithdrawalReason;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
+import com.ssoss.ssossbackend.member.domain.model.WithdrawalReason;
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ public class MemberWriter {
 
     private final MemberRepository memberRepository;
     private final MemberWithdrawalHistoryRepository memberWithdrawalHistoryRepository;
+    private final MemberWithdrawalReasonRepository memberWithdrawalReasonRepository;
     private final Clock clock;
 
     public Member register(SocialProvider provider, String socialId, String email) {
@@ -62,7 +66,7 @@ public class MemberWriter {
     }
 
     @Transactional
-    public Member withdraw(Long memberId) {
+    public Member withdraw(Long memberId, WithdrawalReason reason, String detail) {
         Member member = memberRepository.findById(memberId)
             .orElseThrow(() -> new BusinessException(MemberErrorCode.MEMBER_NOT_FOUND));
         member.withdraw(clock.instant());
@@ -74,6 +78,7 @@ public class MemberWriter {
         }
         memberWithdrawalHistoryRepository.save(MemberWithdrawalHistory.record(
             member.getProvider(), member.getSocialId(), member.getLastWithdrawnAt()));
+        memberWithdrawalReasonRepository.save(MemberWithdrawalReason.record(reason, detail));
         return member;
     }
 

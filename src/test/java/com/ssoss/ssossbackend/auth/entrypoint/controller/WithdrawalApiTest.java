@@ -6,15 +6,20 @@ import java.time.temporal.ChronoUnit;
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
 import com.ssoss.ssossbackend.auth.domain.contract.SocialLoginRepository;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
+import com.ssoss.ssossbackend.auth.entrypoint.response.RecoveryResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.TokenRefreshResponse;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberTermRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepository;
+import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalReasonRepository;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberErrorCode;
 import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
+import com.ssoss.ssossbackend.member.domain.model.MemberWithdrawalReason;
+import com.ssoss.ssossbackend.member.domain.model.WithdrawalReason;
+import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
@@ -45,11 +50,15 @@ class WithdrawalApiTest extends IntegrationTest {
     private MemberWithdrawalHistoryRepository memberWithdrawalHistoryRepository;
 
     @Autowired
+    private MemberWithdrawalReasonRepository memberWithdrawalReasonRepository;
+
+    @Autowired
     private SocialLoginRepository socialLoginRepository;
 
     @BeforeEach
     void resetDatabase() {
         memberWithdrawalHistoryRepository.deleteAll();
+        memberWithdrawalReasonRepository.deleteAll();
         memberTermRepository.deleteAll();
         socialLoginRepository.deleteAll();
         refreshTokenRepository.deleteAll();
@@ -246,6 +255,178 @@ class WithdrawalApiTest extends IntegrationTest {
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("탈퇴 사유")
+    class WithdrawalReasonCollection {
+
+        @Test
+        @DisplayName("사유를 함께 보내면 사유가 생성 시각과 함께 저장된다")
+        void recordsReason_whenWithdrawalCarriesReason() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason");
+
+            fixture.withdraw(signup.accessToken(), "HARD_TO_USE", null)
+                .expectStatus().isNoContent();
+
+            assertThat(memberWithdrawalReasonRepository.findAll())
+                .singleElement()
+                .satisfies(collected -> {
+                    assertThat(collected.getReason()).isEqualTo(WithdrawalReason.HARD_TO_USE);
+                    assertThat(collected.getDetail()).isNull();
+                    assertThat(collected.getCreatedAt()).isCloseTo(clock.instant(), within(1, ChronoUnit.SECONDS));
+                });
+        }
+
+        @Test
+        @DisplayName("기타 사유를 보내면 자유 입력도 함께 저장된다")
+        void recordsDetail_whenReasonIsEtc() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-etc");
+
+            fixture.withdraw(signup.accessToken(), "OTHER", "쓰고 싶은 채널이 없었어요")
+                .expectStatus().isNoContent();
+
+            assertThat(memberWithdrawalReasonRepository.findAll())
+                .singleElement()
+                .satisfies(collected -> {
+                    assertThat(collected.getReason()).isEqualTo(WithdrawalReason.OTHER);
+                    assertThat(collected.getDetail()).isEqualTo("쓰고 싶은 채널이 없었어요");
+                });
+        }
+
+        @Test
+        @DisplayName("본문 없이 탈퇴하면 204 로 끝나고 사유가 비어 있는 행이 한 건 남는다")
+        void recordsEmptyReason_whenWithdrawalCarriesNoBody() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-none");
+
+            fixture.withdraw(signup.accessToken())
+                .expectStatus().isNoContent();
+
+            assertThat(memberWithdrawalReasonRepository.findAll())
+                .singleElement()
+                .satisfies(collected -> {
+                    assertThat(collected.getReason()).isNull();
+                    assertThat(collected.getDetail()).isNull();
+                });
+        }
+
+        @Test
+        @DisplayName("기타 사유의 자유 입력이 공백뿐이면 비어 있는 값으로 저장된다")
+        void recordsBlankDetailAsEmpty_whenDetailIsOnlyWhitespace() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-blank-detail");
+
+            fixture.withdraw(signup.accessToken(), "OTHER", "   ")
+                .expectStatus().isNoContent();
+
+            assertThat(memberWithdrawalReasonRepository.findAll())
+                .singleElement()
+                .satisfies(collected -> {
+                    assertThat(collected.getReason()).isEqualTo(WithdrawalReason.OTHER);
+                    assertThat(collected.getDetail()).isNull();
+                });
+        }
+
+        @Test
+        @DisplayName("사유를 빈 문자열로 보내면 400 과 C0001 을 반환하고 탈퇴하지 않는다")
+        void returns400AndKeepsMember_whenReasonIsBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-blank");
+
+            fixture.withdraw(signup.accessToken(), "", null)
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-reason-blank")
+                .orElseThrow()
+                .getStatus())
+                .isEqualTo(MemberStatus.ACTIVE);
+            assertThat(memberWithdrawalReasonRepository.findAll()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("정해진 5종 밖의 사유를 보내면 400 과 C0001 을 반환하고 탈퇴하지 않는다")
+        void returns400AndKeepsMember_whenReasonIsUnknown() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-unknown");
+
+            fixture.withdraw(signup.accessToken(), "TOO_EXPENSIVE", null)
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-reason-unknown")
+                .orElseThrow()
+                .getStatus())
+                .isEqualTo(MemberStatus.ACTIVE);
+            assertThat(memberWithdrawalReasonRepository.findAll()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("기타 사유의 자유 입력이 500자를 넘으면 400 을 반환하고 탈퇴하지 않는다")
+        void returns400AndKeepsMember_whenDetailIsTooLong() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-too-long");
+
+            fixture.withdraw(signup.accessToken(), "OTHER", "가".repeat(501))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-reason-too-long")
+                .orElseThrow()
+                .getStatus())
+                .isEqualTo(MemberStatus.ACTIVE);
+            assertThat(memberWithdrawalReasonRepository.findAll()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("기타 사유의 자유 입력이 500자면 그대로 저장된다")
+        void recordsDetail_whenDetailIsAtMaxLength() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-max");
+
+            fixture.withdraw(signup.accessToken(), "OTHER", "가".repeat(500))
+                .expectStatus().isNoContent();
+
+            assertThat(memberWithdrawalReasonRepository.findAll())
+                .singleElement()
+                .satisfies(collected -> assertThat(collected.getDetail()).hasSize(500));
+        }
+
+        @Test
+        @DisplayName("사유를 함께 보내도 탈퇴 대기 전환·연결 해제·재가입 제한 이력 저장은 그대로다")
+        void keepsExistingWithdrawalBehavior_whenReasonIsSent() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-regression");
+
+            fixture.withdraw(signup.accessToken(), "MISSING_FEATURE", null)
+                .expectStatus().isNoContent();
+
+            assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-reason-regression")
+                .orElseThrow()
+                .getStatus())
+                .isEqualTo(MemberStatus.WITHDRAWN);
+            assertThat(memberWithdrawalHistoryRepository.findAll()).hasSize(1);
+            assertThat(naverApi.revokeRequestBodies()).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("복구한 뒤 다시 탈퇴하면 사유가 한 건 더 쌓인다")
+        void recordsSecondReason_whenRecoveredMemberWithdrawsAgain() {
+            SignupResponse signup = fixture.signupActiveMember("naver-reason-again");
+            fixture.withdraw(signup.accessToken(), "RARELY_USED", null).expectStatus().isNoContent();
+            clock.advanceBy(Duration.ofHours(1));
+            SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-reason-again");
+            RecoveryResponse recovery = fixture.recover(withdrawnLogin.accessToken())
+                .expectStatus().isOk()
+                .expectBody(RecoveryResponse.class)
+                .returnResult()
+                .getResponseBody();
+
+            fixture.withdraw(recovery.accessToken(), "CONTENT_QUALITY", null)
+                .expectStatus().isNoContent();
+
+            assertThat(memberWithdrawalReasonRepository.findAll())
+                .hasSize(2)
+                .extracting(MemberWithdrawalReason::getReason)
+                .containsExactlyInAnyOrder(WithdrawalReason.RARELY_USED, WithdrawalReason.CONTENT_QUALITY);
         }
     }
 

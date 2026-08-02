@@ -17,6 +17,7 @@ import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListRespons
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -67,6 +68,17 @@ public class TestFixture {
     public RestTestClient.ResponseSpec withdraw(String accessToken) {
         return client.delete().uri("/v1/members/me")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public RestTestClient.ResponseSpec withdraw(String accessToken, String reason, String detail) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("reason", reason);
+        body.put("detail", detail);
+        return client.method(HttpMethod.DELETE).uri("/v1/members/me")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
             .exchange();
     }
 
