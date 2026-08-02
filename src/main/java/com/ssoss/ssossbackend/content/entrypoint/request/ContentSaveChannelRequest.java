@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 
 @Schema(description = "저장할 채널별 콘텐츠")
 public record ContentSaveChannelRequest(
-    @Schema(description = "채널", allowableValues = {"BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ"}, example = "BLOG",
+    @Schema(description = "채널", allowableValues = {"BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"}, example = "BLOG",
         requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "채널을 선택해 주세요")
     String channel,

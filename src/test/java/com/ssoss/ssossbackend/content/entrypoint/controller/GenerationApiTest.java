@@ -927,7 +927,7 @@ class GenerationApiTest extends IntegrationTest {
     @DisplayName("크레딧 부족 판정")
     class InsufficiencyCheck {
 
-        private static final List<String> ALL_CHANNELS = List.of("BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ");
+        private static final List<String> ALL_CHANNELS = List.of("BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS");
 
         @Test
         @DisplayName("잔액이 차감량 × 선택 채널 수보다 적으면 400 으로 거부되고 작업이 생성되지 않는다")

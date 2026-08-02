@@ -68,7 +68,7 @@ class ContentApiTest extends IntegrationTest {
         void savesOneContentWithEveryChannelInChannelOrder_whenGenerationSaved() {
             SignupResponse signup = fixture.signupActiveMember("naver-save-multi");
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
-                List.of("DAANGN_BIZ", "THREADS", "BLOG", "INSTAGRAM"));
+                List.of("THREADS", "DAANGN_BIZ", "BLOG", "INSTAGRAM"));
 
             fixture.saveGeneratedContents(signup.accessToken(), generationId)
                 .expectStatus().isCreated()
@@ -79,7 +79,7 @@ class ContentApiTest extends IntegrationTest {
                         .allSatisfy(content -> assertThat(content.contentChannelId()).isNotNull());
                     assertThat(body.contents())
                         .extracting(ContentChannelSummaryResponse::channel)
-                        .containsExactly("BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ");
+                        .containsExactly("BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS");
                 });
 
             assertThat(contentsOf(memberIdOf("naver-save-multi"))).hasSize(1);
@@ -847,18 +847,18 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("스레드와 당근 비즈를 저장하면 고정 순서에서 앞선 스레드가 대표 채널이 된다")
+        @DisplayName("스레드와 당근 비즈를 저장하면 고정 순서에서 앞선 당근 비즈가 대표 채널이 된다")
         void picksLeadingChannelAsRepresentative_whenThreadsAndDaangnBizSaved() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-representative");
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
-                List.of("DAANGN_BIZ", "THREADS"));
+                List.of("THREADS", "DAANGN_BIZ"));
             fixture.savedContentId(signup.accessToken(), generationId);
 
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .singleElement()
                 .satisfies(content -> {
-                    assertThat(content.channels()).containsExactly("THREADS", "DAANGN_BIZ");
-                    assertThat(content.hashtags()).containsExactly("#테스트", "#쏘쓰");
+                    assertThat(content.channels()).containsExactly("DAANGN_BIZ", "THREADS");
+                    assertThat(content.hashtags()).isEmpty();
                 });
         }
 
@@ -1078,7 +1078,7 @@ class ContentApiTest extends IntegrationTest {
         void returnsEveryChannelInChannelOrder_whenContentRequested() {
             SignupResponse signup = fixture.signupActiveMember("naver-detail-unit");
             Long generationId = fixture.startedGenerationId(signup.accessToken(),
-                List.of("DAANGN_BIZ", "THREADS", "BLOG", "INSTAGRAM"));
+                List.of("THREADS", "DAANGN_BIZ", "BLOG", "INSTAGRAM"));
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
 
             fixture.getContent(signup.accessToken(), saved.contentId())
@@ -1087,7 +1087,7 @@ class ContentApiTest extends IntegrationTest {
                 .value(body -> {
                     assertThat(body.contents())
                         .extracting(ContentChannelResponse::channel)
-                        .containsExactly("BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ");
+                        .containsExactly("BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS");
                     assertThat(body.contents())
                         .extracting(ContentChannelResponse::contentChannelId)
                         .containsExactlyInAnyOrderElementsOf(saved.contents().stream()

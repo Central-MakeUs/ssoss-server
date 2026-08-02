@@ -214,9 +214,9 @@ class GenerationTest {
         @Test
         @DisplayName("여러 채널을 고르면 고정 순서에서 앞선 채널에 나머지 건수가 붙는다")
         void writesLeadingChannelWithRemainingCount_whenMultipleChannelsChosen() {
-            Generation generation = generation(List.of(Channel.DAANGN_BIZ, Channel.THREADS));
+            Generation generation = generation(List.of(Channel.THREADS, Channel.DAANGN_BIZ));
 
-            assertThat(generation.deductionDescription()).isEqualTo("스레드 외 1건 콘텐츠 생성");
+            assertThat(generation.deductionDescription()).isEqualTo("당근 비즈 외 1건 콘텐츠 생성");
         }
     }
 

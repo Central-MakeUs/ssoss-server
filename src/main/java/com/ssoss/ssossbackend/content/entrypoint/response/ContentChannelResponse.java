@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ContentChannelResponse(
     @Schema(description = "채널별 콘텐츠 id", example = "10")
     Long contentChannelId,
-    @Schema(description = "채널", allowableValues = {"BLOG", "INSTAGRAM", "THREADS", "DAANGN_BIZ"}, example = "BLOG")
+    @Schema(description = "채널", allowableValues = {"BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS"}, example = "BLOG")
     String channel,
     @Schema(description = "제목 — 블로그만 있고 나머지 채널은 null 입니다",
         example = "을지로 크루아상 맛집 | 겹겹이 살아있는 결, 보니스커피", nullable = true)
