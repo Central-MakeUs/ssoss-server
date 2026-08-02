@@ -9,8 +9,8 @@ public enum Channel {
 
     BLOG(true, "블로그"),
     INSTAGRAM(false, "인스타그램"),
-    THREADS(false, "스레드"),
-    DAANGN_BIZ(false, "당근 비즈");
+    DAANGN_BIZ(false, "당근 비즈"),
+    THREADS(false, "스레드");
 
     private final boolean titled;
     private final String displayName;
