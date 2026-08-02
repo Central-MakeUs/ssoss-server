@@ -95,8 +95,9 @@ public class Generation {
             .toList();
     }
 
-    public GenerationMaterial materialFor(Channel channel) {
-        return new GenerationMaterial(channel, purpose, tone, emphasis, forbidden, keywordList(), photoGuideChecked);
+    public GenerationMaterial materialFor(Channel channel, StoreMaterial store) {
+        return new GenerationMaterial(channel, purpose, tone, emphasis, forbidden, keywordList(), photoGuideChecked,
+            store);
     }
 
     public Instant deadline() {

@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.ssoss.ssossbackend.content.domain.model.Channel;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
+import com.ssoss.ssossbackend.content.domain.model.StoreMaterial;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,12 +26,12 @@ public class GenerationCoordinator {
     private final Clock clock;
 
     @Async
-    public void run(Generation generation) {
+    public void run(Generation generation, StoreMaterial store) {
         List<Channel> channels = generation.channelList();
         AtomicInteger succeededChannels = new AtomicInteger();
         List<Callable<Void>> channelTasks = channels.stream()
             .<Callable<Void>>map(channel -> () -> {
-                if (channelGenerationRunner.run(generation, channel)) {
+                if (channelGenerationRunner.run(generation, channel, store)) {
                     succeededChannels.incrementAndGet();
                 }
                 return null;

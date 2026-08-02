@@ -5,9 +5,12 @@ import java.util.List;
 
 import com.ssoss.ssossbackend.content.domain.model.GenerationMaterial;
 
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 class GenerationPromptComposer {
 
     private static final String ROLE_INSTRUCTION = """
@@ -62,10 +65,6 @@ class GenerationPromptComposer {
         아래 키워드를 본문에 자연스럽게 녹인다.
         %s""";
 
-    private static final String NO_STORE_SECTION = """
-        [매장 정보]
-        매장 정보가 제공되지 않았다. 매장명·업종·위치·메뉴 같은 매장에 대한 사실을 지어내지 않는다.""";
-
     private static final String PHOTO_GUIDE_SECTION = """
         [사진 가이드]
         사진이 들어가면 좋을 자리를 %s 골라, 그 자리에 <photo-guide/> 마커만 담은 원소를 문단 사이에 끼운다.
@@ -85,6 +84,8 @@ class GenerationPromptComposer {
     private static final String NO_HASHTAG_SECTION = """
         [해시태그]
         해시태그를 만들지 않는다. 본문에도 #으로 시작하는 태그를 쓰지 않는다.""";
+
+    private final StoreSectionComposer storeSectionComposer;
 
     String compose(GenerationMaterial material) {
         String channelInstruction = switch (material.channel()) {
@@ -117,7 +118,7 @@ class GenerationPromptComposer {
         if (!material.keywords().isEmpty()) {
             sections.add(KEYWORDS_SECTION.formatted(String.join(", ", material.keywords())));
         }
-        sections.add(NO_STORE_SECTION);
+        sections.add(storeSectionComposer.compose(material.store()));
         if (material.photoGuideChecked()) {
             String places = switch (material.channel()) {
                 case BLOG -> "2~4곳";
