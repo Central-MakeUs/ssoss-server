@@ -9,7 +9,8 @@ public record GenerationMaterial(
     String emphasis,
     String forbidden,
     List<String> keywords,
-    boolean photoGuideChecked
+    boolean photoGuideChecked,
+    StoreMaterial store
 ) {
 
     public GenerationMaterial {

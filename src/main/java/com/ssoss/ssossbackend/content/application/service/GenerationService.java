@@ -29,6 +29,7 @@ public class GenerationService {
     private final GenerationCoordinator generationCoordinator;
     private final GenerationFinder generationFinder;
     private final CreditService creditService;
+    private final StoreMaterialReader storeMaterialReader;
     private final Clock clock;
 
     @Transactional
@@ -38,7 +39,7 @@ public class GenerationService {
         Generation generation = generationWriter.create(Generation.create(
             command.memberId(), command.channels(), command.purpose(), command.tone(),
             command.emphasis(), command.forbidden(), command.keywords(), command.photoGuideChecked()));
-        generationCoordinator.run(generation);
+        generationCoordinator.run(generation, storeMaterialReader.read(command.memberId()));
         return new GenerationStartResult(generation.getId());
     }
 

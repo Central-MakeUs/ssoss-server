@@ -511,6 +511,101 @@ class GenerationApiTest extends IntegrationTest {
     }
 
     @Nested
+    @DisplayName("매장 정보 재료")
+    class StoreSection {
+
+        @Test
+        @DisplayName("매장 정보를 입력한 회원이 생성을 요청하면 LLM 요청에 매장 값이 실린다")
+        void carriesStoreValues_whenStoreWritten() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-store");
+            fixture.saveStoreBasicInfo(signup.accessToken(), fixture.storeBasicInfoBody("보니스커피", "BAKERY_CAFE",
+                    "서울 중구 을지로 100", "을지로 크루아상 카페"))
+                .expectStatus().isNoContent();
+            fixture.saveStoreOperationInfo(signup.accessToken(), fixture.storeOperationInfoBody(
+                    List.of("MONDAY", "TUESDAY"), "09:00", "22:00", List.of("크루아상", "아메리카노"), true, false, true))
+                .expectStatus().isNoContent();
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            assertThat(llmApi.recordedRequestBodies()).singleElement().satisfies(request -> assertThat(request)
+                .contains("매장명: 보니스커피")
+                .contains("매장 유형: 베이커리 카페")
+                .contains("주소: 서울 중구 을지로 100")
+                .contains("한 줄 소개: 을지로 크루아상 카페")
+                .contains("영업일: 월요일, 화요일")
+                .contains("영업 시간: 09:00~22:00")
+                .contains("대표 메뉴: 크루아상, 아메리카노")
+                .contains("편의 시설: 포장 가능, 주차 가능")
+                .doesNotContain("매장 정보가 제공되지 않았다"));
+        }
+
+        @Test
+        @DisplayName("매장 콘텐츠 정보를 입력해도 그 값은 LLM 요청에 실리지 않는다")
+        void omitsContentInfo_whenContentInfoWritten() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-store-content");
+            fixture.saveStoreBasicInfo(signup.accessToken(), fixture.storeBasicInfoBody("보니스커피", "CAFE",
+                    "서울 중구 을지로 100", "을지로 크루아상 카페"))
+                .expectStatus().isNoContent();
+            fixture.saveStoreContentInfo(signup.accessToken(), fixture.storeContentInfoBody("직접 굽는 크루아상",
+                    List.of("스페셜티 원두"), "최저가 표현", "INFORMATIVE"))
+                .expectStatus().isNoContent();
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            assertThat(llmApi.recordedRequestBodies()).singleElement().satisfies(request -> assertThat(request)
+                .contains("보니스커피")
+                .doesNotContain("직접 굽는 크루아상", "스페셜티 원두", "최저가 표현", "정보형"));
+        }
+
+        @Test
+        @DisplayName("기본 정보를 건너뛰고 운영 정보만 저장해도 그 값이 LLM 요청에 실린다")
+        void carriesOperationValues_whenBasicInfoSkipped() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-store-operation");
+            fixture.saveStoreOperationInfo(signup.accessToken(), fixture.storeOperationInfoBody(
+                    List.of("MONDAY", "TUESDAY"), "09:00", "22:00", List.of("크루아상"), true, false, false))
+                .expectStatus().isNoContent();
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            assertThat(llmApi.recordedRequestBodies()).singleElement().satisfies(request -> assertThat(request)
+                .contains("영업일: 월요일, 화요일")
+                .contains("영업 시간: 09:00~22:00")
+                .contains("대표 메뉴: 크루아상")
+                .contains("편의 시설: 포장 가능")
+                .doesNotContain("매장명:", "매장 정보가 제공되지 않았다"));
+        }
+
+        @Test
+        @DisplayName("매장 정보를 채우지 않은 회원도 생성이 되고 매장 정보가 없다는 문구가 실린다")
+        void carriesNoStoreNotice_whenOnboardingSkipped() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-no-store");
+
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+
+            assertThat(llmApi.recordedRequestBodies()).singleElement()
+                .satisfies(request -> assertThat(request).contains("매장 정보가 제공되지 않았다"));
+            fixture.getGeneration(signup.accessToken(), generationId)
+                .expectStatus().isOk()
+                .expectBody(GenerationDetailResponse.class)
+                .value(body -> assertThat(body.status()).isEqualTo("SUCCEEDED"));
+        }
+
+        @Test
+        @DisplayName("채널을 여럿 고르면 모든 채널 요청이 같은 매장 값을 싣는다")
+        void carriesSameStoreValues_acrossChannels() {
+            SignupResponse signup = fixture.signupActiveMember("naver-gen-store-fanout");
+            fixture.saveStoreBasicInfo(signup.accessToken(), fixture.storeBasicInfoBody("보니스커피", "CAFE",
+                    "서울 중구 을지로 100", "을지로 크루아상 카페"))
+                .expectStatus().isNoContent();
+
+            fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM", "THREADS"));
+
+            assertThat(llmApi.recordedRequestBodies()).hasSize(3)
+                .allSatisfy(request -> assertThat(request).contains("매장명: 보니스커피"));
+        }
+    }
+
+    @Nested
     @DisplayName("사진 가이드")
     class PhotoGuide {
 

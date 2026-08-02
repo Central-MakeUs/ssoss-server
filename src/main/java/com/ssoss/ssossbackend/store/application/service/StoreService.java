@@ -22,6 +22,10 @@ public class StoreService {
         return StoreInfoResult.from(storeFinder.get(memberId));
     }
 
+    public StoreProfile getProfile(Long memberId) {
+        return StoreProfile.from(storeFinder.get(memberId));
+    }
+
     public void saveBasicInfo(StoreBasicInfoCommand command) {
         storeWriter.writeBasicInfo(storeFinder.get(command.memberId()), command.name(), command.type(),
             command.address(), command.introduction());
