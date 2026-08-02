@@ -30,7 +30,7 @@ public record ContentListResult(long totalCount, int page, int size, boolean has
                 content.getPurpose().name(),
                 content.getTone().name(),
                 ContentListTitle.of(card.representative()).value(),
-                card.representative().hashtagList().stream().limit(HASHTAG_LIMIT).toList());
+                card.hashtags().stream().limit(HASHTAG_LIMIT).toList());
         }
     }
 }
