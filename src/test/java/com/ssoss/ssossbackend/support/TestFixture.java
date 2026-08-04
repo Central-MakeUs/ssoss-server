@@ -14,6 +14,7 @@ import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListResponse;
+import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
 
 import org.springframework.http.HttpHeaders;
@@ -344,6 +345,20 @@ public class TestFixture {
 
     public void deletedContent(String accessToken, Long contentId) {
         deleteContent(accessToken, contentId).expectStatus().isNoContent();
+    }
+
+    public RestTestClient.ResponseSpec getHashtagBundles(String accessToken, String query) {
+        return client.get().uri("/v1/hashtag-bundles" + query)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public HashtagBundleListResponse hashtagBundleList(String accessToken, String query) {
+        return getHashtagBundles(accessToken, query)
+            .expectStatus().isOk()
+            .expectBody(HashtagBundleListResponse.class)
+            .returnResult()
+            .getResponseBody();
     }
 
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
