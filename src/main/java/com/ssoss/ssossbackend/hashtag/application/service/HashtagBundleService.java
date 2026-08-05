@@ -31,4 +31,8 @@ public class HashtagBundleService {
     public void bookmark(Long memberId, Long bundleId) {
         hashtagBundleBookmarkWriter.bookmark(hashtagBundleFinder.get(bundleId), memberId);
     }
+
+    public void unbookmark(Long memberId, Long bundleId) {
+        hashtagBundleBookmarkWriter.unbookmark(memberId, bundleId);
+    }
 }

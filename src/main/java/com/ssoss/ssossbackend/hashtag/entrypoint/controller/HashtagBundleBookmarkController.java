@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -36,5 +37,15 @@ class HashtagBundleBookmarkController implements HashtagBundleBookmarkApi {
         @PathVariable Long bundleId
     ) {
         hashtagBundleService.bookmark(memberId, bundleId);
+    }
+
+    @Override
+    @DeleteMapping("/v1/members/me/hashtag-bundles/{bundleId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unbookmark(
+        @AuthenticationPrincipal Long memberId,
+        @PathVariable Long bundleId
+    ) {
+        hashtagBundleService.unbookmark(memberId, bundleId);
     }
 }
