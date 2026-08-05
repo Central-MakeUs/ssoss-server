@@ -26,4 +26,13 @@ public class HashtagBundleBookmarkWriter {
         }
         hashtagBundleBookmarkRepository.save(bookmark);
     }
+
+    public void unbookmark(Long memberId, Long bundleId) {
+        hashtagBundleBookmarkRepository.findByMemberIdAndBundleId(memberId, bundleId)
+            .ifPresent(bookmark -> {
+                if (bookmark.unbookmark()) {
+                    hashtagBundleBookmarkRepository.save(bookmark);
+                }
+            });
+    }
 }
