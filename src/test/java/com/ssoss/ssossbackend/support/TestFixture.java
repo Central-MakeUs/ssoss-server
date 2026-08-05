@@ -14,6 +14,7 @@ import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListResponse;
+import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
 
@@ -357,6 +358,20 @@ public class TestFixture {
         return getHashtagBundles(accessToken, query)
             .expectStatus().isOk()
             .expectBody(HashtagBundleListResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public RestTestClient.ResponseSpec getBookmarkedHashtagBundles(String accessToken) {
+        return client.get().uri("/v1/members/me/hashtag-bundles")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public BookmarkedHashtagBundleListResponse bookmarkedHashtagBundleList(String accessToken) {
+        return getBookmarkedHashtagBundles(accessToken)
+            .expectStatus().isOk()
+            .expectBody(BookmarkedHashtagBundleListResponse.class)
             .returnResult()
             .getResponseBody();
     }
