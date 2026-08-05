@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.ssoss.ssossbackend.hashtag.application.result.HashtagBundleListResult;
 import com.ssoss.ssossbackend.hashtag.application.result.HashtagBundleResult;
+import com.ssoss.ssossbackend.hashtag.domain.service.HashtagBundleBookmarkWriter;
 import com.ssoss.ssossbackend.hashtag.domain.service.HashtagBundleFinder;
 
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 public class HashtagBundleService {
 
     private final HashtagBundleFinder hashtagBundleFinder;
+    private final HashtagBundleBookmarkWriter hashtagBundleBookmarkWriter;
 
     public HashtagBundleListResult list(int page, int size) {
         return HashtagBundleListResult.from(hashtagBundleFinder.list(page, size));
@@ -24,5 +26,9 @@ public class HashtagBundleService {
         return hashtagBundleFinder.listBookmarked(memberId).stream()
             .map(HashtagBundleResult::from)
             .toList();
+    }
+
+    public void bookmark(Long memberId, Long bundleId) {
+        hashtagBundleBookmarkWriter.bookmark(hashtagBundleFinder.get(bundleId), memberId);
     }
 }

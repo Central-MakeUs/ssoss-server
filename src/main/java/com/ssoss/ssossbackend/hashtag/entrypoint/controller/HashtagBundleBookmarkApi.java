@@ -62,4 +62,35 @@ interface HashtagBundleBookmarkApi {
                     """)))
     })
     BookmarkedHashtagBundleListResponse listBookmarked(Long memberId);
+
+    @Operation(
+        summary = "해시태그 묶음 북마크 저장",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            해시태그 묶음을 회원의 북마크 목록에 담습니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 이며, 토큰의 회원 목록에 담깁니다.
+            - 담은 묶음은 내 북마크 해시태그 묶음 목록 조회에 나타납니다.
+            - 이미 담아 둔 묶음을 다시 호출해도 204 이고 목록에는 하나만 남습니다. 재시도해도 결과가 같습니다.
+            - 없는 묶음을 담으려 하면 404(HT0001)입니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "북마크했습니다"),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404", description = "해시태그 묶음을 찾을 수 없습니다 (HT0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"HT0001","message":"해시태그 묶음을 찾을 수 없습니다"}
+                    """)))
+    })
+    void bookmark(Long memberId, Long bundleId);
 }
