@@ -376,6 +376,16 @@ public class TestFixture {
             .getResponseBody();
     }
 
+    public RestTestClient.ResponseSpec bookmarkHashtagBundle(String accessToken, Long bundleId) {
+        return client.put().uri("/v1/members/me/hashtag-bundles/" + bundleId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public void bookmarkedHashtagBundle(String accessToken, Long bundleId) {
+        bookmarkHashtagBundle(accessToken, bundleId).expectStatus().isNoContent();
+    }
+
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
         return client.post().uri("/v1/tokens")
             .contentType(MediaType.APPLICATION_JSON)

@@ -6,6 +6,8 @@ import com.ssoss.ssossbackend.hashtag.domain.contract.HashtagBundleBookmarkRepos
 import com.ssoss.ssossbackend.hashtag.domain.contract.HashtagBundleRepository;
 import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundle;
 import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundleBookmark;
+import com.ssoss.ssossbackend.hashtag.domain.model.HashtagErrorCode;
+import com.ssoss.ssossbackend.shared.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +27,11 @@ public class HashtagBundleFinder {
 
     public Page<HashtagBundle> list(int page, int size) {
         return hashtagBundleRepository.findAll(PageRequest.of(page, size, LATEST_FIRST));
+    }
+
+    public HashtagBundle get(Long bundleId) {
+        return hashtagBundleRepository.findById(bundleId)
+            .orElseThrow(() -> new BusinessException(HashtagErrorCode.HASHTAG_BUNDLE_NOT_FOUND));
     }
 
     public List<HashtagBundle> listBookmarked(Long memberId) {

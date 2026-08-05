@@ -31,4 +31,16 @@ public class HashtagBundleBookmark {
         this.bundleId = bundleId;
         this.bookmarkedAt = bookmarkedAt;
     }
+
+    public static HashtagBundleBookmark create(Long memberId, Long bundleId) {
+        return new HashtagBundleBookmark(null, memberId, bundleId, null);
+    }
+
+    public boolean bookmark(Instant bookmarkedAt) {
+        if (this.bookmarkedAt != null) {
+            return false;
+        }
+        this.bookmarkedAt = bookmarkedAt;
+        return true;
+    }
 }
