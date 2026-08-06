@@ -11,7 +11,6 @@ import com.ssoss.ssossbackend.hashtag.domain.model.HashtagErrorCode;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleResponse;
-import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("해시태그 묶음 북마크 API")
@@ -28,9 +26,6 @@ class HashtagBundleBookmarkApiTest extends IntegrationTest {
 
     @Autowired
     private HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository;
-
-    @Autowired
-    private MemberRepository memberRepository;
 
     @Nested
     @DisplayName("GET /v1/members/me/hashtag-bundles")
@@ -195,7 +190,7 @@ class HashtagBundleBookmarkApiTest extends IntegrationTest {
             fixture.unbookmarkedHashtagBundle(signup.accessToken(), bundle.id());
 
             assertThat(hashtagBundleBookmarkRepository
-                .findByMemberIdAndBundleId(memberIdOf("naver-unbookmark-row"), bundle.id()))
+                .findByMemberIdAndBundleId(database.memberIdOf("naver-unbookmark-row"), bundle.id()))
                 .get()
                 .extracting(HashtagBundleBookmark::getBookmarkedAt)
                 .isNull();
@@ -239,7 +234,7 @@ class HashtagBundleBookmarkApiTest extends IntegrationTest {
                 .expectStatus().isNoContent();
 
             assertThat(hashtagBundleBookmarkRepository
-                .findByMemberIdAndBundleId(memberIdOf("naver-unbookmark-never"), bundle.id()))
+                .findByMemberIdAndBundleId(database.memberIdOf("naver-unbookmark-never"), bundle.id()))
                 .isEmpty();
         }
 
@@ -288,9 +283,5 @@ class HashtagBundleBookmarkApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
         }
-    }
-
-    private Long memberIdOf(String socialId) {
-        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
     }
 }
