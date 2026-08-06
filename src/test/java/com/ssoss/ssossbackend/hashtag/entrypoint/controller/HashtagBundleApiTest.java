@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.hashtag.entrypoint.controller;
 
 import java.util.Comparator;
+import java.util.List;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
@@ -203,6 +204,200 @@ class HashtagBundleApiTest extends IntegrationTest {
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /v1/hashtag-bundles?keyword=")
+    class SearchBundles {
+
+        private static final String BY_KEYWORD = "?keyword={keyword}";
+
+        @Test
+        @DisplayName("묶음 이름에만 있는 말로 검색하면 그 묶음만 남는다")
+        void keepsBundleMatchedByName_whenKeywordHitsNameOnly() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-name");
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "홍보");
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.bundles()).singleElement().satisfies(bundle -> {
+                assertThat(bundle.name()).isEqualTo("이벤트/할인 홍보");
+                assertThat(bundle.hashtags()).noneMatch(hashtag -> hashtag.contains("홍보"));
+            });
+        }
+
+        @Test
+        @DisplayName("태그를 통째로 쳐서 검색하면 그 태그를 가진 묶음이 남는다")
+        void keepsBundleMatchedByWholeHashtag_whenKeywordIsHashtag() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-tag");
+
+            HashtagBundleListResponse body =
+                fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "#콘센트많은카페");
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.bundles()).singleElement().satisfies(bundle -> {
+                assertThat(bundle.name()).isEqualTo("카공 카페");
+                assertThat(bundle.hashtags()).contains("#콘센트많은카페");
+            });
+        }
+
+        @Test
+        @DisplayName("태그 일부만 쳐서 검색해도 그 태그를 가진 묶음이 남는다")
+        void keepsBundleMatchedByHashtagFragment_whenKeywordIsPartial() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-partial");
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "콘센트");
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.bundles()).singleElement().satisfies(bundle -> {
+                assertThat(bundle.name()).doesNotContain("콘센트");
+                assertThat(bundle.hashtags()).anyMatch(hashtag -> hashtag.contains("콘센트"));
+            });
+        }
+
+        @Test
+        @DisplayName("어디에도 없는 말로 검색하면 빈 목록과 totalCount 0 이 온다")
+        void returnsEmptyList_whenKeywordMatchesNothing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-none");
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "없는말");
+
+            assertThat(body.totalCount()).isZero();
+            assertThat(body.bundles()).isEmpty();
+            assertThat(body.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("keyword 를 비워 보내면 전체 목록이 내려온다")
+        void returnsEveryBundle_whenKeywordIsEmpty() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-empty");
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "");
+
+            assertThat(body.totalCount())
+                .isEqualTo(fixture.hashtagBundleList(signup.accessToken(), "").totalCount());
+            assertThat(body.bundles()).extracting(HashtagBundleResponse::name)
+                .contains("카공 카페", "이벤트/할인 홍보", "동네 고객 유입 해시태그");
+        }
+
+        @Test
+        @DisplayName("공백만 보내도 전체 목록이 내려온다")
+        void returnsEveryBundle_whenKeywordIsBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-blank");
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "  ");
+
+            assertThat(body.totalCount())
+                .isEqualTo(fixture.hashtagBundleList(signup.accessToken(), "").totalCount());
+            assertThat(body.bundles()).extracting(HashtagBundleResponse::name)
+                .contains("카공 카페", "이벤트/할인 홍보", "동네 고객 유입 해시태그");
+        }
+
+        @Test
+        @DisplayName("검색어 앞뒤 공백은 무시하고 거른다")
+        void ignoresSurroundingSpaces_whenKeywordIsPadded() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-padded");
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, " 콘센트 ");
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.bundles()).singleElement()
+                .satisfies(bundle -> assertThat(bundle.name()).isEqualTo("카공 카페"));
+        }
+
+        @Test
+        @DisplayName("여러 묶음이 걸리면 걸린 것만 id 역순으로 담긴다")
+        void ordersMatchedBundlesByIdDescending_whenKeywordHitsSeveral() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-order");
+
+            HashtagBundleListResponse body =
+                fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD + "&size=50", "카페");
+
+            assertThat(body.bundles()).hasSizeGreaterThan(1);
+            assertThat(body.hasNext()).isFalse();
+            assertThat(body.totalCount()).isEqualTo(body.bundles().size());
+            assertThat(body.bundles()).extracting(HashtagBundleResponse::id)
+                .isSortedAccordingTo(Comparator.reverseOrder());
+            assertThat(body.bundles()).allSatisfy(bundle ->
+                assertThat(bundle.name().contains("카페")
+                    || bundle.hashtags().stream().anyMatch(hashtag -> hashtag.contains("카페"))).isTrue());
+            assertThat(body.bundles()).extracting(HashtagBundleResponse::name)
+                .doesNotContain("이벤트/할인 홍보");
+        }
+
+        @Test
+        @DisplayName("검색 결과에도 페이징이 그대로 동작하고 totalCount 는 걸러진 개수다")
+        void pagesThroughMatchedBundles_whenKeywordGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-paged");
+            HashtagBundleListResponse all =
+                fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD + "&size=50", "카페");
+            List<Long> matchedIds = all.bundles().stream().map(HashtagBundleResponse::id).toList();
+
+            HashtagBundleListResponse first =
+                fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD + "&size=1", "카페");
+            HashtagBundleListResponse second =
+                fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD + "&size=1&page=1", "카페");
+
+            assertThat(all.hasNext()).isFalse();
+            assertThat(first.totalCount()).isEqualTo(matchedIds.size());
+            assertThat(first.hasNext()).isTrue();
+            assertThat(first.bundles()).singleElement()
+                .satisfies(bundle -> assertThat(bundle.id()).isEqualTo(matchedIds.getFirst()));
+            assertThat(second.totalCount()).isEqualTo(matchedIds.size());
+            assertThat(second.page()).isEqualTo(1);
+            assertThat(second.bundles()).singleElement()
+                .satisfies(bundle -> assertThat(bundle.id()).isEqualTo(matchedIds.get(1)));
+        }
+
+        @Test
+        @DisplayName("와일드카드 문자를 쳐도 글자 그대로 찾는다")
+        void treatsWildcardAsPlainText_whenKeywordHasWildcard() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-wildcard");
+
+            HashtagBundleListResponse percent = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "%");
+            HashtagBundleListResponse underscore = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "_");
+
+            assertThat(percent.totalCount()).isZero();
+            assertThat(percent.bundles()).isEmpty();
+            assertThat(underscore.totalCount()).isZero();
+            assertThat(underscore.bundles()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("태그를 담은 JSON 의 구두점은 검색 대상이 아니다")
+        void ignoresJsonPunctuation_whenKeywordIsSeparator() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-json");
+
+            assertThat(fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, ",").bundles()).isEmpty();
+            assertThat(fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "\"").bundles()).isEmpty();
+            assertThat(fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "[").bundles()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("태그 경계를 넘는 말은 걸리지 않는다")
+        void ignoresMatchAcrossHashtagBoundary_whenKeywordSpansTwoTags() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-boundary");
+
+            HashtagBundleListResponse body =
+                fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "카페\", \"#노트북");
+
+            assertThat(body.totalCount()).isZero();
+            assertThat(body.bundles()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("검색 결과에도 bookmarked 가 그대로 실린다")
+        void carriesBookmarkedFlag_whenKeywordGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-search-marked");
+            HashtagBundleResponse target =
+                fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "콘센트").bundles().getFirst();
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), target.id());
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), BY_KEYWORD, "콘센트");
+
+            assertThat(body.bundles()).singleElement()
+                .satisfies(bundle -> assertThat(bundle.bookmarked()).isTrue());
         }
     }
 }

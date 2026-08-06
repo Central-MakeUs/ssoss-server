@@ -27,7 +27,7 @@ class HashtagBundleController implements HashtagBundleApi {
         @AuthenticationPrincipal Long memberId,
         @Valid @ParameterObject HashtagBundleListRequest request
     ) {
-        HashtagBundleListResult result = hashtagBundleService.list(memberId, request.page(), request.size());
+        HashtagBundleListResult result = hashtagBundleService.list(request.toCommand(memberId));
         return new HashtagBundleListResponse(result.totalCount(), result.page(), result.size(), result.hasNext(),
             result.bundles().stream()
                 .map(bundle -> new HashtagBundleResponse(bundle.id(), bundle.name(), bundle.hashtags(),

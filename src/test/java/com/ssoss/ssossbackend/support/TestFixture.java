@@ -348,14 +348,14 @@ public class TestFixture {
         deleteContent(accessToken, contentId).expectStatus().isNoContent();
     }
 
-    public RestTestClient.ResponseSpec getHashtagBundles(String accessToken, String query) {
-        return client.get().uri("/v1/hashtag-bundles" + query)
+    public RestTestClient.ResponseSpec getHashtagBundles(String accessToken, String query, Object... uriVariables) {
+        return client.get().uri("/v1/hashtag-bundles" + query, uriVariables)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .exchange();
     }
 
-    public HashtagBundleListResponse hashtagBundleList(String accessToken, String query) {
-        return getHashtagBundles(accessToken, query)
+    public HashtagBundleListResponse hashtagBundleList(String accessToken, String query, Object... uriVariables) {
+        return getHashtagBundles(accessToken, query, uriVariables)
             .expectStatus().isOk()
             .expectBody(HashtagBundleListResponse.class)
             .returnResult()
