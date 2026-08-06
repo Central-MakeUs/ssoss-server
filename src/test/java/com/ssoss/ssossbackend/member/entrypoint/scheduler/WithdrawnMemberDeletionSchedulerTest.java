@@ -134,7 +134,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         void deletesMemberWithRelatedRows_whenGracePeriodHasPassed() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-due");
             Long memberId = memberIdOf("naver-delete-due");
-            Long bundleId = firstBundleIdOf(signup.accessToken());
+            Long bundleId = fixture.firstBundleId(signup.accessToken());
             fixture.bookmarkedHashtagBundle(signup.accessToken(), bundleId);
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
@@ -223,7 +223,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         void deletesUnbookmarkedRow_whenMemberIsDeleted() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-bookmark-released");
             Long memberId = memberIdOf("naver-delete-bookmark-released");
-            Long bundleId = firstBundleIdOf(signup.accessToken());
+            Long bundleId = fixture.firstBundleId(signup.accessToken());
             fixture.bookmarkedHashtagBundle(signup.accessToken(), bundleId);
             fixture.unbookmarkedHashtagBundle(signup.accessToken(), bundleId);
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
@@ -255,7 +255,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             SignupResponse kept = fixture.signupActiveMember("naver-delete-bookmark-kept");
             Long dueId = memberIdOf("naver-delete-bookmark-due");
             Long keptId = memberIdOf("naver-delete-bookmark-kept");
-            Long bundleId = firstBundleIdOf(due.accessToken());
+            Long bundleId = fixture.firstBundleId(due.accessToken());
             fixture.bookmarkedHashtagBundle(due.accessToken(), bundleId);
             fixture.bookmarkedHashtagBundle(kept.accessToken(), bundleId);
             fixture.withdraw(due.accessToken()).expectStatus().isNoContent();
@@ -531,10 +531,6 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         return hashtagBundleBookmarkRepository.findAll().stream()
             .filter(bookmark -> bookmark.getMemberId().equals(memberId))
             .toList();
-    }
-
-    private Long firstBundleIdOf(String accessToken) {
-        return fixture.hashtagBundleList(accessToken, "").bundles().getFirst().id();
     }
 
     private List<Generation> generationsOf(Long memberId) {

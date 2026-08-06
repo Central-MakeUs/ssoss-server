@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.support;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -29,10 +30,12 @@ public class TestFixture {
 
     private final RestTestClient client;
     private final TestNaverApi naverApi;
+    private final MutableClock clock;
 
-    TestFixture(RestTestClient client, TestNaverApi naverApi) {
+    TestFixture(RestTestClient client, TestNaverApi naverApi, MutableClock clock) {
         this.client = client;
         this.naverApi = naverApi;
+        this.clock = clock;
     }
 
     public RestTestClient client() {
@@ -319,6 +322,12 @@ public class TestFixture {
         return contentsOfGeneration(accessToken, generationId).contentId();
     }
 
+    public Long savedContentId(String accessToken, List<String> channels) {
+        Long contentId = savedContentId(accessToken, startedGenerationId(accessToken, channels));
+        clock.advanceBy(Duration.ofMinutes(1));
+        return contentId;
+    }
+
     public RestTestClient.ResponseSpec getContents(String accessToken, String query) {
         return client.get().uri("/v1/contents" + query)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -378,6 +387,10 @@ public class TestFixture {
             .expectBody(HashtagBundleListResponse.class)
             .returnResult()
             .getResponseBody();
+    }
+
+    public Long firstBundleId(String accessToken) {
+        return hashtagBundleList(accessToken, "").bundles().getFirst().id();
     }
 
     public RestTestClient.ResponseSpec getBookmarkedHashtagBundles(String accessToken) {
