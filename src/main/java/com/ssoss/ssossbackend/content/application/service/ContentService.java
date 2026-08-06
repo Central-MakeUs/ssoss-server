@@ -18,6 +18,7 @@ import com.ssoss.ssossbackend.content.domain.service.ContentFinder;
 import com.ssoss.ssossbackend.content.domain.service.ContentWriter;
 import com.ssoss.ssossbackend.content.domain.service.GenerationFinder;
 import com.ssoss.ssossbackend.content.domain.service.GenerationValidator;
+import com.ssoss.ssossbackend.content.domain.service.GenerationWriter;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +30,7 @@ public class ContentService {
 
     private final GenerationFinder generationFinder;
     private final GenerationValidator generationValidator;
+    private final GenerationWriter generationWriter;
     private final ContentWriter contentWriter;
     private final ContentFinder contentFinder;
 
@@ -51,6 +53,11 @@ public class ContentService {
 
     public void delete(Long contentId, Long memberId) {
         contentWriter.delete(contentFinder.get(contentId, memberId));
+    }
+
+    public void deleteAllByMemberId(Long memberId) {
+        contentWriter.deleteAllByMemberId(memberId);
+        generationWriter.deleteAllByMemberId(memberId);
     }
 
     public ContentListResult list(ContentListCommand command) {

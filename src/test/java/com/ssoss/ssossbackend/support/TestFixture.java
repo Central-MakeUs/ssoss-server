@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
+import com.ssoss.ssossbackend.auth.entrypoint.response.RecoveryResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
@@ -105,6 +106,14 @@ public class TestFixture {
         return client.post().uri("/v1/members/me/recovery")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .exchange();
+    }
+
+    public RecoveryResponse recovered(String accessToken) {
+        return recover(accessToken)
+            .expectStatus().isOk()
+            .expectBody(RecoveryResponse.class)
+            .returnResult()
+            .getResponseBody();
     }
 
     public RestTestClient.ResponseSpec creditBalance(String accessToken) {

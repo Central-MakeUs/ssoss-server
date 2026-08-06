@@ -14,4 +14,6 @@ interface GenerationLockQueries extends Repository<GenerationLock, Long> {
     @Query("INSERT INTO generation_lock (member_id, created_at) VALUES (:memberId, :acquiredAt) "
         + "ON DUPLICATE KEY UPDATE member_id = member_id")
     void acquire(Long memberId, Instant acquiredAt);
+
+    void deleteAllByMemberId(Long memberId);
 }

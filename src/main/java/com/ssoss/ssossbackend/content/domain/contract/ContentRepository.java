@@ -16,4 +16,6 @@ public interface ContentRepository extends ListCrudRepository<Content, Long> {
     Page<Content> findAllByMemberIdAndDeletedAtIsNull(Long memberId, Pageable pageable);
 
     Optional<Content> findBySourceTypeAndSourceId(ContentSource sourceType, Long sourceId);
+
+    void deleteAllByMemberId(Long memberId);
 }

@@ -1,7 +1,9 @@
 package com.ssoss.ssossbackend.content.domain.service;
 
 import java.time.Clock;
+import java.util.List;
 
+import com.ssoss.ssossbackend.content.domain.contract.GenerationLockRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationResultRepository;
 import com.ssoss.ssossbackend.content.domain.model.Channel;
@@ -25,6 +27,7 @@ public class GenerationWriter {
 
     private final GenerationRepository generationRepository;
     private final GenerationResultRepository generationResultRepository;
+    private final GenerationLockRepository generationLockRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
@@ -54,6 +57,18 @@ public class GenerationWriter {
         long responseTimeMillis, Integer inputTokens, Integer outputTokens, String rawResponse) {
         generationResultRepository.save(GenerationResult.failed(generation.getId(), channel, status,
             responseTimeMillis, inputTokens, outputTokens, rawResponse));
+    }
+
+    @Transactional
+    public void deleteAllByMemberId(Long memberId) {
+        List<Long> generationIds = generationRepository.findAllByMemberId(memberId).stream()
+            .map(Generation::getId)
+            .toList();
+        if (!generationIds.isEmpty()) {
+            generationResultRepository.deleteAllByGenerationIdIn(generationIds);
+        }
+        generationRepository.deleteAllByMemberId(memberId);
+        generationLockRepository.deleteAllByMemberId(memberId);
     }
 
     @Transactional

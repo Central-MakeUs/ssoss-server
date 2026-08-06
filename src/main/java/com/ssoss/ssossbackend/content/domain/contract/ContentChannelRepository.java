@@ -21,4 +21,8 @@ public interface ContentChannelRepository extends ListCrudRepository<ContentChan
         Long memberId, Channel channel, Pageable pageable);
 
     List<ContentChannelView> findViewsByContentIdInAndDeletedAtIsNull(Collection<Long> contentIds);
+
+    List<ContentChannel> findAllByMemberId(Long memberId);
+
+    void deleteAllByMemberId(Long memberId);
 }
