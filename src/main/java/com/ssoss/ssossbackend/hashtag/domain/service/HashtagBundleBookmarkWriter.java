@@ -35,4 +35,8 @@ public class HashtagBundleBookmarkWriter {
                 }
             });
     }
+
+    public void deleteAllByMemberId(Long memberId) {
+        hashtagBundleBookmarkRepository.deleteAllByMemberId(memberId);
+    }
 }

@@ -15,4 +15,6 @@ public interface HashtagBundleBookmarkRepository extends ListCrudRepository<Hash
         Long memberId, List<Long> bundleIds);
 
     Optional<HashtagBundleBookmark> findByMemberIdAndBundleId(Long memberId, Long bundleId);
+
+    void deleteAllByMemberId(Long memberId);
 }

@@ -11,6 +11,8 @@ import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
 import com.ssoss.ssossbackend.credit.domain.contract.CreditRepository;
 import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
+import com.ssoss.ssossbackend.hashtag.domain.contract.HashtagBundleBookmarkRepository;
+import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundleBookmark;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberTermRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepository;
@@ -68,6 +70,9 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     @Autowired
     private StoreRepository storeRepository;
 
+    @Autowired
+    private HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository;
+
     @BeforeEach
     void resetDatabase() {
         memberWithdrawalHistoryRepository.deleteAll();
@@ -78,6 +83,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         creditLedgerRepository.deleteAll();
         creditRepository.deleteAll();
         storeRepository.deleteAll();
+        hashtagBundleBookmarkRepository.deleteAll();
         memberRepository.deleteAll();
     }
 
@@ -86,10 +92,12 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     class DeleteWithdrawnMembers {
 
         @Test
-        @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 회원·약관 동의·refresh token·매장이 모두 삭제된다")
+        @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 회원·약관 동의·refresh token·매장·북마크가 모두 삭제된다")
         void deletesMemberWithRelatedRows_whenGracePeriodHasPassed() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-due");
             Long memberId = memberIdOf("naver-delete-due");
+            Long bundleId = firstBundleIdOf(signup.accessToken());
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), bundleId);
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             clock.advanceBy(PAST_GRACE_PERIOD);
@@ -99,6 +107,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             assertThat(termsOf(memberId)).isEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isEmpty();
             assertThat(storeRepository.findByMemberId(memberId)).isEmpty();
+            assertThat(bookmarksOf(memberId)).isEmpty();
         }
 
         @Test
@@ -169,6 +178,56 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
 
             assertThat(creditRepository.findByMemberId(memberId)).isEmpty();
             assertThat(ledgerOf(memberId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("북마크를 해제해 남은 행도 회원이 삭제되면 함께 사라진다")
+        void deletesUnbookmarkedRow_whenMemberIsDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-bookmark-released");
+            Long memberId = memberIdOf("naver-delete-bookmark-released");
+            Long bundleId = firstBundleIdOf(signup.accessToken());
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), bundleId);
+            fixture.unbookmarkedHashtagBundle(signup.accessToken(), bundleId);
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(bookmarksOf(memberId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("북마크가 하나도 없는 회원도 문제 없이 삭제된다")
+        void deletesMember_whenMemberHasNoBookmark() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-bookmark-none");
+            Long memberId = memberIdOf("naver-delete-bookmark-none");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(memberRepository.findById(memberId)).isEmpty();
+            assertThat(bookmarksOf(memberId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("탈퇴 회원의 북마크가 삭제돼도 다른 회원의 같은 묶음 북마크는 남는다")
+        void keepsOtherMembersBookmark_whenMemberIsDeleted() {
+            SignupResponse due = fixture.signupActiveMember("naver-delete-bookmark-due");
+            SignupResponse kept = fixture.signupActiveMember("naver-delete-bookmark-kept");
+            Long dueId = memberIdOf("naver-delete-bookmark-due");
+            Long keptId = memberIdOf("naver-delete-bookmark-kept");
+            Long bundleId = firstBundleIdOf(due.accessToken());
+            fixture.bookmarkedHashtagBundle(due.accessToken(), bundleId);
+            fixture.bookmarkedHashtagBundle(kept.accessToken(), bundleId);
+            fixture.withdraw(due.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(bookmarksOf(dueId)).isEmpty();
+            assertThat(bookmarksOf(keptId)).singleElement()
+                .satisfies(bookmark -> assertThat(bookmark.getBundleId()).isEqualTo(bundleId));
         }
 
         @Test
@@ -334,5 +393,15 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         return creditLedgerRepository.findAll().stream()
             .filter(entry -> entry.getMemberId().equals(memberId))
             .toList();
+    }
+
+    private List<HashtagBundleBookmark> bookmarksOf(Long memberId) {
+        return hashtagBundleBookmarkRepository.findAll().stream()
+            .filter(bookmark -> bookmark.getMemberId().equals(memberId))
+            .toList();
+    }
+
+    private Long firstBundleIdOf(String accessToken) {
+        return fixture.hashtagBundleList(accessToken, "").bundles().getFirst().id();
     }
 }
