@@ -9,13 +9,16 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Import({TestcontainersConfiguration.class, TestSecurityConfig.class, TestFixtureConfig.class, TestNaverApiConfig.class,
-    TestAppleApiConfig.class, TestClockConfig.class, FailingMemberDeletedListenerConfig.class, TestLlmApiConfig.class,
-    TestTaskExecutorConfig.class})
+@Import({TestcontainersConfiguration.class, TestSecurityConfig.class, TestFixtureConfig.class, TestDatabase.class,
+    TestNaverApiConfig.class, TestAppleApiConfig.class, TestClockConfig.class, FailingMemberDeletedListenerConfig.class,
+    TestLlmApiConfig.class, TestTaskExecutorConfig.class})
 public abstract class IntegrationTest {
 
     @Autowired
     protected TestFixture fixture;
+
+    @Autowired
+    protected TestDatabase database;
 
     @Autowired
     protected TestNaverApi naverApi;

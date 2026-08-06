@@ -6,14 +6,12 @@ import java.util.List;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
-import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
 import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
 import com.ssoss.ssossbackend.credit.domain.model.CreditLedgerType;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditBalanceResponse;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListResponse;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerResponse;
 import com.ssoss.ssossbackend.credit.entrypoint.scheduler.CreditCycleScheduler;
-import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
@@ -23,7 +21,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("크레딧 내역 조회 API")
@@ -31,12 +28,6 @@ class CreditLedgerApiTest extends IntegrationTest {
 
     private static final Instant AUGUST_CYCLE = Instant.parse("2099-08-10T00:00:00Z");
     private static final Instant SEPTEMBER_CYCLE = Instant.parse("2099-09-05T00:00:00Z");
-
-    @Autowired
-    private MemberRepository memberRepository;
-
-    @Autowired
-    private CreditLedgerRepository creditLedgerRepository;
 
     @Autowired
     private CreditCycleScheduler creditCycleScheduler;
@@ -295,11 +286,11 @@ class CreditLedgerApiTest extends IntegrationTest {
         void keepsExpireRowWithCycleMonthDescription_whenFreeCreditExpired() {
             clock.moveTo(AUGUST_CYCLE);
             fixture.signupActiveMember("naver-ledger-hidden-expire");
-            Long memberId = memberIdOf("naver-ledger-hidden-expire");
+            Long memberId = database.memberIdOf("naver-ledger-hidden-expire");
             clock.moveTo(SEPTEMBER_CYCLE);
             creditCycleScheduler.renewCycles();
 
-            List<CreditLedger> entries = ledgerOf(memberId);
+            List<CreditLedger> entries = database.ledgerOf(memberId);
 
             assertThat(entries).filteredOn(entry -> entry.getType() == CreditLedgerType.EXPIRE)
                 .singleElement()
@@ -313,15 +304,5 @@ class CreditLedgerApiTest extends IntegrationTest {
                 .expectBody(CreditBalanceResponse.class)
                 .value(body -> assertThat(body.balance()).isEqualTo(ledgerSum));
         }
-    }
-
-    private Long memberIdOf(String socialId) {
-        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
-    }
-
-    private List<CreditLedger> ledgerOf(Long memberId) {
-        return creditLedgerRepository.findAll().stream()
-            .filter(entry -> entry.getMemberId().equals(memberId))
-            .toList();
     }
 }

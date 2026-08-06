@@ -1,7 +1,6 @@
 package com.ssoss.ssossbackend.store.entrypoint.listener;
 
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
-import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.store.domain.model.Amenities;
 import com.ssoss.ssossbackend.support.IntegrationTest;
@@ -11,14 +10,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("매장 생성 리스너")
 class StoreMemberActivatedListenerTest extends IntegrationTest {
-
-    @Autowired
-    private MemberRepository memberRepository;
 
     @Autowired
     private StoreRepository storeRepository;
@@ -32,7 +27,7 @@ class StoreMemberActivatedListenerTest extends IntegrationTest {
         void createsEmptyStore_whenMemberSignsUp() {
             fixture.signupActiveMember("naver-store-created");
 
-            Long memberId = memberIdOf("naver-store-created");
+            Long memberId = database.memberIdOf("naver-store-created");
 
             assertThat(storeRepository.findByMemberId(memberId))
                 .get()
@@ -63,7 +58,7 @@ class StoreMemberActivatedListenerTest extends IntegrationTest {
         void hasNoStore_whenMemberOnlyLoggedIn() {
             fixture.naverLoginMember("naver-store-pending");
 
-            Long memberId = memberIdOf("naver-store-pending");
+            Long memberId = database.memberIdOf("naver-store-pending");
 
             assertThat(storeRepository.findByMemberId(memberId)).isEmpty();
         }
@@ -77,7 +72,7 @@ class StoreMemberActivatedListenerTest extends IntegrationTest {
         @DisplayName("가입 때 만들어진 매장 행이 그대로 남는다")
         void keepsSameStore_whenWithdrawnMemberRecovers() {
             SignupResponse signup = fixture.signupActiveMember("naver-store-recovered");
-            Long memberId = memberIdOf("naver-store-recovered");
+            Long memberId = database.memberIdOf("naver-store-recovered");
             Long storeId = storeRepository.findByMemberId(memberId).orElseThrow().getId();
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
             String withdrawnAccessToken = fixture.naverLoginMember("naver-store-recovered").accessToken();
@@ -88,9 +83,5 @@ class StoreMemberActivatedListenerTest extends IntegrationTest {
                 .get()
                 .satisfies(store -> assertThat(store.getId()).isEqualTo(storeId));
         }
-    }
-
-    private Long memberIdOf(String socialId) {
-        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
     }
 }

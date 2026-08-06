@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.StreamSupport;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
 import com.ssoss.ssossbackend.auth.domain.contract.SocialLoginRepository;
@@ -14,25 +13,17 @@ import com.ssoss.ssossbackend.content.domain.contract.ContentChannelRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationResultRepository;
-import com.ssoss.ssossbackend.content.domain.model.Content;
-import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
-import com.ssoss.ssossbackend.content.domain.model.ContentChannelHistory;
-import com.ssoss.ssossbackend.content.domain.model.Generation;
-import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
 import com.ssoss.ssossbackend.credit.domain.contract.CreditRepository;
-import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditBalanceResponse;
 import com.ssoss.ssossbackend.hashtag.domain.contract.HashtagBundleBookmarkRepository;
-import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundleBookmark;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberTermRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalHistoryRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberWithdrawalReasonRepository;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
-import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.member.domain.model.WithdrawalReason;
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.support.IntegrationTest;
@@ -133,7 +124,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 회원·약관 동의·refresh token·매장·북마크가 모두 삭제된다")
         void deletesMemberWithRelatedRows_whenGracePeriodHasPassed() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-due");
-            Long memberId = memberIdOf("naver-delete-due");
+            Long memberId = database.memberIdOf("naver-delete-due");
             Long bundleId = fixture.firstBundleId(signup.accessToken());
             fixture.bookmarkedHashtagBundle(signup.accessToken(), bundleId);
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
@@ -142,17 +133,17 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-delete-due")).isEmpty();
-            assertThat(termsOf(memberId)).isEmpty();
+            assertThat(database.termsOf(memberId)).isEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isEmpty();
             assertThat(storeRepository.findByMemberId(memberId)).isEmpty();
-            assertThat(bookmarksOf(memberId)).isEmpty();
+            assertThat(database.bookmarksOf(memberId)).isEmpty();
         }
 
         @Test
         @DisplayName("탈퇴 대기 중 재로그인한 회원이 삭제되면 소셜 로그인 행도 사라지고 연결 해제가 호출된다")
         void deletesSocialLoginAndUnlinks_whenReloggedMemberIsDeleted() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-relogin");
-            Long memberId = memberIdOf("naver-delete-relogin");
+            Long memberId = database.memberIdOf("naver-delete-relogin");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
             fixture.naverLogin("naver-delete-relogin").expectStatus().isOk();
             naverApi.reset();
@@ -168,7 +159,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         @DisplayName("탈퇴 회원이 삭제되면 소셜 로그인 행도 사라진다")
         void deletesSocialLogin_whenMemberIsDeleted() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-social");
-            Long memberId = memberIdOf("naver-delete-social");
+            Long memberId = database.memberIdOf("naver-delete-social");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             clock.advanceBy(PAST_GRACE_PERIOD);
@@ -182,25 +173,25 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         void deletesEveryDueMember_whenMultipleMembersArePastGracePeriod() {
             SignupResponse first = fixture.signupActiveMember("naver-delete-multi-first");
             SignupResponse second = fixture.signupActiveMember("naver-delete-multi-second");
-            Long firstId = memberIdOf("naver-delete-multi-first");
-            Long secondId = memberIdOf("naver-delete-multi-second");
+            Long firstId = database.memberIdOf("naver-delete-multi-first");
+            Long secondId = database.memberIdOf("naver-delete-multi-second");
             fixture.withdraw(first.accessToken()).expectStatus().isNoContent();
             fixture.withdraw(second.accessToken()).expectStatus().isNoContent();
             clock.advanceBy(PAST_GRACE_PERIOD);
             SignupResponse recent = fixture.signupActiveMember("naver-delete-multi-recent");
-            Long recentId = memberIdOf("naver-delete-multi-recent");
+            Long recentId = database.memberIdOf("naver-delete-multi-recent");
             fixture.withdraw(recent.accessToken()).expectStatus().isNoContent();
 
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-delete-multi-first")).isEmpty();
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-delete-multi-second")).isEmpty();
-            assertThat(termsOf(firstId)).isEmpty();
-            assertThat(termsOf(secondId)).isEmpty();
+            assertThat(database.termsOf(firstId)).isEmpty();
+            assertThat(database.termsOf(secondId)).isEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(firstId)).isEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(secondId)).isEmpty();
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-delete-multi-recent")).isPresent();
-            assertThat(termsOf(recentId)).isNotEmpty();
+            assertThat(database.termsOf(recentId)).isNotEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(recentId)).isNotEmpty();
         }
 
@@ -208,21 +199,21 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 크레딧 잔액과 원장도 삭제된다")
         void deletesCreditRows_whenGracePeriodHasPassed() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-credit");
-            Long memberId = memberIdOf("naver-delete-credit");
+            Long memberId = database.memberIdOf("naver-delete-credit");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
             assertThat(creditRepository.findByMemberId(memberId)).isEmpty();
-            assertThat(ledgerOf(memberId)).isEmpty();
+            assertThat(database.ledgerOf(memberId)).isEmpty();
         }
 
         @Test
         @DisplayName("북마크를 해제해 남은 행도 회원이 삭제되면 함께 사라진다")
         void deletesUnbookmarkedRow_whenMemberIsDeleted() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-bookmark-released");
-            Long memberId = memberIdOf("naver-delete-bookmark-released");
+            Long memberId = database.memberIdOf("naver-delete-bookmark-released");
             Long bundleId = fixture.firstBundleId(signup.accessToken());
             fixture.bookmarkedHashtagBundle(signup.accessToken(), bundleId);
             fixture.unbookmarkedHashtagBundle(signup.accessToken(), bundleId);
@@ -231,21 +222,21 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
-            assertThat(bookmarksOf(memberId)).isEmpty();
+            assertThat(database.bookmarksOf(memberId)).isEmpty();
         }
 
         @Test
         @DisplayName("북마크가 하나도 없는 회원도 문제 없이 삭제된다")
         void deletesMember_whenMemberHasNoBookmark() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-bookmark-none");
-            Long memberId = memberIdOf("naver-delete-bookmark-none");
+            Long memberId = database.memberIdOf("naver-delete-bookmark-none");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
             assertThat(memberRepository.findById(memberId)).isEmpty();
-            assertThat(bookmarksOf(memberId)).isEmpty();
+            assertThat(database.bookmarksOf(memberId)).isEmpty();
         }
 
         @Test
@@ -253,8 +244,8 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         void keepsOtherMembersBookmark_whenMemberIsDeleted() {
             SignupResponse due = fixture.signupActiveMember("naver-delete-bookmark-due");
             SignupResponse kept = fixture.signupActiveMember("naver-delete-bookmark-kept");
-            Long dueId = memberIdOf("naver-delete-bookmark-due");
-            Long keptId = memberIdOf("naver-delete-bookmark-kept");
+            Long dueId = database.memberIdOf("naver-delete-bookmark-due");
+            Long keptId = database.memberIdOf("naver-delete-bookmark-kept");
             Long bundleId = fixture.firstBundleId(due.accessToken());
             fixture.bookmarkedHashtagBundle(due.accessToken(), bundleId);
             fixture.bookmarkedHashtagBundle(kept.accessToken(), bundleId);
@@ -263,8 +254,8 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
-            assertThat(bookmarksOf(dueId)).isEmpty();
-            assertThat(bookmarksOf(keptId)).singleElement()
+            assertThat(database.bookmarksOf(dueId)).isEmpty();
+            assertThat(database.bookmarksOf(keptId)).singleElement()
                 .satisfies(bookmark -> assertThat(bookmark.getBundleId()).isEqualTo(bundleId));
         }
 
@@ -272,7 +263,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 생성 작업·생성 결과·콘텐츠·채널별 콘텐츠·편집 히스토리가 모두 삭제된다")
         void deletesContentRows_whenGracePeriodHasPassed() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-content");
-            Long memberId = memberIdOf("naver-delete-content");
+            Long memberId = database.memberIdOf("naver-delete-content");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
             Long contentChannelId = saved.contents().getFirst().contentChannelId();
@@ -286,19 +277,19 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
-            assertThat(generationsOf(memberId)).isEmpty();
-            assertThat(resultsOf(generationId)).isEmpty();
-            assertThat(contentsOf(memberId)).isEmpty();
-            assertThat(channelsOf(memberId)).isEmpty();
-            assertThat(historiesOf(contentChannelId)).isEmpty();
-            assertThat(generationLocksOf(memberId)).isZero();
+            assertThat(database.generationsOf(memberId)).isEmpty();
+            assertThat(database.resultsOf(generationId)).isEmpty();
+            assertThat(database.contentsOf(memberId)).isEmpty();
+            assertThat(database.channelsOf(memberId)).isEmpty();
+            assertThat(database.historiesOf(contentChannelId)).isEmpty();
+            assertThat(database.generationLocksOf(memberId)).isZero();
         }
 
         @Test
         @DisplayName("콘텐츠를 만든 적 없는 회원도 문제 없이 삭제된다")
         void deletesMember_whenMemberHasNoContent() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-content-none");
-            Long memberId = memberIdOf("naver-delete-content-none");
+            Long memberId = database.memberIdOf("naver-delete-content-none");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             clock.advanceBy(PAST_GRACE_PERIOD);
@@ -312,8 +303,8 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         void keepsOtherMembersContent_whenMemberIsDeleted() {
             SignupResponse due = fixture.signupActiveMember("naver-delete-content-due");
             SignupResponse kept = fixture.signupActiveMember("naver-delete-content-kept");
-            Long dueId = memberIdOf("naver-delete-content-due");
-            Long keptId = memberIdOf("naver-delete-content-kept");
+            Long dueId = database.memberIdOf("naver-delete-content-due");
+            Long keptId = database.memberIdOf("naver-delete-content-kept");
             Long dueGenerationId = fixture.startedGenerationId(due.accessToken(), List.of("BLOG"));
             Long keptGenerationId = fixture.startedGenerationId(kept.accessToken(), List.of("BLOG"));
             fixture.contentsOfGeneration(due.accessToken(), dueGenerationId);
@@ -328,12 +319,12 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
                 .singleElement()
                 .satisfies(card -> assertThat(card.contentId()).isEqualTo(keptContentId));
             assertThat(fixture.contentDetail(kept.accessToken(), keptContentId).contents()).hasSize(1);
-            assertThat(generationsOf(dueId)).isEmpty();
-            assertThat(resultsOf(dueGenerationId)).isEmpty();
-            assertThat(contentsOf(dueId)).isEmpty();
-            assertThat(channelsOf(dueId)).isEmpty();
-            assertThat(generationLocksOf(dueId)).isZero();
-            assertThat(generationLocksOf(keptId)).isOne();
+            assertThat(database.generationsOf(dueId)).isEmpty();
+            assertThat(database.resultsOf(dueGenerationId)).isEmpty();
+            assertThat(database.contentsOf(dueId)).isEmpty();
+            assertThat(database.channelsOf(dueId)).isEmpty();
+            assertThat(database.generationLocksOf(dueId)).isZero();
+            assertThat(database.generationLocksOf(keptId)).isOne();
         }
 
         @Test
@@ -393,7 +384,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         @DisplayName("복구 유예 기간이 지나지 않은 탈퇴 회원은 복구할 수 있도록 삭제하지 않는다")
         void keepsMember_whenStillWithinGracePeriod() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-recent");
-            Long memberId = memberIdOf("naver-delete-recent");
+            Long memberId = database.memberIdOf("naver-delete-recent");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             clock.advanceBy(WITHIN_GRACE_PERIOD);
@@ -402,7 +393,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             assertThat(memberRepository.findByProviderAndSocialId(NAVER, "naver-delete-recent"))
                 .get()
                 .satisfies(member -> assertThat(member.getStatus()).isEqualTo(MemberStatus.WITHDRAWN));
-            assertThat(termsOf(memberId)).isNotEmpty();
+            assertThat(database.termsOf(memberId)).isNotEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isNotEmpty();
             assertThat(storeRepository.findByMemberId(memberId)).isPresent();
         }
@@ -450,11 +441,11 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         void keepsMember_whenGracePeriodRestartedAfterBeingSelected() {
             SignupResponse due = fixture.signupActiveMember("naver-guard-due");
             fixture.withdraw(due.accessToken()).expectStatus().isNoContent();
-            Long dueId = memberIdOf("naver-guard-due");
+            Long dueId = database.memberIdOf("naver-guard-due");
             clock.advanceBy(PAST_GRACE_PERIOD);
             SignupResponse rewithdrawn = fixture.signupActiveMember("naver-guard-rewithdrawn");
             fixture.withdraw(rewithdrawn.accessToken()).expectStatus().isNoContent();
-            Long rewithdrawnId = memberIdOf("naver-guard-rewithdrawn");
+            Long rewithdrawnId = database.memberIdOf("naver-guard-rewithdrawn");
 
             Instant threshold = clock.instant().minus(Member.RECOVERY_GRACE_PERIOD);
             memberRepository.deleteByIdAndStatusAndLastWithdrawnAtBefore(dueId, MemberStatus.WITHDRAWN, threshold);
@@ -474,7 +465,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         @DisplayName("리스너가 실패하면 예외가 전파되고 실패한 회원은 롤백되어 남는다")
         void propagatesFailureAndRollsBackMember_whenListenerFails() {
             SignupResponse signup = fixture.signupActiveMember("naver-failure-abort");
-            Long memberId = memberIdOf("naver-failure-abort");
+            Long memberId = database.memberIdOf("naver-failure-abort");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
             Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
@@ -485,7 +476,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
                 .isInstanceOf(IllegalStateException.class);
 
             assertThat(memberRepository.findById(memberId)).isPresent();
-            assertThat(termsOf(memberId)).isNotEmpty();
+            assertThat(database.termsOf(memberId)).isNotEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isNotEmpty();
             fixture.getGeneration(signup.accessToken(), generationId).expectStatus().isOk();
             assertThat(fixture.contentDetail(signup.accessToken(), contentId).contents()).hasSize(1);
@@ -495,7 +486,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         @DisplayName("실패로 남은 회원은 다음 배치가 마저 지운다")
         void deletesRemainingMember_whenNextBatchRuns() {
             SignupResponse signup = fixture.signupActiveMember("naver-failure-retry");
-            Long memberId = memberIdOf("naver-failure-retry");
+            Long memberId = database.memberIdOf("naver-failure-retry");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
             clock.advanceBy(PAST_GRACE_PERIOD);
             failingMemberDeletedListener.failFor(memberId);
@@ -506,65 +497,8 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
             assertThat(memberRepository.findById(memberId)).isEmpty();
-            assertThat(termsOf(memberId)).isEmpty();
+            assertThat(database.termsOf(memberId)).isEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isEmpty();
         }
-    }
-
-    private Long memberIdOf(String socialId) {
-        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
-    }
-
-    private List<MemberTerm> termsOf(Long memberId) {
-        return StreamSupport.stream(memberTermRepository.findAll().spliterator(), false)
-            .filter(term -> term.getMemberId().equals(memberId))
-            .toList();
-    }
-
-    private List<CreditLedger> ledgerOf(Long memberId) {
-        return creditLedgerRepository.findAll().stream()
-            .filter(entry -> entry.getMemberId().equals(memberId))
-            .toList();
-    }
-
-    private List<HashtagBundleBookmark> bookmarksOf(Long memberId) {
-        return hashtagBundleBookmarkRepository.findAll().stream()
-            .filter(bookmark -> bookmark.getMemberId().equals(memberId))
-            .toList();
-    }
-
-    private List<Generation> generationsOf(Long memberId) {
-        return generationRepository.findAll().stream()
-            .filter(generation -> generation.getMemberId().equals(memberId))
-            .toList();
-    }
-
-    private List<GenerationResult> resultsOf(Long generationId) {
-        return generationResultRepository.findAllByGenerationIdOrderById(generationId);
-    }
-
-    private List<Content> contentsOf(Long memberId) {
-        return contentRepository.findAll().stream()
-            .filter(content -> content.getMemberId().equals(memberId))
-            .toList();
-    }
-
-    private List<ContentChannel> channelsOf(Long memberId) {
-        return contentChannelRepository.findAll().stream()
-            .filter(channel -> channel.getMemberId().equals(memberId))
-            .toList();
-    }
-
-    private List<ContentChannelHistory> historiesOf(Long contentChannelId) {
-        return contentChannelHistoryRepository.findAll().stream()
-            .filter(history -> history.getContentChannelId().equals(contentChannelId))
-            .toList();
-    }
-
-    private long generationLocksOf(Long memberId) {
-        return jdbcClient.sql("SELECT COUNT(*) FROM generation_lock WHERE member_id = :memberId")
-            .param("memberId", memberId)
-            .query(Long.class)
-            .single();
     }
 }

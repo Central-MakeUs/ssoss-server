@@ -11,8 +11,6 @@ import java.util.concurrent.Executors;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
-import com.ssoss.ssossbackend.content.domain.contract.GenerationRepository;
-import com.ssoss.ssossbackend.content.domain.contract.GenerationResultRepository;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
@@ -20,13 +18,9 @@ import com.ssoss.ssossbackend.content.domain.model.GenerationResultStatus;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationChannelResultResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
-import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
 import com.ssoss.ssossbackend.credit.domain.model.CreditErrorCode;
-import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
-import com.ssoss.ssossbackend.credit.domain.model.CreditLedgerType;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditBalanceResponse;
 import com.ssoss.ssossbackend.credit.entrypoint.scheduler.CreditCycleScheduler;
-import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
@@ -38,23 +32,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 
-import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("생성 작업 API")
 class GenerationApiTest extends IntegrationTest {
-
-    @Autowired
-    private GenerationResultRepository generationResultRepository;
-
-    @Autowired
-    private GenerationRepository generationRepository;
-
-    @Autowired
-    private CreditLedgerRepository creditLedgerRepository;
-
-    @Autowired
-    private MemberRepository memberRepository;
 
     @Autowired
     private CreditCycleScheduler creditCycleScheduler;
@@ -238,7 +219,7 @@ class GenerationApiTest extends IntegrationTest {
 
             assertThat(statuses).containsExactlyInAnyOrder(
                 HttpStatus.CREATED.value(), HttpStatus.CONFLICT.value());
-            assertThat(generationsOf(memberIdOf("naver-gen-concurrent"))).hasSize(1);
+            assertThat(database.generationsOf(database.memberIdOf("naver-gen-concurrent"))).hasSize(1);
         }
 
         @Test
@@ -424,7 +405,7 @@ class GenerationApiTest extends IntegrationTest {
             llmApi.stubEmptyBodyForUntitled();
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
-            assertThat(resultsOf(generationId))
+            assertThat(database.resultsOf(generationId))
                 .extracting(GenerationResult::getStatus)
                 .containsExactlyInAnyOrder(GenerationResultStatus.SUCCEEDED, GenerationResultStatus.EMPTY_OUTPUT);
             fixture.getGeneration(signup.accessToken(), generationId)
@@ -765,7 +746,7 @@ class GenerationApiTest extends IntegrationTest {
 
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
-            assertThat(resultsOf(generationId)).hasSize(2).allSatisfy(result -> {
+            assertThat(database.resultsOf(generationId)).hasSize(2).allSatisfy(result -> {
                 assertThat(result.getStatus()).isEqualTo(GenerationResultStatus.SUCCEEDED);
                 assertThat(result.getInputTokens()).isEqualTo(10);
                 assertThat(result.getOutputTokens()).isEqualTo(20);
@@ -781,7 +762,7 @@ class GenerationApiTest extends IntegrationTest {
 
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
 
-            assertThat(resultsOf(generationId)).singleElement().satisfies(result -> {
+            assertThat(database.resultsOf(generationId)).singleElement().satisfies(result -> {
                 assertThat(result.getStatus()).isEqualTo(GenerationResultStatus.RATE_LIMITED);
                 assertThat(result.getInputTokens()).isNull();
                 assertThat(result.getBody()).isNull();
@@ -799,7 +780,7 @@ class GenerationApiTest extends IntegrationTest {
 
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
 
-            assertThat(resultsOf(generationId)).singleElement().satisfies(result ->
+            assertThat(database.resultsOf(generationId)).singleElement().satisfies(result ->
                 assertThat(result.getStatus()).isEqualTo(GenerationResultStatus.SERVER_ERROR));
         }
 
@@ -811,7 +792,7 @@ class GenerationApiTest extends IntegrationTest {
 
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
 
-            assertThat(resultsOf(generationId)).singleElement().satisfies(result -> {
+            assertThat(database.resultsOf(generationId)).singleElement().satisfies(result -> {
                 assertThat(result.getStatus()).isEqualTo(GenerationResultStatus.EMPTY_OUTPUT);
                 assertThat(result.getInputTokens()).isEqualTo(10);
                 assertThat(result.getOutputTokens()).isEqualTo(20);
@@ -827,7 +808,7 @@ class GenerationApiTest extends IntegrationTest {
 
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("INSTAGRAM"));
 
-            assertThat(resultsOf(generationId)).singleElement().satisfies(result -> {
+            assertThat(database.resultsOf(generationId)).singleElement().satisfies(result -> {
                 assertThat(result.getStatus()).isEqualTo(GenerationResultStatus.EMPTY_OUTPUT);
                 assertThat(result.getBody()).isNull();
             });
@@ -849,7 +830,7 @@ class GenerationApiTest extends IntegrationTest {
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
             assertThat(fixture.creditBalance(signup.accessToken()).balance()).isEqualTo(40);
-            assertThat(deductionsOf(memberIdOf("naver-gen-credit-deduct"))).singleElement()
+            assertThat(database.deductionsOf(database.memberIdOf("naver-gen-credit-deduct"))).singleElement()
                 .satisfies(entry -> {
                     assertThat(entry.getAmount()).isEqualTo(-10);
                     assertThat(entry.getGenerationId()).isEqualTo(generationId);
@@ -865,7 +846,7 @@ class GenerationApiTest extends IntegrationTest {
             fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
             assertThat(fixture.creditBalance(signup.accessToken()).balance()).isEqualTo(50);
-            assertThat(deductionsOf(memberIdOf("naver-gen-credit-one-fail"))).isEmpty();
+            assertThat(database.deductionsOf(database.memberIdOf("naver-gen-credit-one-fail"))).isEmpty();
         }
 
         @Test
@@ -877,7 +858,7 @@ class GenerationApiTest extends IntegrationTest {
             fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
             assertThat(fixture.creditBalance(signup.accessToken()).balance()).isEqualTo(50);
-            assertThat(deductionsOf(memberIdOf("naver-gen-credit-fail"))).isEmpty();
+            assertThat(database.deductionsOf(database.memberIdOf("naver-gen-credit-fail"))).isEmpty();
         }
 
         @Test
@@ -889,7 +870,7 @@ class GenerationApiTest extends IntegrationTest {
             fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
 
             assertThat(fixture.creditBalance(signup.accessToken()).balance()).isEqualTo(40);
-            assertThat(deductionsOf(memberIdOf("naver-gen-credit-again"))).hasSize(2);
+            assertThat(database.deductionsOf(database.memberIdOf("naver-gen-credit-again"))).hasSize(2);
         }
 
         @Test
@@ -906,7 +887,7 @@ class GenerationApiTest extends IntegrationTest {
                 .expectBody(GenerationDetailResponse.class)
                 .value(body -> assertThat(body.status()).isEqualTo("FAILED"));
             assertThat(fixture.creditBalance(signup.accessToken()).balance()).isEqualTo(50);
-            assertThat(deductionsOf(memberIdOf("naver-gen-credit-late"))).isEmpty();
+            assertThat(database.deductionsOf(database.memberIdOf("naver-gen-credit-late"))).isEmpty();
         }
 
         @Test
@@ -942,7 +923,7 @@ class GenerationApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CreditErrorCode.CREDIT_INSUFFICIENT.getCode()));
 
-            assertThat(generationsOf(memberIdOf("naver-gen-credit-short"))).hasSize(2);
+            assertThat(database.generationsOf(database.memberIdOf("naver-gen-credit-short"))).hasSize(2);
             assertThat(fixture.creditBalance(signup.accessToken()).balance()).isEqualTo(10);
         }
 
@@ -960,25 +941,5 @@ class GenerationApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CreditErrorCode.CREDIT_INSUFFICIENT.getCode()));
         }
-    }
-
-    private List<GenerationResult> resultsOf(Long generationId) {
-        return generationResultRepository.findAllByGenerationIdOrderById(generationId);
-    }
-
-    private List<Generation> generationsOf(Long memberId) {
-        return generationRepository.findAll().stream()
-            .filter(generation -> generation.getMemberId().equals(memberId))
-            .toList();
-    }
-
-    private List<CreditLedger> deductionsOf(Long memberId) {
-        return creditLedgerRepository.findAll().stream()
-            .filter(entry -> entry.getMemberId().equals(memberId) && entry.getType() == CreditLedgerType.DEDUCT)
-            .toList();
-    }
-
-    private Long memberIdOf(String socialId) {
-        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
     }
 }

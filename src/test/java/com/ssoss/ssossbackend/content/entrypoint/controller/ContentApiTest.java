@@ -10,13 +10,8 @@ import java.util.stream.IntStream;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
-import com.ssoss.ssossbackend.content.domain.contract.ContentChannelHistoryRepository;
-import com.ssoss.ssossbackend.content.domain.contract.ContentChannelRepository;
 import com.ssoss.ssossbackend.content.domain.contract.ContentRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationResultRepository;
-import com.ssoss.ssossbackend.content.domain.model.Content;
-import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
-import com.ssoss.ssossbackend.content.domain.model.ContentChannelHistory;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
 import com.ssoss.ssossbackend.content.domain.model.ContentSource;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
@@ -27,7 +22,6 @@ import com.ssoss.ssossbackend.content.entrypoint.response.ContentListResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSummaryResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationChannelResultResponse;
-import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
@@ -38,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 
-import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("콘텐츠 API")
@@ -48,16 +41,7 @@ class ContentApiTest extends IntegrationTest {
     private ContentRepository contentRepository;
 
     @Autowired
-    private ContentChannelRepository contentChannelRepository;
-
-    @Autowired
-    private ContentChannelHistoryRepository contentChannelHistoryRepository;
-
-    @Autowired
     private GenerationResultRepository generationResultRepository;
-
-    @Autowired
-    private MemberRepository memberRepository;
 
     @Nested
     @DisplayName("POST /v1/contents")
@@ -82,8 +66,8 @@ class ContentApiTest extends IntegrationTest {
                         .containsExactly("BLOG", "INSTAGRAM", "DAANGN_BIZ", "THREADS");
                 });
 
-            assertThat(contentsOf(memberIdOf("naver-save-multi"))).hasSize(1);
-            assertThat(channelsOf(memberIdOf("naver-save-multi"))).hasSize(4);
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-multi"))).hasSize(1);
+            assertThat(database.channelsOf(database.memberIdOf("naver-save-multi"))).hasSize(4);
         }
 
         @Test
@@ -96,7 +80,7 @@ class ContentApiTest extends IntegrationTest {
 
             List<GenerationResult> results = generationResultRepository
                 .findAllByGenerationIdOrderById(generationId);
-            assertThat(channelsOf(memberIdOf("naver-save-copy"))).hasSize(2).allSatisfy(channel -> {
+            assertThat(database.channelsOf(database.memberIdOf("naver-save-copy"))).hasSize(2).allSatisfy(channel -> {
                 GenerationResult origin = results.stream()
                     .filter(result -> result.getId().equals(channel.getSourceGenerationResultId()))
                     .findFirst()
@@ -153,7 +137,7 @@ class ContentApiTest extends IntegrationTest {
 
             fixture.contentsOfGeneration(signup.accessToken(), generationId);
 
-            assertThat(contentsOf(memberIdOf("naver-save-condition"))).singleElement().satisfies(content -> {
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-condition"))).singleElement().satisfies(content -> {
                 assertThat(content.getSourceType()).isEqualTo(ContentSource.GENERATION);
                 assertThat(content.getSourceId()).isEqualTo(generationId);
                 assertThat(content.getPurpose().name()).isEqualTo("EVENT_DISCOUNT");
@@ -177,8 +161,8 @@ class ContentApiTest extends IntegrationTest {
                 .containsExactlyElementsOf(first.contents().stream()
                     .map(ContentChannelSummaryResponse::contentChannelId)
                     .toList());
-            assertThat(contentsOf(memberIdOf("naver-save-twice"))).hasSize(1);
-            assertThat(channelsOf(memberIdOf("naver-save-twice"))).hasSize(2);
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-twice"))).hasSize(1);
+            assertThat(database.channelsOf(database.memberIdOf("naver-save-twice"))).hasSize(2);
         }
 
         @Test
@@ -215,8 +199,8 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_DELETED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-deleted"))).hasSize(1);
-            assertThat(channelsOf(memberIdOf("naver-save-deleted"))).hasSize(2)
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-deleted"))).hasSize(1);
+            assertThat(database.channelsOf(database.memberIdOf("naver-save-deleted"))).hasSize(2)
                 .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isNotNull());
         }
 
@@ -232,7 +216,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_FAILED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-one-fail"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-one-fail"))).isEmpty();
         }
 
         @Test
@@ -247,7 +231,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_FAILED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-all-fail"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-all-fail"))).isEmpty();
         }
 
         @Test
@@ -263,7 +247,7 @@ class ContentApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code())
                     .isEqualTo(ContentErrorCode.GENERATION_NOT_FINISHED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-in-progress"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-in-progress"))).isEmpty();
         }
 
         @Test
@@ -289,7 +273,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.GENERATION_NOT_FOUND.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-other"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-other"))).isEmpty();
         }
 
         @Test
@@ -304,7 +288,7 @@ class ContentApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code())
                     .isEqualTo(ContentErrorCode.SAVE_CHANNELS_MISMATCHED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-missing-channel"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-missing-channel"))).isEmpty();
         }
 
         @Test
@@ -319,7 +303,7 @@ class ContentApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code())
                     .isEqualTo(ContentErrorCode.SAVE_CHANNELS_MISMATCHED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-extra-channel"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-extra-channel"))).isEmpty();
         }
 
         @Test
@@ -338,7 +322,7 @@ class ContentApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code())
                     .isEqualTo(ContentErrorCode.SAVE_CHANNELS_MISMATCHED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-duplicate-channel"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-duplicate-channel"))).isEmpty();
         }
 
         @Test
@@ -354,7 +338,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-unknown-channel"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-unknown-channel"))).isEmpty();
         }
 
         @Test
@@ -370,8 +354,8 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.TITLE_REQUIRED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-no-title"))).isEmpty();
-            assertThat(channelsOf(memberIdOf("naver-save-no-title"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-no-title"))).isEmpty();
+            assertThat(database.channelsOf(database.memberIdOf("naver-save-no-title"))).isEmpty();
         }
 
         @Test
@@ -402,8 +386,8 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.TITLE_NOT_ALLOWED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-extra-title"))).isEmpty();
-            assertThat(channelsOf(memberIdOf("naver-save-extra-title"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-extra-title"))).isEmpty();
+            assertThat(database.channelsOf(database.memberIdOf("naver-save-extra-title"))).isEmpty();
         }
 
         @Test
@@ -419,7 +403,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-blank-body"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-blank-body"))).isEmpty();
         }
 
         @Test
@@ -435,7 +419,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-null-content"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-null-content"))).isEmpty();
         }
 
         @Test
@@ -452,7 +436,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-null-hashtag"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-null-hashtag"))).isEmpty();
         }
 
         @Test
@@ -468,7 +452,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-long-title"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-long-title"))).isEmpty();
         }
 
         @Test
@@ -485,7 +469,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-many-hashtags"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-many-hashtags"))).isEmpty();
         }
 
         @Test
@@ -500,7 +484,7 @@ class ContentApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code())
                     .isEqualTo(ContentErrorCode.SAVE_CHANNELS_MISMATCHED.getCode()));
 
-            assertThat(contentsOf(memberIdOf("naver-save-no-contents"))).isEmpty();
+            assertThat(database.contentsOf(database.memberIdOf("naver-save-no-contents"))).isEmpty();
         }
 
         @Test
@@ -1307,13 +1291,13 @@ class ContentApiTest extends IntegrationTest {
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
             Long contentChannelId = saved.contents().getFirst().contentChannelId();
-            Long sourceGenerationResultId = channelById(contentChannelId).getSourceGenerationResultId();
+            Long sourceGenerationResultId = database.channelById(contentChannelId).getSourceGenerationResultId();
 
             fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
                 .expectStatus().isOk();
 
             assertThat(sourceGenerationResultId).isNotNull();
-            assertThat(channelById(contentChannelId).getSourceGenerationResultId())
+            assertThat(database.channelById(contentChannelId).getSourceGenerationResultId())
                 .isEqualTo(sourceGenerationResultId);
         }
 
@@ -1325,7 +1309,7 @@ class ContentApiTest extends IntegrationTest {
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
             Long contentChannelId = saved.contents().getFirst().contentChannelId();
             Instant savedAt = contentRepository.findById(saved.contentId()).orElseThrow().getCreatedAt();
-            Instant updatedAt = channelById(contentChannelId).getUpdatedAt();
+            Instant updatedAt = database.channelById(contentChannelId).getUpdatedAt();
             clock.advanceBy(Duration.ofMinutes(10));
 
             fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
@@ -1333,7 +1317,7 @@ class ContentApiTest extends IntegrationTest {
 
             assertThat(contentRepository.findById(saved.contentId()).orElseThrow().getCreatedAt())
                 .isEqualTo(savedAt);
-            assertThat(channelById(contentChannelId).getUpdatedAt()).isAfter(updatedAt);
+            assertThat(database.channelById(contentChannelId).getUpdatedAt()).isAfter(updatedAt);
         }
 
         @Test
@@ -1366,7 +1350,7 @@ class ContentApiTest extends IntegrationTest {
             fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
                 .expectStatus().isOk();
 
-            assertThat(historiesOf(contentChannelId))
+            assertThat(database.historiesOf(contentChannelId))
                 .singleElement()
                 .satisfies(history -> {
                     assertThat(history.getTitle()).isEqualTo(origin.title());
@@ -1385,7 +1369,7 @@ class ContentApiTest extends IntegrationTest {
             Long contentChannelId = saved.contents().getFirst().contentChannelId();
             ContentChannelResponse origin = fixture.contentDetail(signup.accessToken(), saved.contentId())
                 .contents().getFirst();
-            Instant updatedAt = channelById(contentChannelId).getUpdatedAt();
+            Instant updatedAt = database.channelById(contentChannelId).getUpdatedAt();
             clock.advanceBy(Duration.ofMinutes(10));
 
             fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, Map.of(
@@ -1394,9 +1378,9 @@ class ContentApiTest extends IntegrationTest {
                     "hashtags", origin.hashtags()))
                 .expectStatus().isOk();
 
-            assertThat(historiesOf(contentChannelId))
+            assertThat(database.historiesOf(contentChannelId))
                 .isEmpty();
-            assertThat(channelById(contentChannelId).getUpdatedAt()).isEqualTo(updatedAt);
+            assertThat(database.channelById(contentChannelId).getUpdatedAt()).isEqualTo(updatedAt);
         }
 
         @Test
@@ -1556,7 +1540,7 @@ class ContentApiTest extends IntegrationTest {
 
             assertThat(fixture.contentDetail(owner.accessToken(), saved.contentId()).contents().getFirst())
                 .isEqualTo(origin);
-            assertThat(historiesOf(contentChannelId))
+            assertThat(database.historiesOf(contentChannelId))
                 .isEmpty();
         }
 
@@ -1580,16 +1564,6 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
         }
-
-        private ContentChannel channelById(Long contentChannelId) {
-            return contentChannelRepository.findById(contentChannelId).orElseThrow();
-        }
-
-        private List<ContentChannelHistory> historiesOf(Long contentChannelId) {
-            return contentChannelHistoryRepository.findAll().stream()
-                .filter(history -> history.getContentChannelId().equals(contentChannelId))
-                .toList();
-        }
     }
 
     @Nested
@@ -1609,7 +1583,7 @@ class ContentApiTest extends IntegrationTest {
 
             Instant deletedAt = contentRepository.findById(contentId).orElseThrow().getDeletedAt();
             assertThat(deletedAt).isNotNull();
-            assertThat(channelsOf(memberIdOf("naver-delete-every-channel"))).hasSize(3)
+            assertThat(database.channelsOf(database.memberIdOf("naver-delete-every-channel"))).hasSize(3)
                 .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isEqualTo(deletedAt));
         }
 
@@ -1634,7 +1608,7 @@ class ContentApiTest extends IntegrationTest {
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
             Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
             fixture.deletedContent(signup.accessToken(), contentId);
-            Instant deletedAt = channelsOf(memberIdOf("naver-delete-twice")).getFirst().getDeletedAt();
+            Instant deletedAt = database.channelsOf(database.memberIdOf("naver-delete-twice")).getFirst().getDeletedAt();
             clock.advanceBy(Duration.ofMinutes(10));
 
             fixture.deleteContent(signup.accessToken(), contentId)
@@ -1642,7 +1616,7 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
 
-            assertThat(channelsOf(memberIdOf("naver-delete-twice")))
+            assertThat(database.channelsOf(database.memberIdOf("naver-delete-twice")))
                 .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isEqualTo(deletedAt));
         }
 
@@ -1705,7 +1679,7 @@ class ContentApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
 
             assertThat(fixture.contentDetail(owner.accessToken(), contentId).contents()).hasSize(1);
-            assertThat(channelsOf(memberIdOf("naver-delete-owner")))
+            assertThat(database.channelsOf(database.memberIdOf("naver-delete-owner")))
                 .allSatisfy(channel -> assertThat(channel.getDeletedAt()).isNull());
         }
 
@@ -1729,21 +1703,5 @@ class ContentApiTest extends IntegrationTest {
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
         }
-    }
-
-    private List<Content> contentsOf(Long memberId) {
-        return contentRepository.findAll().stream()
-            .filter(content -> content.getMemberId().equals(memberId))
-            .toList();
-    }
-
-    private List<ContentChannel> channelsOf(Long memberId) {
-        return contentsOf(memberId).stream()
-            .flatMap(content -> contentChannelRepository.findAllByContentId(content.getId()).stream())
-            .toList();
-    }
-
-    private Long memberIdOf(String socialId) {
-        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
     }
 }

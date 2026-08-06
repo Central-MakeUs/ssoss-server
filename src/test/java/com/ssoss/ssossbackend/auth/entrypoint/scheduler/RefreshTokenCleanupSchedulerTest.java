@@ -3,8 +3,6 @@ package com.ssoss.ssossbackend.auth.entrypoint.scheduler;
 import java.time.Duration;
 
 import com.ssoss.ssossbackend.auth.domain.contract.RefreshTokenRepository;
-import com.ssoss.ssossbackend.auth.domain.contract.TokenHasher;
-import com.ssoss.ssossbackend.auth.domain.model.RefreshToken;
 import com.ssoss.ssossbackend.auth.domain.model.RefreshTokenStatus;
 import com.ssoss.ssossbackend.auth.domain.model.SocialProvider;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
@@ -31,9 +29,6 @@ class RefreshTokenCleanupSchedulerTest extends IntegrationTest {
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
-
-    @Autowired
-    private TokenHasher tokenHasher;
 
     @BeforeEach
     void resetDatabase() {
@@ -63,25 +58,11 @@ class RefreshTokenCleanupSchedulerTest extends IntegrationTest {
             clock.advanceBy(Duration.ofDays(25));
             refreshTokenCleanupScheduler.cleanUpRefreshTokens();
 
-            Long oldMemberId = memberRepository.findByProviderAndSocialId(NAVER, "naver-cleanup-old")
-                .orElseThrow()
-                .getId();
-            assertThat(refreshTokenRepository.findAllByMemberId(oldMemberId)).isEmpty();
-            assertThat(findRow("naver-cleanup-recent", recentLogin.refreshToken()).getStatus())
+            assertThat(refreshTokenRepository.findAllByMemberId(database.memberIdOf("naver-cleanup-old"))).isEmpty();
+            assertThat(database.refreshTokenOf("naver-cleanup-recent", recentLogin.refreshToken()).getStatus())
                 .isEqualTo(RefreshTokenStatus.DELETED);
-            assertThat(refreshTokenRepository.findAllByMemberId(
-                memberRepository.findByProviderAndSocialId(NAVER, "naver-cleanup-recent").orElseThrow().getId()))
+            assertThat(refreshTokenRepository.findAllByMemberId(database.memberIdOf("naver-cleanup-recent")))
                 .hasSize(2);
-        }
-
-        private RefreshToken findRow(String socialId, String rawRefreshToken) {
-            Long memberId = memberRepository.findByProviderAndSocialId(NAVER, socialId)
-                .orElseThrow()
-                .getId();
-            return refreshTokenRepository.findAllByMemberId(memberId).stream()
-                .filter(row -> row.getTokenHash().equals(tokenHasher.hash(rawRefreshToken)))
-                .findFirst()
-                .orElseThrow();
         }
     }
 }

@@ -5,11 +5,9 @@ import java.util.List;
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
-import com.ssoss.ssossbackend.credit.domain.contract.CreditLedgerRepository;
 import com.ssoss.ssossbackend.credit.domain.model.CreditLedger;
 import com.ssoss.ssossbackend.credit.domain.model.CreditLedgerType;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditBalanceResponse;
-import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 
@@ -18,17 +16,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("크레딧 잔액 조회 API")
 class CreditBalanceApiTest extends IntegrationTest {
-
-    @Autowired
-    private MemberRepository memberRepository;
-
-    @Autowired
-    private CreditLedgerRepository creditLedgerRepository;
 
     @Nested
     @DisplayName("GET /v1/credits/me")
@@ -89,8 +80,8 @@ class CreditBalanceApiTest extends IntegrationTest {
         void recordsGrantLedgerEntryMatchingBalance_whenMemberSignsUp() {
             SignupResponse signup = fixture.signupActiveMember("naver-credit-ledger");
 
-            Long memberId = memberIdOf("naver-credit-ledger");
-            List<CreditLedger> entries = ledgerOf(memberId);
+            Long memberId = database.memberIdOf("naver-credit-ledger");
+            List<CreditLedger> entries = database.ledgerOf(memberId);
 
             assertThat(entries).singleElement().satisfies(entry -> {
                 assertThat(entry.getType()).isEqualTo(CreditLedgerType.GRANT);
@@ -102,15 +93,5 @@ class CreditBalanceApiTest extends IntegrationTest {
                 .expectBody(CreditBalanceResponse.class)
                 .value(body -> assertThat(body.balance()).isEqualTo(ledgerSum));
         }
-    }
-
-    private Long memberIdOf(String socialId) {
-        return memberRepository.findByProviderAndSocialId(NAVER, socialId).orElseThrow().getId();
-    }
-
-    private List<CreditLedger> ledgerOf(Long memberId) {
-        return creditLedgerRepository.findAll().stream()
-            .filter(entry -> entry.getMemberId().equals(memberId))
-            .toList();
     }
 }
