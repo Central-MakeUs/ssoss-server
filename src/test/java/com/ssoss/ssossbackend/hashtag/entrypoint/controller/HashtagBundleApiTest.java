@@ -59,6 +59,85 @@ class HashtagBundleApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("북마크한 적 없는 회원이 조회하면 항목마다 bookmarked 가 거짓이다")
+        void marksEveryBundleUnbookmarked_whenMemberBookmarkedNothing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-none-marked");
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), "");
+
+            assertThat(body.bundles()).isNotEmpty();
+            assertThat(body.bundles()).extracting(HashtagBundleResponse::bookmarked)
+                .containsOnly(false);
+        }
+
+        @Test
+        @DisplayName("북마크한 묶음만 bookmarked 가 참으로 담긴다")
+        void marksOnlyBookmarkedBundle_whenMemberBookmarkedOne() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-one-marked");
+            HashtagBundleResponse target =
+                fixture.hashtagBundleList(signup.accessToken(), "").bundles().getFirst();
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), target.id());
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), "");
+
+            assertThat(body.bundles()).filteredOn(bundle -> bundle.id().equals(target.id()))
+                .singleElement()
+                .satisfies(bundle -> assertThat(bundle.bookmarked()).isTrue());
+            assertThat(body.bundles()).filteredOn(bundle -> !bundle.id().equals(target.id()))
+                .allSatisfy(bundle -> assertThat(bundle.bookmarked()).isFalse());
+        }
+
+        @Test
+        @DisplayName("북마크를 해제하면 bookmarked 가 거짓으로 돌아온다")
+        void marksBundleUnbookmarked_whenBookmarkRemoved() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-unmarked");
+            HashtagBundleResponse target =
+                fixture.hashtagBundleList(signup.accessToken(), "").bundles().getFirst();
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), target.id());
+
+            fixture.unbookmarkedHashtagBundle(signup.accessToken(), target.id());
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(signup.accessToken(), "");
+            assertThat(body.bundles()).filteredOn(bundle -> bundle.id().equals(target.id()))
+                .singleElement()
+                .satisfies(bundle -> assertThat(bundle.bookmarked()).isFalse());
+        }
+
+        @Test
+        @DisplayName("다른 회원의 북마크는 내 응답의 bookmarked 에 영향을 주지 않는다")
+        void ignoresOtherMembersBookmark_whenActiveMemberQueries() {
+            SignupResponse other = fixture.signupActiveMember("naver-hashtag-other-marked");
+            SignupResponse mine = fixture.signupActiveMember("naver-hashtag-mine-unmarked");
+            HashtagBundleResponse target =
+                fixture.hashtagBundleList(other.accessToken(), "").bundles().getFirst();
+            fixture.bookmarkedHashtagBundle(other.accessToken(), target.id());
+
+            HashtagBundleListResponse body = fixture.hashtagBundleList(mine.accessToken(), "");
+
+            assertThat(body.bundles()).extracting(HashtagBundleResponse::bookmarked)
+                .containsOnly(false);
+        }
+
+        @Test
+        @DisplayName("페이지를 넘겨도 그 페이지의 bookmarked 가 맞다")
+        void marksBookmarkedBundleOnFollowingPage_whenPaged() {
+            SignupResponse signup = fixture.signupActiveMember("naver-hashtag-paged-mark");
+            HashtagBundleResponse second =
+                fixture.hashtagBundleList(signup.accessToken(), "?size=1&page=1").bundles().getFirst();
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), second.id());
+
+            HashtagBundleListResponse first = fixture.hashtagBundleList(signup.accessToken(), "?size=1&page=0");
+            HashtagBundleListResponse paged = fixture.hashtagBundleList(signup.accessToken(), "?size=1&page=1");
+
+            assertThat(first.bundles()).singleElement()
+                .satisfies(bundle -> assertThat(bundle.bookmarked()).isFalse());
+            assertThat(paged.bundles()).singleElement().satisfies(bundle -> {
+                assertThat(bundle.id()).isEqualTo(second.id());
+                assertThat(bundle.bookmarked()).isTrue();
+            });
+        }
+
+        @Test
         @DisplayName("size 를 1 로 부르면 한 건만 담기고 다음 페이지가 있다고 알려준다")
         void returnsSingleBundleWithNextPage_whenSizeIsOne() {
             SignupResponse signup = fixture.signupActiveMember("naver-hashtag-size");

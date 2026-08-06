@@ -2,7 +2,7 @@ package com.ssoss.ssossbackend.hashtag.entrypoint.controller;
 
 import com.ssoss.ssossbackend.hashtag.application.service.HashtagBundleService;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
-import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleResponse;
+import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,7 +25,7 @@ class HashtagBundleBookmarkController implements HashtagBundleBookmarkApi {
     @GetMapping("/v1/members/me/hashtag-bundles")
     public BookmarkedHashtagBundleListResponse listBookmarked(@AuthenticationPrincipal Long memberId) {
         return new BookmarkedHashtagBundleListResponse(hashtagBundleService.listBookmarked(memberId).stream()
-            .map(bundle -> new HashtagBundleResponse(bundle.id(), bundle.name(), bundle.hashtags()))
+            .map(bundle -> new BookmarkedHashtagBundleResponse(bundle.id(), bundle.name(), bundle.hashtags()))
             .toList());
     }
 

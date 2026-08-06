@@ -9,6 +9,7 @@ import com.ssoss.ssossbackend.hashtag.domain.contract.HashtagBundleBookmarkRepos
 import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundleBookmark;
 import com.ssoss.ssossbackend.hashtag.domain.model.HashtagErrorCode;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
+import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleResponse;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
@@ -115,7 +116,7 @@ class HashtagBundleBookmarkApiTest extends IntegrationTest {
             fixture.bookmarkedHashtagBundle(signup.accessToken(), second);
 
             BookmarkedHashtagBundleListResponse body = fixture.bookmarkedHashtagBundleList(signup.accessToken());
-            assertThat(body.bundles()).extracting(HashtagBundleResponse::id)
+            assertThat(body.bundles()).extracting(BookmarkedHashtagBundleResponse::id)
                 .containsExactly(first, second);
         }
 

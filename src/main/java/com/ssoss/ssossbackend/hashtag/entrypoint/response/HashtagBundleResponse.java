@@ -12,6 +12,9 @@ public record HashtagBundleResponse(
     String name,
     @Schema(description = "묶음에 담긴 해시태그 전부. 카드에 보이는 순서 그대로이며 서버가 자르지 않습니다",
         example = "[\"#카공카페\", \"#노트북카페\", \"#콘센트많은카페\"]")
-    List<String> hashtags
+    List<String> hashtags,
+    @Schema(description = "내가 이 묶음을 북마크했는지 여부 — 카드의 북마크 아이콘을 눌린 상태로 그릴 때 씁니다",
+        example = "false")
+    boolean bookmarked
 ) {
 }
