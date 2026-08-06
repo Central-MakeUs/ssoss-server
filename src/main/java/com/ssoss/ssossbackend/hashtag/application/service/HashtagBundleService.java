@@ -43,4 +43,8 @@ public class HashtagBundleService {
     public void unbookmark(Long memberId, Long bundleId) {
         hashtagBundleBookmarkWriter.unbookmark(memberId, bundleId);
     }
+
+    public void deleteBookmarksByMemberId(Long memberId) {
+        hashtagBundleBookmarkWriter.deleteAllByMemberId(memberId);
+    }
 }
