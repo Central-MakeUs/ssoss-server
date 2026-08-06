@@ -591,9 +591,9 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("저장한 콘텐츠가 저장 시각 최신순으로 온다")
         void returnsContentsInSavedAtDescendingOrder() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-order");
-            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long middleId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
-            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+            Long oldestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long middleId = fixture.savedContentId(signup.accessToken(), List.of("INSTAGRAM"));
+            Long newestId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .extracting(ContentSummaryResponse::contentId)
@@ -604,8 +604,8 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("sort 를 LATEST 로 부르면 생략한 것과 같이 최신순으로 온다")
         void returnsContentsInSavedAtDescendingOrder_whenLatestRequested() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-latest-explicit");
-            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+            Long oldestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long newestId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             assertThat(fixture.contentList(signup.accessToken(), "?sort=LATEST").contents())
                 .extracting(ContentSummaryResponse::contentId)
@@ -616,8 +616,8 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("sort 를 빈 값으로 보내면 생략한 것과 같이 최신순으로 온다")
         void returnsContentsInSavedAtDescendingOrder_whenSortBlank() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-blank-sort");
-            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+            Long oldestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long newestId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             assertThat(fixture.contentList(signup.accessToken(), "?sort=").contents())
                 .extracting(ContentSummaryResponse::contentId)
@@ -628,9 +628,9 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("sort 를 OLDEST 로 부르면 저장 시각 오래된 순으로 온다")
         void returnsContentsInSavedAtAscendingOrder_whenOldestRequested() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-oldest");
-            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long middleId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
-            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+            Long oldestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long middleId = fixture.savedContentId(signup.accessToken(), List.of("INSTAGRAM"));
+            Long newestId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             assertThat(fixture.contentList(signup.accessToken(), "?sort=OLDEST").contents())
                 .extracting(ContentSummaryResponse::contentId)
@@ -641,9 +641,9 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("sort 를 OLDEST 로 부르고 페이지를 넘겨도 오래된 순이 이어진다")
         void keepsAscendingOrderAcrossPages_whenOldestRequested() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-oldest-paging");
-            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long middleId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
-            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+            Long oldestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long middleId = fixture.savedContentId(signup.accessToken(), List.of("INSTAGRAM"));
+            Long newestId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             ContentListResponse firstPage = fixture.contentList(signup.accessToken(), "?sort=OLDEST&page=0&size=2");
             ContentListResponse secondPage = fixture.contentList(signup.accessToken(), "?sort=OLDEST&page=1&size=2");
@@ -667,7 +667,7 @@ class ContentApiTest extends IntegrationTest {
             ContentSaveResponse oldest = fixture.contentsOfGeneration(signup.accessToken(),
                 fixture.startedGenerationId(signup.accessToken(), List.of("BLOG")));
             clock.advanceBy(Duration.ofMinutes(1));
-            Long newestId = savedContent(signup.accessToken(), List.of("THREADS"));
+            Long newestId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             fixture.editContentChannel(signup.accessToken(), oldest.contentId(),
                     oldest.contents().getFirst().contentChannelId(), Map.of(
@@ -685,9 +685,9 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("page 와 size 로 페이지를 넘겨도 전체 건수는 그대로이고 마지막 페이지는 hasNext 가 false 다")
         void returnsRequestedPageWithTotalCountAndHasNext() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-paging");
-            Long firstId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long secondId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
-            Long thirdId = savedContent(signup.accessToken(), List.of("THREADS"));
+            Long firstId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long secondId = fixture.savedContentId(signup.accessToken(), List.of("INSTAGRAM"));
+            Long thirdId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             ContentListResponse firstPage = fixture.contentList(signup.accessToken(), "?page=0&size=2");
             ContentListResponse secondPage = fixture.contentList(signup.accessToken(), "?page=1&size=2");
@@ -711,10 +711,10 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("size 를 3 으로 부르면 홈의 최근 저장 3건을 얻는다")
         void returnsThreeMostRecentContents_whenSizeIsThree() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-home");
-            savedContent(signup.accessToken(), List.of("BLOG"));
-            Long secondId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long thirdId = savedContent(signup.accessToken(), List.of("INSTAGRAM"));
-            Long fourthId = savedContent(signup.accessToken(), List.of("THREADS"));
+            fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long secondId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long thirdId = fixture.savedContentId(signup.accessToken(), List.of("INSTAGRAM"));
+            Long fourthId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             ContentListResponse home = fixture.contentList(signup.accessToken(), "?size=3");
 
@@ -740,8 +740,8 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("채널로 거르면 그 채널을 포함한 저장 건만 오고 카드의 채널 목록은 잘리지 않는다")
         void returnsOnlyContentsHavingChannelWithFullChannelList_whenChannelFiltered() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-filter");
-            Long instagramId = savedContent(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
-            savedContent(signup.accessToken(), List.of("THREADS"));
+            Long instagramId = fixture.savedContentId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
 
             ContentListResponse filtered = fixture.contentList(signup.accessToken(), "?channel=INSTAGRAM");
 
@@ -909,8 +909,8 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("삭제한 콘텐츠는 목록에서 빠지고 전체 건수에서도 빠진다")
         void excludesDeletedContentsFromListAndTotalCount() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-deleted");
-            Long deletedId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long keptId = savedContent(signup.accessToken(), List.of("THREADS"));
+            Long deletedId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long keptId = fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
             fixture.deletedContent(signup.accessToken(), deletedId);
 
             ContentListResponse list = fixture.contentList(signup.accessToken(), "");
@@ -925,9 +925,9 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("다른 회원의 콘텐츠는 목록에 오지 않는다")
         void excludesOtherMembersContents() {
             SignupResponse owner = fixture.signupActiveMember("naver-list-owner");
-            savedContent(owner.accessToken(), List.of("BLOG"));
+            fixture.savedContentId(owner.accessToken(), List.of("BLOG"));
             SignupResponse other = fixture.signupActiveMember("naver-list-other");
-            Long otherContentId = savedContent(other.accessToken(), List.of("THREADS"));
+            Long otherContentId = fixture.savedContentId(other.accessToken(), List.of("THREADS"));
 
             ContentListResponse list = fixture.contentList(other.accessToken(), "");
 
@@ -952,10 +952,10 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("채널로 걸러도 저장 시각 최신순과 페이징이 그대로 적용된다")
         void appliesOrderAndPagingToFilteredList() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-filter-paging");
-            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
-            savedContent(signup.accessToken(), List.of("THREADS"));
-            Long middleId = savedContent(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
-            Long newestId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long oldestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
+            Long middleId = fixture.savedContentId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            Long newestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
 
             ContentListResponse firstPage = fixture.contentList(signup.accessToken(), "?channel=BLOG&page=0&size=2");
             ContentListResponse secondPage = fixture.contentList(signup.accessToken(), "?channel=BLOG&page=1&size=2");
@@ -976,9 +976,9 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("채널로 걸러도 고른 정렬이 그대로 적용된다")
         void appliesChosenOrderToFilteredList() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-filter-oldest");
-            Long oldestId = savedContent(signup.accessToken(), List.of("BLOG"));
-            savedContent(signup.accessToken(), List.of("THREADS"));
-            Long newestId = savedContent(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+            Long oldestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            fixture.savedContentId(signup.accessToken(), List.of("THREADS"));
+            Long newestId = fixture.savedContentId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
 
             ContentListResponse filtered = fixture.contentList(signup.accessToken(), "?channel=BLOG&sort=OLDEST");
 
@@ -992,8 +992,8 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("채널로 걸러도 삭제한 콘텐츠는 목록과 전체 건수에서 빠진다")
         void excludesDeletedContentsFromFilteredList() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-filter-deleted");
-            Long deletedId = savedContent(signup.accessToken(), List.of("BLOG"));
-            Long keptId = savedContent(signup.accessToken(), List.of("BLOG"));
+            Long deletedId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
+            Long keptId = fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
             fixture.deletedContent(signup.accessToken(), deletedId);
 
             ContentListResponse filtered = fixture.contentList(signup.accessToken(), "?channel=BLOG");
@@ -1008,7 +1008,7 @@ class ContentApiTest extends IntegrationTest {
         @DisplayName("채널 필터 결과가 없으면 빈 목록과 0 건이 온다")
         void returnsEmptyList_whenNoContentHasChannel() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-filter-empty");
-            savedContent(signup.accessToken(), List.of("BLOG"));
+            fixture.savedContentId(signup.accessToken(), List.of("BLOG"));
 
             ContentListResponse filtered = fixture.contentList(signup.accessToken(), "?channel=DAANGN_BIZ");
 
@@ -1057,12 +1057,6 @@ class ContentApiTest extends IntegrationTest {
                 .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
-        }
-
-        private Long savedContent(String accessToken, List<String> channels) {
-            Long contentId = fixture.savedContentId(accessToken, fixture.startedGenerationId(accessToken, channels));
-            clock.advanceBy(Duration.ofMinutes(1));
-            return contentId;
         }
     }
 

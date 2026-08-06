@@ -12,11 +12,11 @@ class TestFixtureConfig {
 
     @Bean
     @Scope("prototype")
-    TestFixture testFixture(@LocalServerPort int port, TestNaverApi naverApi) {
+    TestFixture testFixture(@LocalServerPort int port, TestNaverApi naverApi, MutableClock clock) {
         RestTestClient client = RestTestClient.bindToServer()
                 .baseUrl("http://localhost:" + port)
                 .build();
-        return new TestFixture(client, naverApi);
+        return new TestFixture(client, naverApi, clock);
     }
 
     @Bean
