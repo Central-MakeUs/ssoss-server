@@ -5,4 +5,6 @@ import java.time.Instant;
 public interface GenerationLockRepository {
 
     void acquire(Long memberId, Instant acquiredAt);
+
+    void deleteAllByMemberId(Long memberId);
 }

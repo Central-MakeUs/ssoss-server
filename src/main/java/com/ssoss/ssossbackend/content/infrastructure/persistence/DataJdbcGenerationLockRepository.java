@@ -18,4 +18,9 @@ class DataJdbcGenerationLockRepository implements GenerationLockRepository {
     public void acquire(Long memberId, Instant acquiredAt) {
         lockQueries.acquire(memberId, acquiredAt);
     }
+
+    @Override
+    public void deleteAllByMemberId(Long memberId) {
+        lockQueries.deleteAllByMemberId(memberId);
+    }
 }

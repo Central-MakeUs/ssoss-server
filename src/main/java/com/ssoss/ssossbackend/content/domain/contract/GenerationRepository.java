@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.content.domain.contract;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import com.ssoss.ssossbackend.content.domain.model.Generation;
@@ -12,4 +13,8 @@ public interface GenerationRepository extends ListCrudRepository<Generation, Lon
     Optional<Generation> findByIdAndMemberId(Long id, Long memberId);
 
     boolean existsByMemberIdAndFinishedAtIsNullAndCreatedAtGreaterThanEqual(Long memberId, Instant threshold);
+
+    List<Generation> findAllByMemberId(Long memberId);
+
+    void deleteAllByMemberId(Long memberId);
 }

@@ -57,6 +57,18 @@ public class ContentWriter {
     }
 
     @Transactional
+    public void deleteAllByMemberId(Long memberId) {
+        List<Long> channelIds = contentChannelRepository.findAllByMemberId(memberId).stream()
+            .map(ContentChannel::getId)
+            .toList();
+        if (!channelIds.isEmpty()) {
+            contentChannelHistoryRepository.deleteAllByContentChannelIdIn(channelIds);
+        }
+        contentChannelRepository.deleteAllByMemberId(memberId);
+        contentRepository.deleteAllByMemberId(memberId);
+    }
+
+    @Transactional
     public ContentWithChannels save(Generation generation, List<GenerationResult> results,
         List<ContentChannelDraft> drafts) {
         Map<Channel, ContentChannelDraft> draftsByChannel = drafts.stream()
