@@ -14,6 +14,7 @@ import com.ssoss.ssossbackend.content.entrypoint.response.ContentListResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentSaveResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationDetailResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.GenerationStartResponse;
+import com.ssoss.ssossbackend.credit.entrypoint.response.CreditBalanceResponse;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
@@ -116,10 +117,18 @@ public class TestFixture {
             .getResponseBody();
     }
 
-    public RestTestClient.ResponseSpec creditBalance(String accessToken) {
+    public RestTestClient.ResponseSpec getCreditBalance(String accessToken) {
         return client.get().uri("/v1/credits/me")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .exchange();
+    }
+
+    public CreditBalanceResponse creditBalance(String accessToken) {
+        return getCreditBalance(accessToken)
+            .expectStatus().isOk()
+            .expectBody(CreditBalanceResponse.class)
+            .returnResult()
+            .getResponseBody();
     }
 
     public RestTestClient.ResponseSpec getCreditLedgers(String accessToken, String query) {
