@@ -1,14 +1,17 @@
 package com.ssoss.ssossbackend.hashtag.application.service;
 
 import java.util.List;
+import java.util.Set;
 
 import com.ssoss.ssossbackend.hashtag.application.result.HashtagBundleListResult;
 import com.ssoss.ssossbackend.hashtag.application.result.HashtagBundleResult;
+import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundle;
 import com.ssoss.ssossbackend.hashtag.domain.service.HashtagBundleBookmarkWriter;
 import com.ssoss.ssossbackend.hashtag.domain.service.HashtagBundleFinder;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,13 +21,16 @@ public class HashtagBundleService {
     private final HashtagBundleFinder hashtagBundleFinder;
     private final HashtagBundleBookmarkWriter hashtagBundleBookmarkWriter;
 
-    public HashtagBundleListResult list(int page, int size) {
-        return HashtagBundleListResult.from(hashtagBundleFinder.list(page, size));
+    public HashtagBundleListResult list(Long memberId, int page, int size) {
+        Page<HashtagBundle> found = hashtagBundleFinder.list(page, size);
+        Set<Long> bookmarkedIds = hashtagBundleFinder.findBookmarkedIds(memberId,
+            found.getContent().stream().map(HashtagBundle::getId).toList());
+        return HashtagBundleListResult.from(found, bookmarkedIds);
     }
 
     public List<HashtagBundleResult> listBookmarked(Long memberId) {
         return hashtagBundleFinder.listBookmarked(memberId).stream()
-            .map(HashtagBundleResult::from)
+            .map(bundle -> HashtagBundleResult.from(bundle, true))
             .toList();
     }
 

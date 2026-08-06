@@ -1,6 +1,8 @@
 package com.ssoss.ssossbackend.hashtag.domain.service;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.ssoss.ssossbackend.hashtag.domain.contract.HashtagBundleBookmarkRepository;
 import com.ssoss.ssossbackend.hashtag.domain.contract.HashtagBundleRepository;
@@ -32,6 +34,16 @@ public class HashtagBundleFinder {
     public HashtagBundle get(Long bundleId) {
         return hashtagBundleRepository.findById(bundleId)
             .orElseThrow(() -> new BusinessException(HashtagErrorCode.HASHTAG_BUNDLE_NOT_FOUND));
+    }
+
+    public Set<Long> findBookmarkedIds(Long memberId, List<Long> bundleIds) {
+        if (bundleIds.isEmpty()) {
+            return Set.of();
+        }
+        return hashtagBundleBookmarkRepository
+            .findAllByMemberIdAndBundleIdInAndBookmarkedAtIsNotNull(memberId, bundleIds).stream()
+            .map(HashtagBundleBookmark::getBundleId)
+            .collect(Collectors.toUnmodifiableSet());
     }
 
     public List<HashtagBundle> listBookmarked(Long memberId) {

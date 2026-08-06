@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,12 +24,14 @@ class HashtagBundleController implements HashtagBundleApi {
     @Override
     @GetMapping("/v1/hashtag-bundles")
     public HashtagBundleListResponse list(
+        @AuthenticationPrincipal Long memberId,
         @Valid @ParameterObject HashtagBundleListRequest request
     ) {
-        HashtagBundleListResult result = hashtagBundleService.list(request.page(), request.size());
+        HashtagBundleListResult result = hashtagBundleService.list(memberId, request.page(), request.size());
         return new HashtagBundleListResponse(result.totalCount(), result.page(), result.size(), result.hasNext(),
             result.bundles().stream()
-                .map(bundle -> new HashtagBundleResponse(bundle.id(), bundle.name(), bundle.hashtags()))
+                .map(bundle -> new HashtagBundleResponse(bundle.id(), bundle.name(), bundle.hashtags(),
+                    bundle.bookmarked()))
                 .toList());
     }
 }
