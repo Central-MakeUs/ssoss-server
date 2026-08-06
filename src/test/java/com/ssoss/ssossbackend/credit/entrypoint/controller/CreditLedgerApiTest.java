@@ -309,7 +309,7 @@ class CreditLedgerApiTest extends IntegrationTest {
                 });
             int ledgerSum = entries.stream().mapToInt(CreditLedger::getAmount).sum();
             String accessToken = fixture.naverLoginMember("naver-ledger-hidden-expire").accessToken();
-            fixture.creditBalance(accessToken)
+            fixture.getCreditBalance(accessToken)
                 .expectBody(CreditBalanceResponse.class)
                 .value(body -> assertThat(body.balance()).isEqualTo(ledgerSum));
         }

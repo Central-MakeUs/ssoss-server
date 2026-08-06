@@ -39,7 +39,7 @@ class CreditBalanceApiTest extends IntegrationTest {
         void returnsSignupGrantedBalance_whenActiveMemberQueriesRightAfterSignup() {
             SignupResponse signup = fixture.signupActiveMember("naver-credit-balance");
 
-            fixture.creditBalance(signup.accessToken())
+            fixture.getCreditBalance(signup.accessToken())
                 .expectStatus().isOk()
                 .expectBody(CreditBalanceResponse.class)
                 .value(body -> assertThat(body.balance()).isEqualTo(50));
@@ -50,7 +50,7 @@ class CreditBalanceApiTest extends IntegrationTest {
         void returns403_whenPendingTokenQueriesBalance() {
             SocialLoginResponse login = fixture.naverLoginMember("naver-credit-pending");
 
-            fixture.creditBalance(login.accessToken())
+            fixture.getCreditBalance(login.accessToken())
                 .expectStatus().isForbidden()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
@@ -63,7 +63,7 @@ class CreditBalanceApiTest extends IntegrationTest {
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
             SocialLoginResponse withdrawnLogin = fixture.naverLoginMember("naver-credit-withdrawn");
 
-            fixture.creditBalance(withdrawnLogin.accessToken())
+            fixture.getCreditBalance(withdrawnLogin.accessToken())
                 .expectStatus().isForbidden()
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
@@ -98,7 +98,7 @@ class CreditBalanceApiTest extends IntegrationTest {
                 assertThat(entry.getGenerationId()).isNull();
             });
             int ledgerSum = entries.stream().mapToInt(CreditLedger::getAmount).sum();
-            fixture.creditBalance(signup.accessToken())
+            fixture.getCreditBalance(signup.accessToken())
                 .expectBody(CreditBalanceResponse.class)
                 .value(body -> assertThat(body.balance()).isEqualTo(ledgerSum));
         }

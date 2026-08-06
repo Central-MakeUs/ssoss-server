@@ -342,7 +342,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-content-recovered");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
             Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
-            int balanceBefore = balanceOf(signup.accessToken());
+            int balanceBefore = fixture.creditBalance(signup.accessToken()).balance();
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
             String withdrawnToken = fixture.naverLoginMember("naver-delete-content-recovered").accessToken();
             String recoveredToken = fixture.recovered(withdrawnToken).accessToken();
@@ -355,7 +355,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
                 .singleElement()
                 .satisfies(card -> assertThat(card.contentId()).isEqualTo(contentId));
             assertThat(fixture.contentDetail(recoveredToken, contentId).contents()).hasSize(1);
-            assertThat(balanceOf(recoveredToken)).isEqualTo(balanceBefore);
+            assertThat(fixture.creditBalance(recoveredToken).balance()).isEqualTo(balanceBefore);
         }
 
         @Test
@@ -570,14 +570,5 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             .param("memberId", memberId)
             .query(Long.class)
             .single();
-    }
-
-    private int balanceOf(String accessToken) {
-        return fixture.creditBalance(accessToken)
-            .expectStatus().isOk()
-            .expectBody(CreditBalanceResponse.class)
-            .returnResult()
-            .getResponseBody()
-            .balance();
     }
 }

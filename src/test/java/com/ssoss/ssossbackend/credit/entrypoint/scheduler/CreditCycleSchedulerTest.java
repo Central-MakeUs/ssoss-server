@@ -83,7 +83,7 @@ class CreditCycleSchedulerTest extends IntegrationTest {
                 .allSatisfy(entry -> assertThat(entry.getAmount()).isEqualTo(50));
             int ledgerSum = entries.stream().mapToInt(CreditLedger::getAmount).sum();
             String accessToken = fixture.naverLoginMember("naver-cycle-renew").accessToken();
-            fixture.creditBalance(accessToken)
+            fixture.getCreditBalance(accessToken)
                 .expectStatus().isOk()
                 .expectBody(CreditBalanceResponse.class)
                 .value(body -> {
@@ -117,7 +117,7 @@ class CreditCycleSchedulerTest extends IntegrationTest {
 
             SignupResponse signup = fixture.signupActiveMember("naver-cycle-midcycle");
 
-            fixture.creditBalance(signup.accessToken())
+            fixture.getCreditBalance(signup.accessToken())
                 .expectStatus().isOk()
                 .expectBody(CreditBalanceResponse.class)
                 .value(body -> assertThat(body.balance()).isEqualTo(50));
@@ -167,7 +167,7 @@ class CreditCycleSchedulerTest extends IntegrationTest {
                 .expectBody(RecoveryResponse.class)
                 .returnResult()
                 .getResponseBody();
-            fixture.creditBalance(recovered.accessToken())
+            fixture.getCreditBalance(recovered.accessToken())
                 .expectStatus().isOk()
                 .expectBody(CreditBalanceResponse.class)
                 .value(body -> assertThat(body.balance()).isEqualTo(50));
