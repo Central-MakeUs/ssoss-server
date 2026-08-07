@@ -1,8 +1,10 @@
 package com.ssoss.ssossbackend.template.domain.service;
 
+import com.ssoss.ssossbackend.shared.exception.BusinessException;
 import com.ssoss.ssossbackend.template.domain.contract.TemplateRepository;
 import com.ssoss.ssossbackend.template.domain.model.Template;
 import com.ssoss.ssossbackend.template.domain.model.TemplateCategory;
+import com.ssoss.ssossbackend.template.domain.model.TemplateErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,5 +27,10 @@ public class TemplateFinder {
             return templateRepository.findAll(pageRequest);
         }
         return templateRepository.findAllByCategory(category, pageRequest);
+    }
+
+    public Template get(Long templateId) {
+        return templateRepository.findById(templateId)
+            .orElseThrow(() -> new BusinessException(TemplateErrorCode.TEMPLATE_NOT_FOUND));
     }
 }
