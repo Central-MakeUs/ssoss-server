@@ -144,4 +144,8 @@ public class TestDatabase {
             .filter(savedTemplate -> savedTemplate.getMemberId().equals(memberId))
             .toList();
     }
+
+    public SavedTemplate savedTemplateOf(Long savedTemplateId) {
+        return savedTemplateRepository.findById(savedTemplateId).orElseThrow();
+    }
 }
