@@ -42,7 +42,7 @@ class TemplateApiTest extends IntegrationTest {
             assertThat(body.templates()).extracting(TemplateResponse::id)
                 .isSortedAccordingTo(Comparator.reverseOrder());
             assertThat(body.templates()).extracting(TemplateResponse::title)
-                .contains("신메뉴 출시 알림", "오픈 기념 할인 안내", "매장 첫인사", "휴무 안내");
+                .contains("신메뉴 출시 안내", "오픈 기념 할인 안내", "가게 첫인사", "휴무 안내");
         }
 
         @Test
@@ -60,7 +60,7 @@ class TemplateApiTest extends IntegrationTest {
                 assertThat(template.recommendedChannels()).isNotEmpty();
             });
             assertThat(body.templates())
-                .filteredOn(template -> template.title().equals("신메뉴 출시 알림"))
+                .filteredOn(template -> template.title().equals("신메뉴 출시 안내"))
                 .singleElement()
                 .satisfies(template -> {
                     assertThat(template.category()).isEqualTo("NEW_MENU");
