@@ -13,7 +13,6 @@ import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.content.domain.contract.ContentRepository;
 import com.ssoss.ssossbackend.content.domain.contract.GenerationResultRepository;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
-import com.ssoss.ssossbackend.content.domain.model.ContentSource;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelSummaryResponse;
@@ -82,7 +81,7 @@ class ContentApiTest extends IntegrationTest {
                 .findAllByGenerationIdOrderById(generationId);
             assertThat(database.channelsOf(database.memberIdOf("naver-save-copy"))).hasSize(2).allSatisfy(channel -> {
                 GenerationResult origin = results.stream()
-                    .filter(result -> result.getId().equals(channel.getSourceGenerationResultId()))
+                    .filter(result -> result.getId().equals(channel.getGenerationResultId()))
                     .findFirst()
                     .orElseThrow();
                 assertThat(channel.getChannel()).isEqualTo(origin.getChannel());
@@ -125,8 +124,8 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("콘텐츠는 원본이 생성 작업임을 남기고 목적·톤·키워드를 복사한다")
-        void copiesSourceAndGenerationConditions_whenGenerationSaved() {
+        @DisplayName("작업을 저장하면 콘텐츠에 원본 작업 참조와 목적·톤·키워드가 복사된다")
+        void copiesGenerationReferenceAndConditions_whenGenerationSaved() {
             SignupResponse signup = fixture.signupActiveMember("naver-save-condition");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), Map.of(
                 "channels", List.of("BLOG"),
@@ -138,8 +137,7 @@ class ContentApiTest extends IntegrationTest {
             fixture.contentsOfGeneration(signup.accessToken(), generationId);
 
             assertThat(database.contentsOf(database.memberIdOf("naver-save-condition"))).singleElement().satisfies(content -> {
-                assertThat(content.getSourceType()).isEqualTo(ContentSource.GENERATION);
-                assertThat(content.getSourceId()).isEqualTo(generationId);
+                assertThat(content.getGenerationId()).isEqualTo(generationId);
                 assertThat(content.getPurpose().name()).isEqualTo("EVENT_DISCOUNT");
                 assertThat(content.getTone().name()).isEqualTo("EMOTIONAL");
                 assertThat(content.keywordList()).containsExactly("디저트", "크루아상");
@@ -1286,19 +1284,19 @@ class ContentApiTest extends IntegrationTest {
 
         @Test
         @DisplayName("편집해도 원본 생성 결과 참조는 유지된다")
-        void keepsSourceGenerationResultId_whenChannelEdited() {
+        void keepsGenerationResultId_whenChannelEdited() {
             SignupResponse signup = fixture.signupActiveMember("naver-edit-source");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
             Long contentChannelId = saved.contents().getFirst().contentChannelId();
-            Long sourceGenerationResultId = database.channelById(contentChannelId).getSourceGenerationResultId();
+            Long generationResultId = database.channelById(contentChannelId).getGenerationResultId();
 
             fixture.editContentChannel(signup.accessToken(), saved.contentId(), contentChannelId, TITLED_EDIT)
                 .expectStatus().isOk();
 
-            assertThat(sourceGenerationResultId).isNotNull();
-            assertThat(database.channelById(contentChannelId).getSourceGenerationResultId())
-                .isEqualTo(sourceGenerationResultId);
+            assertThat(generationResultId).isNotNull();
+            assertThat(database.channelById(contentChannelId).getGenerationResultId())
+                .isEqualTo(generationResultId);
         }
 
         @Test

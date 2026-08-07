@@ -24,7 +24,7 @@ public class ContentChannel {
     private Long contentId;
     private Long memberId;
     private Channel channel;
-    private Long sourceGenerationResultId;
+    private Long generationResultId;
     private String title;
     private String body;
     private Hashtags hashtags;
@@ -37,13 +37,13 @@ public class ContentChannel {
 
     private Instant deletedAt;
 
-    ContentChannel(Long id, Long contentId, Long memberId, Channel channel, Long sourceGenerationResultId,
+    ContentChannel(Long id, Long contentId, Long memberId, Channel channel, Long generationResultId,
         String title, String body, Hashtags hashtags, Instant createdAt, Instant updatedAt, Instant deletedAt) {
         this.id = id;
         this.contentId = contentId;
         this.memberId = memberId;
         this.channel = channel;
-        this.sourceGenerationResultId = sourceGenerationResultId;
+        this.generationResultId = generationResultId;
         this.title = title;
         this.body = body;
         this.hashtags = hashtags;

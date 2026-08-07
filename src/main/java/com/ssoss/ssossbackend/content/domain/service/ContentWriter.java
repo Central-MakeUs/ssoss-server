@@ -17,7 +17,6 @@ import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannelDraft;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannelHistory;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
-import com.ssoss.ssossbackend.content.domain.model.ContentSource;
 import com.ssoss.ssossbackend.content.domain.model.ContentWithChannels;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
@@ -80,14 +79,14 @@ public class ContentWriter {
             throw new BusinessException(ContentErrorCode.SAVE_CHANNELS_MISMATCHED);
         }
         drafts.forEach(draft -> draft.channel().ensureTitleAllowed(draft.title()));
-        Content content = contentRepository.findBySourceTypeAndSourceId(ContentSource.GENERATION, generation.getId())
+        Content content = contentRepository.findByGenerationId(generation.getId())
             .orElseGet(() -> contentRepository.save(Content.copyOf(generation)));
         if (content.isDeleted()) {
             throw new BusinessException(ContentErrorCode.CONTENT_DELETED);
         }
         List<ContentChannel> saved = contentChannelRepository.findAllByContentId(content.getId());
         Set<Long> savedResultIds = saved.stream()
-            .map(ContentChannel::getSourceGenerationResultId)
+            .map(ContentChannel::getGenerationResultId)
             .collect(Collectors.toSet());
         List<ContentChannel> added = contentChannelRepository.saveAll(results.stream()
             .filter(result -> !savedResultIds.contains(result.getId()))

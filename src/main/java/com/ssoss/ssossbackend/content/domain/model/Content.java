@@ -16,8 +16,7 @@ public class Content {
     @Id
     private Long id;
     private Long memberId;
-    private ContentSource sourceType;
-    private Long sourceId;
+    private Long generationId;
     private Purpose purpose;
     private Tone tone;
     private Keywords keywords;
@@ -27,12 +26,11 @@ public class Content {
 
     private Instant deletedAt;
 
-    Content(Long id, Long memberId, ContentSource sourceType, Long sourceId, Purpose purpose, Tone tone,
+    Content(Long id, Long memberId, Long generationId, Purpose purpose, Tone tone,
         Keywords keywords, Instant createdAt, Instant deletedAt) {
         this.id = id;
         this.memberId = memberId;
-        this.sourceType = sourceType;
-        this.sourceId = sourceId;
+        this.generationId = generationId;
         this.purpose = purpose;
         this.tone = tone;
         this.keywords = keywords;
@@ -41,7 +39,7 @@ public class Content {
     }
 
     public static Content copyOf(Generation generation) {
-        return new Content(null, generation.getMemberId(), ContentSource.GENERATION, generation.getId(),
+        return new Content(null, generation.getMemberId(), generation.getId(),
             generation.getPurpose(), generation.getTone(), generation.getKeywords(), null, null);
     }
 
