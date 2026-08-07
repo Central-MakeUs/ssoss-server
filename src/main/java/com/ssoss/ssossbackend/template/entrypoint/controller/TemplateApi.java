@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.template.entrypoint.controller;
 
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.template.entrypoint.request.TemplateListRequest;
+import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateListResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,15 +48,15 @@ interface TemplateApi {
                           "id": 2,
                           "category": "EVENT",
                           "title": "오픈 기념 할인 안내",
-                          "description": "문을 연 지 얼마 안 된 매장이 첫 할인을 알릴 때 쓰는 글입니다",
+                          "description": "문을 연 지 얼마 안 된 가게가 첫 할인을 알리는 글",
                           "recommendedChannels": ["DAANGN_BIZ", "INSTAGRAM", "BLOG"],
                           "bookmarked": false
                         },
                         {
                           "id": 1,
                           "category": "NEW_MENU",
-                          "title": "신메뉴 출시 알림",
-                          "description": "새로 나온 메뉴를 사진과 함께 처음 알릴 때 쓰는 글입니다",
+                          "title": "신메뉴 출시 안내",
+                          "description": "새로 나온 메뉴의 특징과 매력을 소개하는 글",
                           "recommendedChannels": ["INSTAGRAM", "BLOG", "THREADS"],
                           "bookmarked": false
                         }
@@ -79,4 +80,50 @@ interface TemplateApi {
                     """)))
     })
     TemplateListResponse list(TemplateListRequest request);
+
+    @Operation(
+        summary = "추천 템플릿 상세 조회",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            목록에서 고른 템플릿 하나의 상세를 조회합니다. 적용하기를 누르기 전에 본문을 보는 자리입니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 입니다. 상세 자체는 모든 회원에게 같습니다.
+            - body 와 exampleBody 는 서로 다른 글입니다. body 는 `[가게명]`·`[주소]` 같은 대괄호 자리표시자가 그대로 남은 틀이고,
+              exampleBody 는 다른 매장 정보로 전부 채워진 완성 글이라 "완성되면 이런 모양"을 보여 주는 데 씁니다.
+            - 서버는 치환을 하지 않습니다. 내 매장 정보로 채운 본문은 적용 API 로 받습니다.
+            - category·title·description·recommendedChannels 는 목록 카드와 같은 값이라 화면 상단을 그대로 그릴 수 있습니다.
+            - bookmarked 는 지금 항상 false 로 내려갑니다. 북마크 저장 기능이 붙으면 값만 채워지고 응답 모양은 그대로입니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "자리표시자가 남은 원문과 채워진 예시 본문을 함께 반환합니다",
+            content = @Content(schema = @Schema(implementation = TemplateDetailResponse.class),
+                examples = @ExampleObject(name = "신메뉴 출시 안내", value = """
+                    {
+                      "id": 8,
+                      "category": "NEW_MENU",
+                      "title": "신메뉴 출시 안내",
+                      "description": "새로 나온 메뉴의 특징과 매력을 소개하는 글",
+                      "body": "[가게명]에 새 메뉴가 출시되었습니다!\\n\\n🎁신메뉴: [메뉴명]\\n💰가격: [가격]원\\n\\n📍[주소]",
+                      "exampleBody": "카페 모먼트에 새 메뉴가 출시되었습니다!\\n\\n🎁신메뉴: 피스타치오 크림 라떼\\n💰가격: 6,500원\\n\\n📍서울 성동구 서울숲2길 14",
+                      "recommendedChannels": ["INSTAGRAM", "BLOG", "THREADS"],
+                      "bookmarked": false
+                    }
+                    """))),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404", description = "템플릿을 찾을 수 없습니다 (TP0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"TP0001","message":"템플릿을 찾을 수 없습니다"}
+                    """)))
+    })
+    TemplateDetailResponse getById(Long templateId);
 }

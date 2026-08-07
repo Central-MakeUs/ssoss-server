@@ -9,6 +9,8 @@ import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
+import com.ssoss.ssossbackend.template.domain.model.TemplateErrorCode;
+import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateListResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateResponse;
 
@@ -18,13 +20,23 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("추천 템플릿 목록 API")
+@DisplayName("추천 템플릿 API")
 class TemplateApiTest extends IntegrationTest {
 
     private static final String EVERY_TEMPLATE = "?size=50";
     private static final String BY_CATEGORY = "?category={category}";
     private static final String EVERY_MATCHED_TEMPLATE = BY_CATEGORY + "&size=50";
     private static final List<String> CATEGORIES = List.of("NEW_MENU", "EVENT", "STORE_INTRO", "NOTICE");
+    private static final String NEW_MENU_TITLE = "신메뉴 출시 안내";
+    private static final long MISSING_TEMPLATE_ID = 999_999L;
+    private static final long ANY_TEMPLATE_ID = 1L;
+
+    private TemplateResponse cardOf(String accessToken, String title) {
+        return fixture.templateList(accessToken, EVERY_TEMPLATE).templates().stream()
+            .filter(template -> template.title().equals(title))
+            .findFirst()
+            .orElseThrow();
+    }
 
     @Nested
     @DisplayName("GET /v1/templates")
@@ -42,7 +54,7 @@ class TemplateApiTest extends IntegrationTest {
             assertThat(body.templates()).extracting(TemplateResponse::id)
                 .isSortedAccordingTo(Comparator.reverseOrder());
             assertThat(body.templates()).extracting(TemplateResponse::title)
-                .contains("신메뉴 출시 안내", "오픈 기념 할인 안내", "가게 첫인사", "휴무 안내");
+                .contains(NEW_MENU_TITLE, "오픈 기념 할인 안내", "가게 첫인사", "휴무 안내");
         }
 
         @Test
@@ -60,7 +72,7 @@ class TemplateApiTest extends IntegrationTest {
                 assertThat(template.recommendedChannels()).isNotEmpty();
             });
             assertThat(body.templates())
-                .filteredOn(template -> template.title().equals("신메뉴 출시 안내"))
+                .filteredOn(template -> template.title().equals(NEW_MENU_TITLE))
                 .singleElement()
                 .satisfies(template -> {
                     assertThat(template.category()).isEqualTo("NEW_MENU");
@@ -239,6 +251,64 @@ class TemplateApiTest extends IntegrationTest {
         @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
         void returns401_whenAccessTokenMissing() {
             client().get().uri("/v1/templates")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /v1/templates/{templateId}")
+    class GetTemplate {
+
+        @Test
+        @DisplayName("가입 회원이 조회하면 카드 필드에 원문과 예시 본문이 더해져 담긴다")
+        void carriesBodyAndExampleBodyOnTopOfCardFields_whenActiveMemberQueries() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-detail");
+            TemplateResponse card = cardOf(signup.accessToken(), NEW_MENU_TITLE);
+
+            TemplateDetailResponse body = fixture.templateDetail(signup.accessToken(), card.id());
+
+            assertThat(body.id()).isEqualTo(card.id());
+            assertThat(body.category()).isEqualTo(card.category());
+            assertThat(body.title()).isEqualTo(card.title());
+            assertThat(body.description()).isEqualTo(card.description());
+            assertThat(body.recommendedChannels()).isEqualTo(card.recommendedChannels());
+            assertThat(body.bookmarked()).isFalse();
+            assertThat(body.body()).isNotBlank();
+            assertThat(body.exampleBody()).isNotBlank().isNotEqualTo(body.body());
+        }
+
+        @Test
+        @DisplayName("없는 템플릿을 조회하면 404 와 TP0001 을 반환한다")
+        void returns404_whenTemplateIsMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-detail-missing");
+
+            fixture.getTemplate(signup.accessToken(), MISSING_TEMPLATE_ID)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("있는 템플릿이라도 가입 대기(PENDING) 토큰으로 조회하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenQueries() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-detail-seed");
+            Long templateId = cardOf(signup.accessToken(), NEW_MENU_TITLE).id();
+            SocialLoginResponse login = fixture.naverLoginMember("naver-template-detail-pending");
+
+            fixture.getTemplate(login.accessToken(), templateId)
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().get().uri("/v1/templates/" + ANY_TEMPLATE_ID)
                 .exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)
