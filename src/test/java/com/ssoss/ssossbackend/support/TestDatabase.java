@@ -24,10 +24,7 @@ import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundleBookmark;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberTermRepository;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
-import com.ssoss.ssossbackend.template.domain.contract.TemplateRepository;
-import com.ssoss.ssossbackend.template.domain.model.Template;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import static com.ssoss.ssossbackend.member.domain.model.SocialProvider.NAVER;
@@ -45,7 +42,6 @@ public class TestDatabase {
     private final GenerationResultRepository generationResultRepository;
     private final CreditLedgerRepository creditLedgerRepository;
     private final HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository;
-    private final TemplateRepository templateRepository;
     private final JdbcClient jdbcClient;
 
     TestDatabase(MemberRepository memberRepository, MemberTermRepository memberTermRepository,
@@ -53,8 +49,7 @@ public class TestDatabase {
         ContentChannelRepository contentChannelRepository,
         ContentChannelHistoryRepository contentChannelHistoryRepository, GenerationRepository generationRepository,
         GenerationResultRepository generationResultRepository, CreditLedgerRepository creditLedgerRepository,
-        HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository, TemplateRepository templateRepository,
-        JdbcClient jdbcClient) {
+        HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository, JdbcClient jdbcClient) {
         this.memberRepository = memberRepository;
         this.memberTermRepository = memberTermRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -66,7 +61,6 @@ public class TestDatabase {
         this.generationResultRepository = generationResultRepository;
         this.creditLedgerRepository = creditLedgerRepository;
         this.hashtagBundleBookmarkRepository = hashtagBundleBookmarkRepository;
-        this.templateRepository = templateRepository;
         this.jdbcClient = jdbcClient;
     }
 
@@ -138,9 +132,5 @@ public class TestDatabase {
         return hashtagBundleBookmarkRepository.findAll().stream()
             .filter(bookmark -> bookmark.getMemberId().equals(memberId))
             .toList();
-    }
-
-    public List<Template> templates() {
-        return templateRepository.findAll(Pageable.unpaged()).getContent();
     }
 }
