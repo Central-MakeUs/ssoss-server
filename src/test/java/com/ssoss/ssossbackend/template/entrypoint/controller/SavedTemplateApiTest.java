@@ -1,5 +1,7 @@
 package com.ssoss.ssossbackend.template.entrypoint.controller;
 
+import java.time.Duration;
+
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
@@ -9,7 +11,9 @@ import com.ssoss.ssossbackend.support.IntegrationTest;
 import com.ssoss.ssossbackend.template.domain.model.Channel;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
 import com.ssoss.ssossbackend.template.domain.model.TemplateErrorCode;
+import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateListResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSaveResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSummaryResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateResponse;
 
 import org.junit.jupiter.api.DisplayName;
@@ -198,6 +202,228 @@ class SavedTemplateApiTest extends IntegrationTest {
         @DisplayName("액세스 토큰 없이 저장하면 401 과 A0006 을 반환한다")
         void returns401_whenAccessTokenMissing() {
             client().post().uri("/v1/saved-templates")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /v1/saved-templates")
+    class ListSavedTemplates {
+
+        @Test
+        @DisplayName("sort 를 생략하면 저장 시각 최신순으로 온다")
+        void returnsSavedTemplatesInSavedAtDescendingOrder_whenSortOmitted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-default");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long oldestId = fixture.savedTemplateId(signup.accessToken(), templateId, "먼저 저장한 본문");
+            Long newestId = fixture.savedTemplateId(signup.accessToken(), templateId, "나중에 저장한 본문");
+
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "").savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(newestId, oldestId);
+        }
+
+        @Test
+        @DisplayName("sort 를 LATEST 로 부르면 저장 시각 최신순으로 온다")
+        void returnsSavedTemplatesInSavedAtDescendingOrder_whenLatestRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-latest");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long oldestId = fixture.savedTemplateId(signup.accessToken(), templateId, "먼저 저장한 본문");
+            Long newestId = fixture.savedTemplateId(signup.accessToken(), templateId, "나중에 저장한 본문");
+
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "?sort=LATEST").savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(newestId, oldestId);
+        }
+
+        @Test
+        @DisplayName("sort 를 빈 값으로 보내면 생략한 것과 같이 최신순으로 온다")
+        void returnsSavedTemplatesInSavedAtDescendingOrder_whenSortBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-blank-sort");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long oldestId = fixture.savedTemplateId(signup.accessToken(), templateId, "먼저 저장한 본문");
+            Long newestId = fixture.savedTemplateId(signup.accessToken(), templateId, "나중에 저장한 본문");
+
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "?sort=").savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(newestId, oldestId);
+        }
+
+        @Test
+        @DisplayName("sort 를 OLDEST 로 부르면 저장 시각 오래된 순으로 온다")
+        void returnsSavedTemplatesInSavedAtAscendingOrder_whenOldestRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-oldest");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long oldestId = fixture.savedTemplateId(signup.accessToken(), templateId, "먼저 저장한 본문");
+            Long middleId = fixture.savedTemplateId(signup.accessToken(), templateId, "그다음 저장한 본문");
+            Long newestId = fixture.savedTemplateId(signup.accessToken(), templateId, "나중에 저장한 본문");
+
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "?sort=OLDEST").savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(oldestId, middleId, newestId);
+        }
+
+        @Test
+        @DisplayName("페이지를 넘겨도 고른 정렬이 이어지고 전체 건수와 다음 페이지 여부가 함께 온다")
+        void keepsChosenOrderAcrossPages_withTotalCountAndHasNext() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-paging");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long oldestId = fixture.savedTemplateId(signup.accessToken(), templateId, "먼저 저장한 본문");
+            Long middleId = fixture.savedTemplateId(signup.accessToken(), templateId, "그다음 저장한 본문");
+            Long newestId = fixture.savedTemplateId(signup.accessToken(), templateId, "나중에 저장한 본문");
+
+            SavedTemplateListResponse firstPage =
+                fixture.savedTemplateList(signup.accessToken(), "?sort=OLDEST&page=0&size=2");
+            SavedTemplateListResponse secondPage =
+                fixture.savedTemplateList(signup.accessToken(), "?sort=OLDEST&page=1&size=2");
+
+            assertThat(firstPage.totalCount()).isEqualTo(3);
+            assertThat(firstPage.page()).isZero();
+            assertThat(firstPage.size()).isEqualTo(2);
+            assertThat(firstPage.hasNext()).isTrue();
+            assertThat(firstPage.savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(oldestId, middleId);
+            assertThat(secondPage.totalCount()).isEqualTo(3);
+            assertThat(secondPage.hasNext()).isFalse();
+            assertThat(secondPage.savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(newestId);
+        }
+
+        @Test
+        @DisplayName("카드에 분류와 제목과 설명과 저장일이 담긴다")
+        void returnsCategoryTitleDescriptionAndSavedAt_onEachCard() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-card");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "").savedTemplates())
+                .singleElement()
+                .satisfies(saved -> {
+                    assertThat(saved.savedTemplateId()).isEqualTo(savedTemplateId);
+                    assertThat(saved.category()).isEqualTo(card.category());
+                    assertThat(saved.title()).isEqualTo(card.title());
+                    assertThat(saved.description()).isEqualTo(card.description());
+                    assertThat(saved.savedAt())
+                        .isEqualTo(database.savedTemplateOf(savedTemplateId).getCreatedAt());
+                });
+        }
+
+        @Test
+        @DisplayName("나중에 저장한 글의 저장 시각이 더 이르면 오래된 순에서 그 글이 먼저 온다")
+        void ordersBySavedAtNotById_whenOldestRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-rewound-oldest");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long laterSavedId = fixture.savedTemplate(signup.accessToken(), templateId, "저장 시각이 늦은 본문")
+                .savedTemplateId();
+            clock.advanceBy(Duration.ofMinutes(-1));
+            Long earlierSavedId = fixture.savedTemplate(signup.accessToken(), templateId, "저장 시각이 이른 본문")
+                .savedTemplateId();
+
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "?sort=OLDEST").savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(earlierSavedId, laterSavedId);
+        }
+
+        @Test
+        @DisplayName("나중에 저장한 글의 저장 시각이 더 이르면 최신순에서 그 글이 뒤에 온다")
+        void ordersBySavedAtNotById_whenLatestRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-rewound-latest");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long laterSavedId = fixture.savedTemplate(signup.accessToken(), templateId, "저장 시각이 늦은 본문")
+                .savedTemplateId();
+            clock.advanceBy(Duration.ofMinutes(-1));
+            Long earlierSavedId = fixture.savedTemplate(signup.accessToken(), templateId, "저장 시각이 이른 본문")
+                .savedTemplateId();
+
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "?sort=LATEST").savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(laterSavedId, earlierSavedId);
+        }
+
+        @Test
+        @DisplayName("저장 시각이 같으면 나중에 저장한 글이 최신순에서 먼저 온다")
+        void ordersByIdDescending_whenSavedAtIsSame() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-same-clock");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long firstId = fixture.savedTemplate(signup.accessToken(), templateId, "먼저 저장한 본문").savedTemplateId();
+            Long secondId = fixture.savedTemplate(signup.accessToken(), templateId, "나중에 저장한 본문").savedTemplateId();
+
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "").savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(secondId, firstId);
+        }
+
+        @Test
+        @DisplayName("다른 회원이 저장한 글은 내 목록과 전체 건수에 들어가지 않는다")
+        void excludesSavedTemplatesOfOtherMembers() {
+            SignupResponse mine = fixture.signupActiveMember("naver-saved-template-list-mine");
+            SignupResponse other = fixture.signupActiveMember("naver-saved-template-list-other");
+            Long templateId = fixture.firstTemplate(mine.accessToken()).id();
+            Long mineId = fixture.savedTemplateId(mine.accessToken(), templateId, EDITED_BODY);
+            fixture.savedTemplateId(other.accessToken(), templateId, "다른 회원의 본문");
+
+            SavedTemplateListResponse body = fixture.savedTemplateList(mine.accessToken(), "");
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(mineId);
+        }
+
+        @Test
+        @DisplayName("저장한 글이 없으면 빈 목록과 전체 건수 0 을 반환한다")
+        void returnsEmptyList_whenNothingSaved() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-empty");
+
+            SavedTemplateListResponse body = fixture.savedTemplateList(signup.accessToken(), "");
+
+            assertThat(body.totalCount()).isZero();
+            assertThat(body.hasNext()).isFalse();
+            assertThat(body.savedTemplates()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("없는 정렬값으로 부르면 400 과 C0001 을 반환한다")
+        void returns400_whenSortIsUnknown() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-bad-sort");
+
+            fixture.getSavedTemplates(signup.accessToken(), "?sort=NEWEST")
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("size 가 상한을 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenSizeExceedsLimit() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-list-bad-size");
+
+            fixture.getSavedTemplates(signup.accessToken(), "?size=51")
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 조회하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenLists() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-saved-template-list-pending");
+
+            fixture.getSavedTemplates(login.accessToken(), "")
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().get().uri("/v1/saved-templates")
                 .exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)

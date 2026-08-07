@@ -20,6 +20,7 @@ import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListRespons
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateListResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSaveResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateAppliedResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
@@ -501,6 +502,26 @@ public class TestFixture {
         return saveTemplate(accessToken, templateId, body)
             .expectStatus().isCreated()
             .expectBody(SavedTemplateSaveResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public Long savedTemplateId(String accessToken, Long templateId, String body) {
+        Long savedTemplateId = savedTemplate(accessToken, templateId, body).savedTemplateId();
+        clock.advanceBy(Duration.ofMinutes(1));
+        return savedTemplateId;
+    }
+
+    public RestTestClient.ResponseSpec getSavedTemplates(String accessToken, String query) {
+        return client.get().uri("/v1/saved-templates" + query)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public SavedTemplateListResponse savedTemplateList(String accessToken, String query) {
+        return getSavedTemplates(accessToken, query)
+            .expectStatus().isOk()
+            .expectBody(SavedTemplateListResponse.class)
             .returnResult()
             .getResponseBody();
     }
