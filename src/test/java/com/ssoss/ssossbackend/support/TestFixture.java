@@ -20,6 +20,7 @@ import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListRespons
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.TemplateListResponse;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -425,6 +426,20 @@ public class TestFixture {
 
     public void unbookmarkedHashtagBundle(String accessToken, Long bundleId) {
         unbookmarkHashtagBundle(accessToken, bundleId).expectStatus().isNoContent();
+    }
+
+    public RestTestClient.ResponseSpec getTemplates(String accessToken, String query, Object... uriVariables) {
+        return client.get().uri("/v1/templates" + query, uriVariables)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public TemplateListResponse templateList(String accessToken, String query, Object... uriVariables) {
+        return getTemplates(accessToken, query, uriVariables)
+            .expectStatus().isOk()
+            .expectBody(TemplateListResponse.class)
+            .returnResult()
+            .getResponseBody();
     }
 
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
