@@ -13,13 +13,13 @@ public record BusinessDays(List<DayOfWeek> values) {
         values = values == null ? List.of() : List.copyOf(values);
     }
 
-    public static BusinessDays from(List<String> values) {
-        if (values == null) {
+    public static BusinessDays from(List<String> dayNames) {
+        if (dayNames == null) {
             return new BusinessDays(List.of());
         }
-        return new BusinessDays(values.stream()
-            .map(value -> Arrays.stream(DayOfWeek.values())
-                .filter(day -> day.name().equalsIgnoreCase(value))
+        return new BusinessDays(dayNames.stream()
+            .map(dayName -> Arrays.stream(DayOfWeek.values())
+                .filter(day -> day.name().equalsIgnoreCase(dayName))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_INPUT)))
             .distinct()
