@@ -37,9 +37,10 @@ class StoreProfileTest {
         }
 
         @Test
-        @DisplayName("영업 요일을 한글 요일로 낮춘다")
-        void lowersBusinessDays_toKoreanDays() {
-            assertThat(StoreProfile.from(written()).businessDays()).containsExactly("월요일", "일요일");
+        @DisplayName("영업 요일을 표기하지 않은 요일 값 그대로 담는다")
+        void carriesBusinessDays_asRawValues() {
+            assertThat(StoreProfile.from(written()).businessDays())
+                .containsExactly(DayOfWeek.MONDAY, DayOfWeek.SUNDAY);
         }
 
         @Test

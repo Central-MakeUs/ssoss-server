@@ -20,6 +20,7 @@ import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListRespons
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.TemplateAppliedResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateListResponse;
 
@@ -181,12 +182,20 @@ public class TestFixture {
         return body;
     }
 
+    public void savedStoreBasicInfo(String accessToken, Map<String, Object> body) {
+        saveStoreBasicInfo(accessToken, body).expectStatus().isNoContent();
+    }
+
     public RestTestClient.ResponseSpec saveStoreOperationInfo(String accessToken, Map<String, Object> body) {
         return client.put().uri("/v1/stores/me/operation")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
             .contentType(MediaType.APPLICATION_JSON)
             .body(body)
             .exchange();
+    }
+
+    public void savedStoreOperationInfo(String accessToken, Map<String, Object> body) {
+        saveStoreOperationInfo(accessToken, body).expectStatus().isNoContent();
     }
 
     public Map<String, Object> storeOperationInfoBody(List<String> businessDays, String openTime, String closeTime,
@@ -453,6 +462,20 @@ public class TestFixture {
         return getTemplate(accessToken, templateId)
             .expectStatus().isOk()
             .expectBody(TemplateDetailResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public RestTestClient.ResponseSpec getAppliedTemplate(String accessToken, Long templateId) {
+        return client.get().uri("/v1/templates/" + templateId + "/applied")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public TemplateAppliedResponse appliedTemplate(String accessToken, Long templateId) {
+        return getAppliedTemplate(accessToken, templateId)
+            .expectStatus().isOk()
+            .expectBody(TemplateAppliedResponse.class)
             .returnResult()
             .getResponseBody();
     }

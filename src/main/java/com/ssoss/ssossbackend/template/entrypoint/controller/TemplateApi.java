@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.template.entrypoint.controller;
 
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.template.entrypoint.request.TemplateListRequest;
+import com.ssoss.ssossbackend.template.entrypoint.response.TemplateAppliedResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateListResponse;
 
@@ -126,4 +127,44 @@ interface TemplateApi {
                     """)))
     })
     TemplateDetailResponse getById(Long templateId);
+
+    @Operation(
+        summary = "추천 템플릿 적용",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            상세에서 적용하기를 누른 템플릿의 본문을 내 매장 정보로 채워 조회합니다. 편집 화면을 여는 자리입니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 이고, 회원마다 자기 매장 정보로 채워진 서로 다른 본문을 받습니다.
+            - 저장이 아닙니다. 이 API 는 아무것도 남기지 않으므로 편집한 본문은 저장 API 로 따로 보내야 합니다.
+            - 본문의 대괄호 자리표시자 가운데 내 매장 정보로 채울 수 있는 것만 그 값으로 바뀝니다.
+              채울 값이 없으면 자리표시자가 그대로 남고, 남은 자리는 회원이 편집 화면에서 채웁니다.
+            - 판정은 자리표시자마다 따로입니다. 매장 정보를 일부만 입력한 회원은 입력한 항목만 채워집니다.
+            - 상세 조회(`GET /v1/templates/{templateId}`)의 body 는 치환하지 않은 원문이라 이 API 의 body 와 다릅니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "매장 정보로 자리표시자를 채운 본문을 반환합니다",
+            content = @Content(schema = @Schema(implementation = TemplateAppliedResponse.class),
+                examples = @ExampleObject(name = "채울 수 있는 자리표시자만 바뀐 경우", value = """
+                    {
+                      "id": 8,
+                      "body": "보니스커피에 새 메뉴가 출시되었습니다!\\n\\n🎁신메뉴: [메뉴명]\\n💰가격: [가격]원\\n\\n📍서울 중구 을지로 100\\n🕐영업시간: 수, 목, 금, 토, 일 오전 9:00 ~ 오후 8:00\\n📞[전화번호]"
+                    }
+                    """))),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404", description = "템플릿을 찾을 수 없습니다 (TP0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"TP0001","message":"템플릿을 찾을 수 없습니다"}
+                    """)))
+    })
+    TemplateAppliedResponse getApplied(Long memberId, Long templateId);
 }

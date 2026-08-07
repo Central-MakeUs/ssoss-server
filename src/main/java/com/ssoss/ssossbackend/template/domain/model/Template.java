@@ -43,4 +43,8 @@ public class Template {
     public List<Channel> recommendedChannelList() {
         return recommendedChannels == null ? List.of() : recommendedChannels.values();
     }
+
+    public String replacePlaceholders(StoreInfo storeInfo) {
+        return StorePlaceholder.replaceAll(body, storeInfo);
+    }
 }
