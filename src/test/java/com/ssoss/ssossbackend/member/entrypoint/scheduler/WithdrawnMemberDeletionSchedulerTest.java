@@ -27,6 +27,8 @@ import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
 import com.ssoss.ssossbackend.member.domain.model.WithdrawalReason;
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.support.IntegrationTest;
+import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateRepository;
+import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -94,6 +96,9 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     private ContentChannelHistoryRepository contentChannelHistoryRepository;
 
     @Autowired
+    private SavedTemplateRepository savedTemplateRepository;
+
+    @Autowired
     private JdbcClient jdbcClient;
 
     @BeforeEach
@@ -107,6 +112,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         creditRepository.deleteAll();
         storeRepository.deleteAll();
         hashtagBundleBookmarkRepository.deleteAll();
+        savedTemplateRepository.deleteAll();
         contentChannelHistoryRepository.deleteAll();
         contentChannelRepository.deleteAll();
         contentRepository.deleteAll();
@@ -237,6 +243,58 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
 
             assertThat(memberRepository.findById(memberId)).isEmpty();
             assertThat(database.bookmarksOf(memberId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 저장한 템플릿도 삭제된다")
+        void deletesSavedTemplates_whenGracePeriodHasPassed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-saved-template");
+            Long memberId = database.memberIdOf("naver-delete-saved-template");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            fixture.savedTemplate(signup.accessToken(), templateId, "탈퇴하면 사라질 본문");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(memberRepository.findById(memberId)).isEmpty();
+            assertThat(database.savedTemplatesOf(memberId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("탈퇴 회원의 저장한 템플릿이 삭제돼도 다른 회원이 저장한 글과 원본 템플릿은 남는다")
+        void keepsOtherMembersSavedTemplateAndOrigin_whenMemberIsDeleted() {
+            SignupResponse due = fixture.signupActiveMember("naver-delete-saved-template-due");
+            SignupResponse kept = fixture.signupActiveMember("naver-delete-saved-template-kept");
+            Long dueId = database.memberIdOf("naver-delete-saved-template-due");
+            Long keptId = database.memberIdOf("naver-delete-saved-template-kept");
+            Long templateId = fixture.firstTemplate(due.accessToken()).id();
+            fixture.savedTemplate(due.accessToken(), templateId, "탈퇴 회원의 본문");
+            fixture.savedTemplate(kept.accessToken(), templateId, "남는 회원의 본문");
+            fixture.withdraw(due.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(database.savedTemplatesOf(dueId)).isEmpty();
+            assertThat(database.savedTemplatesOf(keptId)).singleElement()
+                .extracting(SavedTemplate::getBody)
+                .isEqualTo("남는 회원의 본문");
+            assertThat(fixture.templateDetail(kept.accessToken(), templateId).id()).isEqualTo(templateId);
+        }
+
+        @Test
+        @DisplayName("저장한 템플릿이 하나도 없는 회원도 문제 없이 삭제된다")
+        void deletesMember_whenMemberHasNoSavedTemplate() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-saved-template-none");
+            Long memberId = database.memberIdOf("naver-delete-saved-template-none");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(memberRepository.findById(memberId)).isEmpty();
+            assertThat(database.savedTemplatesOf(memberId)).isEmpty();
         }
 
         @Test
