@@ -20,9 +20,11 @@ import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListRespons
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSaveResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateAppliedResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateListResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.TemplateResponse;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -476,6 +478,29 @@ public class TestFixture {
         return getAppliedTemplate(accessToken, templateId)
             .expectStatus().isOk()
             .expectBody(TemplateAppliedResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public TemplateResponse firstTemplate(String accessToken) {
+        return templateList(accessToken, "").templates().getFirst();
+    }
+
+    public RestTestClient.ResponseSpec saveTemplate(String accessToken, Long templateId, String body) {
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("templateId", templateId);
+        requestBody.put("body", body);
+        return client.post().uri("/v1/saved-templates")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(requestBody)
+            .exchange();
+    }
+
+    public SavedTemplateSaveResponse savedTemplate(String accessToken, Long templateId, String body) {
+        return saveTemplate(accessToken, templateId, body)
+            .expectStatus().isCreated()
+            .expectBody(SavedTemplateSaveResponse.class)
             .returnResult()
             .getResponseBody();
     }
