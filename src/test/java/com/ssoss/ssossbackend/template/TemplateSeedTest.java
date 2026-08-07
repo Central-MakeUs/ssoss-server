@@ -29,14 +29,14 @@ class TemplateSeedTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("본문에는 중괄호 자리표시자가 남아 있고 예시 본문에는 채워져 있다")
+        @DisplayName("본문에는 대괄호 자리표시자가 남아 있고 예시 본문에는 채워져 있다")
         void leavesPlaceholdersInBody_whenExampleBodyIsFilled() {
             List<Template> templates = database.templates();
 
             assertThat(templates).isNotEmpty();
             assertThat(templates).allSatisfy(template -> {
-                assertThat(template.getBody()).contains("{").contains("}");
-                assertThat(template.getExampleBody()).doesNotContain("{").doesNotContain("}");
+                assertThat(template.getBody()).contains("[").contains("]");
+                assertThat(template.getExampleBody()).doesNotContain("[").doesNotContain("]");
             });
         }
 
