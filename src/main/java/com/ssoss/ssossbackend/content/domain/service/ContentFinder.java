@@ -11,9 +11,9 @@ import com.ssoss.ssossbackend.content.domain.model.ContentCard;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannelView;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
-import com.ssoss.ssossbackend.content.domain.model.ContentSort;
 import com.ssoss.ssossbackend.content.domain.model.ContentWithChannels;
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
+import com.ssoss.ssossbackend.shared.paging.CreatedAtSort;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,7 +32,7 @@ public class ContentFinder {
     private final ContentCardAssembler contentCardAssembler;
 
     @Transactional(readOnly = true)
-    public Page<ContentCard> list(Long memberId, Channel channel, ContentSort sort, int page, int size) {
+    public Page<ContentCard> list(Long memberId, Channel channel, CreatedAtSort sort, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, sort.order());
         if (channel == null) {
             return contentCardAssembler

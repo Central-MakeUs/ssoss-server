@@ -1,4 +1,4 @@
-package com.ssoss.ssossbackend.content.domain.model;
+package com.ssoss.ssossbackend.shared.paging;
 
 import java.util.Arrays;
 
@@ -7,18 +7,18 @@ import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 
 import org.springframework.data.domain.Sort;
 
-public enum ContentSort {
+public enum CreatedAtSort {
 
     LATEST(Sort.Direction.DESC),
     OLDEST(Sort.Direction.ASC);
 
     private final Sort.Direction direction;
 
-    ContentSort(Sort.Direction direction) {
+    CreatedAtSort(Sort.Direction direction) {
         this.direction = direction;
     }
 
-    public static ContentSort from(String value) {
+    public static CreatedAtSort from(String value) {
         return Arrays.stream(values())
             .filter(sort -> sort.name().equalsIgnoreCase(value))
             .findFirst()
