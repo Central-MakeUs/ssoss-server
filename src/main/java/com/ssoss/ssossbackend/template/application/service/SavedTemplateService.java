@@ -22,4 +22,8 @@ public class SavedTemplateService {
         return SavedTemplateSaveResult.from(
             savedTemplateWriter.save(template, command.memberId(), command.body()));
     }
+
+    public void deleteAllByMemberId(Long memberId) {
+        savedTemplateWriter.deleteAllByMemberId(memberId);
+    }
 }

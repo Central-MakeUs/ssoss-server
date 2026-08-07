@@ -17,4 +17,8 @@ public class SavedTemplateWriter {
     public SavedTemplate save(Template template, Long memberId, String body) {
         return savedTemplateRepository.save(SavedTemplate.copyOf(template, memberId, body));
     }
+
+    public void deleteAllByMemberId(Long memberId) {
+        savedTemplateRepository.deleteAllByMemberId(memberId);
+    }
 }
