@@ -3,7 +3,6 @@ package com.ssoss.ssossbackend.content.domain.contract;
 import java.util.Optional;
 
 import com.ssoss.ssossbackend.content.domain.model.Content;
-import com.ssoss.ssossbackend.content.domain.model.ContentSource;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,7 +14,7 @@ public interface ContentRepository extends ListCrudRepository<Content, Long> {
 
     Page<Content> findAllByMemberIdAndDeletedAtIsNull(Long memberId, Pageable pageable);
 
-    Optional<Content> findBySourceTypeAndSourceId(ContentSource sourceType, Long sourceId);
+    Optional<Content> findByGenerationId(Long generationId);
 
     void deleteAllByMemberId(Long memberId);
 }
