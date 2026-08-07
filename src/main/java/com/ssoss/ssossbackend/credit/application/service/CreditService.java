@@ -7,6 +7,7 @@ import com.ssoss.ssossbackend.credit.domain.model.CreditErrorCode;
 import com.ssoss.ssossbackend.credit.domain.service.CreditFinder;
 import com.ssoss.ssossbackend.credit.domain.service.CreditWriter;
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
+import com.ssoss.ssossbackend.shared.paging.PagedResult;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,9 +28,9 @@ public class CreditService {
         return new CreditBalanceResult(credit.balance());
     }
 
-    public CreditLedgerListResult listLedgers(CreditLedgerListCommand command) {
-        return CreditLedgerListResult.from(creditFinder.listLedgers(command.memberId(), command.tab(),
-            command.page(), command.size()));
+    public PagedResult<CreditLedgerResult> listLedgers(CreditLedgerListCommand command) {
+        return PagedResult.from(creditFinder.listLedgers(command.memberId(), command.tab(),
+            command.page(), command.size()), CreditLedgerResult::from);
     }
 
     public void checkDeductible(Long memberId, int channelCount) {

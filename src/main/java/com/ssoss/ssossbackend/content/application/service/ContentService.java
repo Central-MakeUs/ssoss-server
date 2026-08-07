@@ -7,8 +7,8 @@ import com.ssoss.ssossbackend.content.application.command.ContentListCommand;
 import com.ssoss.ssossbackend.content.application.command.ContentSaveCommand;
 import com.ssoss.ssossbackend.content.application.result.ContentChannelResult;
 import com.ssoss.ssossbackend.content.application.result.ContentDetailResult;
-import com.ssoss.ssossbackend.content.application.result.ContentListResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
+import com.ssoss.ssossbackend.content.application.result.ContentSummaryResult;
 import com.ssoss.ssossbackend.content.domain.model.Content;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
 import com.ssoss.ssossbackend.content.domain.model.ContentWithChannels;
@@ -19,6 +19,7 @@ import com.ssoss.ssossbackend.content.domain.service.ContentWriter;
 import com.ssoss.ssossbackend.content.domain.service.GenerationFinder;
 import com.ssoss.ssossbackend.content.domain.service.GenerationValidator;
 import com.ssoss.ssossbackend.content.domain.service.GenerationWriter;
+import com.ssoss.ssossbackend.shared.paging.PagedResult;
 
 import lombok.RequiredArgsConstructor;
 
@@ -60,9 +61,10 @@ public class ContentService {
         generationWriter.deleteAllByMemberId(memberId);
     }
 
-    public ContentListResult list(ContentListCommand command) {
-        return ContentListResult.from(contentFinder.list(
-            command.memberId(), command.channel(), command.sort(), command.page(), command.size()));
+    public PagedResult<ContentSummaryResult> list(ContentListCommand command) {
+        return PagedResult.from(contentFinder.list(
+                command.memberId(), command.channel(), command.sort(), command.page(), command.size()),
+            ContentSummaryResult::from);
     }
 
     public ContentDetailResult getById(Long contentId, Long memberId) {

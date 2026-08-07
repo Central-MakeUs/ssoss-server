@@ -1,10 +1,11 @@
 package com.ssoss.ssossbackend.hashtag.entrypoint.controller;
 
-import com.ssoss.ssossbackend.hashtag.application.result.HashtagBundleListResult;
+import com.ssoss.ssossbackend.hashtag.application.result.HashtagBundleResult;
 import com.ssoss.ssossbackend.hashtag.application.service.HashtagBundleService;
 import com.ssoss.ssossbackend.hashtag.entrypoint.request.HashtagBundleListRequest;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleResponse;
+import com.ssoss.ssossbackend.shared.paging.PagedResult;
 
 import jakarta.validation.Valid;
 
@@ -27,9 +28,9 @@ class HashtagBundleController implements HashtagBundleApi {
         @AuthenticationPrincipal Long memberId,
         @Valid @ParameterObject HashtagBundleListRequest request
     ) {
-        HashtagBundleListResult result = hashtagBundleService.list(request.toCommand(memberId));
+        PagedResult<HashtagBundleResult> result = hashtagBundleService.list(request.toCommand(memberId));
         return new HashtagBundleListResponse(result.totalCount(), result.page(), result.size(), result.hasNext(),
-            result.bundles().stream()
+            result.items().stream()
                 .map(bundle -> new HashtagBundleResponse(bundle.id(), bundle.name(), bundle.hashtags(),
                     bundle.bookmarked()))
                 .toList());
