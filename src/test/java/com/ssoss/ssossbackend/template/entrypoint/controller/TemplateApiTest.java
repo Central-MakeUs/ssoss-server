@@ -10,6 +10,7 @@ import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 import com.ssoss.ssossbackend.template.domain.model.TemplateErrorCode;
+import com.ssoss.ssossbackend.template.entrypoint.response.TemplateAppliedResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateListResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateResponse;
@@ -30,6 +31,15 @@ class TemplateApiTest extends IntegrationTest {
     private static final String NEW_MENU_TITLE = "신메뉴 출시 안내";
     private static final long MISSING_TEMPLATE_ID = 999_999L;
     private static final long ANY_TEMPLATE_ID = 1L;
+    private static final String STORE_NAME_MARK = "[가게명]";
+    private static final String ADDRESS_MARK = "[주소]";
+    private static final String BUSINESS_HOURS_MARK = "[영업시간]";
+    private static final String PHONE_MARK = "[전화번호]";
+    private static final String STORE_NAME = "보니스커피";
+    private static final String STORE_ADDRESS = "서울 중구 을지로 100";
+    private static final List<String> WEDNESDAY_TO_SUNDAY =
+        List.of("WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY");
+    private static final String BUSINESS_HOURS = "수, 목, 금, 토, 일 오전 9:00 ~ 오후 8:00";
 
     private TemplateResponse cardOf(String accessToken, String title) {
         return fixture.templateList(accessToken, EVERY_TEMPLATE).templates().stream()
@@ -309,6 +319,156 @@ class TemplateApiTest extends IntegrationTest {
         @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
         void returns401_whenAccessTokenMissing() {
             client().get().uri("/v1/templates/" + ANY_TEMPLATE_ID)
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /v1/templates/{templateId}/applied")
+    class ApplyTemplate {
+
+        private void writeBasicInfo(String accessToken) {
+            fixture.savedStoreBasicInfo(accessToken,
+                fixture.storeBasicInfoBody(STORE_NAME, "CAFE", STORE_ADDRESS, null));
+        }
+
+        private void writeOperationInfo(String accessToken, String openTime, String closeTime) {
+            fixture.savedStoreOperationInfo(accessToken,
+                fixture.storeOperationInfoBody(WEDNESDAY_TO_SUNDAY, openTime, closeTime, List.of(),
+                    false, false, false));
+        }
+
+        private String applyNewMenuTemplate(String accessToken) {
+            return fixture.appliedTemplate(accessToken, cardOf(accessToken, NEW_MENU_TITLE).id()).body();
+        }
+
+        @Test
+        @DisplayName("매장 정보를 채운 회원이 부르면 매장명과 주소와 영업시간이 본문에 담긴다")
+        void fillsStoreNameAddressAndBusinessHours_whenStoreInfoWritten() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied");
+            writeBasicInfo(signup.accessToken());
+            writeOperationInfo(signup.accessToken(), "09:00", "20:00");
+
+            String body = applyNewMenuTemplate(signup.accessToken());
+
+            assertThat(body).contains(STORE_NAME, STORE_ADDRESS, BUSINESS_HOURS);
+            assertThat(body).doesNotContain(STORE_NAME_MARK, ADDRESS_MARK, BUSINESS_HOURS_MARK);
+        }
+
+        @Test
+        @DisplayName("적용한 본문에 원본 템플릿 id 가 함께 담긴다")
+        void carriesTemplateId_whenApplied() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-id");
+            TemplateResponse card = cardOf(signup.accessToken(), NEW_MENU_TITLE);
+
+            TemplateAppliedResponse body = fixture.appliedTemplate(signup.accessToken(), card.id());
+
+            assertThat(body.id()).isEqualTo(card.id());
+        }
+
+        @Test
+        @DisplayName("매장 정보를 하나도 채우지 않은 회원이 불러도 자리표시자가 그대로 남는다")
+        void keepsEveryPlaceholder_whenNoStoreInfoWritten() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-empty");
+
+            String body = applyNewMenuTemplate(signup.accessToken());
+
+            assertThat(body).contains(STORE_NAME_MARK, ADDRESS_MARK, BUSINESS_HOURS_MARK);
+        }
+
+        @Test
+        @DisplayName("기본 정보만 채운 회원은 매장명과 주소만 채워진다")
+        void fillsBasicInfoOnly_whenOperationInfoMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-basic-only");
+            writeBasicInfo(signup.accessToken());
+
+            String body = applyNewMenuTemplate(signup.accessToken());
+
+            assertThat(body).contains(STORE_NAME, STORE_ADDRESS, BUSINESS_HOURS_MARK);
+            assertThat(body).doesNotContain(STORE_NAME_MARK, ADDRESS_MARK);
+        }
+
+        @Test
+        @DisplayName("운영 정보만 채운 회원은 영업시간만 채워진다")
+        void fillsBusinessHoursOnly_whenBasicInfoMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-operation-only");
+            writeOperationInfo(signup.accessToken(), "09:00", "20:00");
+
+            String body = applyNewMenuTemplate(signup.accessToken());
+
+            assertThat(body).contains(BUSINESS_HOURS, STORE_NAME_MARK, ADDRESS_MARK);
+            assertThat(body).doesNotContain(BUSINESS_HOURS_MARK);
+        }
+
+        @Test
+        @DisplayName("영업 요일만 있고 시각이 없으면 영업시간 자리표시자가 그대로 남는다")
+        void keepsBusinessHoursPlaceholder_whenBusinessClockMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-no-clock");
+            writeOperationInfo(signup.accessToken(), null, null);
+
+            String body = applyNewMenuTemplate(signup.accessToken());
+
+            assertThat(body).contains(BUSINESS_HOURS_MARK);
+        }
+
+        @Test
+        @DisplayName("전화번호 자리표시자는 매장 정보를 다 채워도 그대로 남는다")
+        void keepsPhonePlaceholder_whenEveryStoreInfoWritten() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-phone");
+            writeBasicInfo(signup.accessToken());
+            writeOperationInfo(signup.accessToken(), "09:00", "20:00");
+
+            String body = applyNewMenuTemplate(signup.accessToken());
+
+            assertThat(body).contains(PHONE_MARK);
+        }
+
+        @Test
+        @DisplayName("상세 조회는 매장 정보를 채운 회원에게도 치환하지 않은 원문을 준다")
+        void leavesDetailBodyUntouched_whenStoreInfoWritten() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-detail");
+            writeBasicInfo(signup.accessToken());
+            writeOperationInfo(signup.accessToken(), "09:00", "20:00");
+            TemplateResponse card = cardOf(signup.accessToken(), NEW_MENU_TITLE);
+
+            TemplateDetailResponse detail = fixture.templateDetail(signup.accessToken(), card.id());
+
+            assertThat(detail.body()).contains(STORE_NAME_MARK, ADDRESS_MARK, BUSINESS_HOURS_MARK);
+            assertThat(detail.body()).doesNotContain(STORE_NAME, STORE_ADDRESS);
+        }
+
+        @Test
+        @DisplayName("없는 템플릿을 적용하면 404 와 TP0001 을 반환한다")
+        void returns404_whenTemplateIsMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-missing");
+
+            fixture.getAppliedTemplate(signup.accessToken(), MISSING_TEMPLATE_ID)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 적용하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenQueries() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-applied-seed");
+            Long templateId = cardOf(signup.accessToken(), NEW_MENU_TITLE).id();
+            SocialLoginResponse login = fixture.naverLoginMember("naver-template-applied-pending");
+
+            fixture.getAppliedTemplate(login.accessToken(), templateId)
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 적용하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().get().uri("/v1/templates/" + ANY_TEMPLATE_ID + "/applied")
                 .exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)

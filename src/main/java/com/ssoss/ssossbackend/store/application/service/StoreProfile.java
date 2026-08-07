@@ -1,9 +1,8 @@
 package com.ssoss.ssossbackend.store.application.service;
 
-import java.time.format.TextStyle;
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import com.ssoss.ssossbackend.store.domain.model.Amenities;
 import com.ssoss.ssossbackend.store.domain.model.Store;
@@ -14,7 +13,7 @@ public record StoreProfile(
     String type,
     String address,
     String introduction,
-    List<String> businessDays,
+    List<DayOfWeek> businessDays,
     String openTime,
     String closeTime,
     List<String> signatureMenus,
@@ -43,9 +42,7 @@ public record StoreProfile(
             type == null ? null : type.koreanName(),
             store.getAddress(),
             store.getIntroduction(),
-            store.businessDayValues().stream()
-                .map(day -> day.getDisplayName(TextStyle.FULL, Locale.KOREAN))
-                .toList(),
+            store.businessDayValues(),
             store.getOpenTime(),
             store.getCloseTime(),
             store.signatureMenuValues(),
