@@ -1,10 +1,11 @@
 package com.ssoss.ssossbackend.credit.entrypoint.controller;
 
-import com.ssoss.ssossbackend.credit.application.service.CreditLedgerListResult;
+import com.ssoss.ssossbackend.credit.application.service.CreditLedgerResult;
 import com.ssoss.ssossbackend.credit.application.service.CreditService;
 import com.ssoss.ssossbackend.credit.entrypoint.request.CreditLedgerListRequest;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListResponse;
 import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerResponse;
+import com.ssoss.ssossbackend.shared.paging.PagedResult;
 
 import jakarta.validation.Valid;
 
@@ -27,9 +28,9 @@ class CreditLedgerController implements CreditLedgerApi {
         @AuthenticationPrincipal Long memberId,
         @Valid @ParameterObject CreditLedgerListRequest request
     ) {
-        CreditLedgerListResult result = creditService.listLedgers(request.toCommand(memberId));
+        PagedResult<CreditLedgerResult> result = creditService.listLedgers(request.toCommand(memberId));
         return new CreditLedgerListResponse(result.totalCount(), result.page(), result.size(), result.hasNext(),
-            result.ledgers().stream()
+            result.items().stream()
                 .map(ledger -> new CreditLedgerResponse(ledger.ledgerId(), ledger.type(), ledger.description(),
                     ledger.amount(), ledger.occurredAt()))
                 .toList());

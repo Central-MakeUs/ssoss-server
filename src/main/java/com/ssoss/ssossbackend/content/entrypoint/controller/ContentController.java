@@ -2,7 +2,8 @@ package com.ssoss.ssossbackend.content.entrypoint.controller;
 
 import com.ssoss.ssossbackend.content.application.result.ContentChannelResult;
 import com.ssoss.ssossbackend.content.application.result.ContentDetailResult;
-import com.ssoss.ssossbackend.content.application.result.ContentListResult;
+import com.ssoss.ssossbackend.content.application.result.ContentSummaryResult;
+import com.ssoss.ssossbackend.shared.paging.PagedResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
 import com.ssoss.ssossbackend.content.application.service.ContentService;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentChannelEditRequest;
@@ -57,9 +58,9 @@ class ContentController implements ContentApi {
         @AuthenticationPrincipal Long memberId,
         @Valid @ParameterObject ContentListRequest request
     ) {
-        ContentListResult result = contentService.list(request.toCommand(memberId));
+        PagedResult<ContentSummaryResult> result = contentService.list(request.toCommand(memberId));
         return new ContentListResponse(result.totalCount(), result.page(), result.size(), result.hasNext(),
-            result.contents().stream()
+            result.items().stream()
                 .map(content -> new ContentSummaryResponse(content.contentId(), content.savedAt(),
                     content.channels(), content.purpose(), content.tone(), content.title(), content.hashtags()))
                 .toList());

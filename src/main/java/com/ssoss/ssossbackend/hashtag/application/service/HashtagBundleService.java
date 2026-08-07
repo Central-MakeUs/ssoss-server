@@ -4,11 +4,11 @@ import java.util.List;
 import java.util.Set;
 
 import com.ssoss.ssossbackend.hashtag.application.command.HashtagBundleListCommand;
-import com.ssoss.ssossbackend.hashtag.application.result.HashtagBundleListResult;
 import com.ssoss.ssossbackend.hashtag.application.result.HashtagBundleResult;
 import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundle;
 import com.ssoss.ssossbackend.hashtag.domain.service.HashtagBundleBookmarkWriter;
 import com.ssoss.ssossbackend.hashtag.domain.service.HashtagBundleFinder;
+import com.ssoss.ssossbackend.shared.paging.PagedResult;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,12 +22,13 @@ public class HashtagBundleService {
     private final HashtagBundleFinder hashtagBundleFinder;
     private final HashtagBundleBookmarkWriter hashtagBundleBookmarkWriter;
 
-    public HashtagBundleListResult list(HashtagBundleListCommand command) {
+    public PagedResult<HashtagBundleResult> list(HashtagBundleListCommand command) {
         Page<HashtagBundle> found =
             hashtagBundleFinder.list(command.keyword(), command.page(), command.size());
         Set<Long> bookmarkedIds = hashtagBundleFinder.findBookmarkedIds(command.memberId(),
             found.getContent().stream().map(HashtagBundle::getId).toList());
-        return HashtagBundleListResult.from(found, bookmarkedIds);
+        return PagedResult.from(found,
+            bundle -> HashtagBundleResult.from(bundle, bookmarkedIds.contains(bundle.getId())));
     }
 
     public List<HashtagBundleResult> listBookmarked(Long memberId) {
