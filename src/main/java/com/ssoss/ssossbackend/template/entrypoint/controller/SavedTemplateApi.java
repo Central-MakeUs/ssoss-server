@@ -228,4 +228,32 @@ interface SavedTemplateApi {
                     """)))
     })
     SavedTemplateDetailResponse edit(Long memberId, Long savedTemplateId, SavedTemplateEditRequest request);
+
+    @Operation(
+        summary = "저장한 템플릿 삭제",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            저장한 글 1건을 삭제합니다. 내가 저장한 글만 삭제할 수 있습니다.
+
+            - 삭제한 글은 목록·전체 건수에서 빠지고, 상세·편집·삭제를 다시 호출하면 404(TP0002)입니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "삭제되었습니다"),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404", description = "저장한 템플릿을 찾을 수 없습니다 (TP0002) — 없는 id 이거나 남의 글이거나 이미 삭제했습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"TP0002","message":"저장한 템플릿을 찾을 수 없습니다"}
+                    """)))
+    })
+    void delete(Long memberId, Long savedTemplateId);
 }

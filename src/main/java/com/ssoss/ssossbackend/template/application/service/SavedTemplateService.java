@@ -47,6 +47,10 @@ public class SavedTemplateService {
             savedTemplateWriter.edit(savedTemplate, command.title(), command.body()));
     }
 
+    public void delete(Long savedTemplateId, Long memberId) {
+        savedTemplateWriter.delete(savedTemplateFinder.get(savedTemplateId, memberId));
+    }
+
     public void deleteAllByMemberId(Long memberId) {
         savedTemplateWriter.deleteAllByMemberId(memberId);
     }
