@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.support;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
@@ -24,8 +25,10 @@ import com.ssoss.ssossbackend.hashtag.domain.model.HashtagBundleBookmark;
 import com.ssoss.ssossbackend.member.domain.contract.MemberRepository;
 import com.ssoss.ssossbackend.member.domain.contract.MemberTermRepository;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
+import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateHistoryRepository;
 import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateRepository;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
+import com.ssoss.ssossbackend.template.domain.model.SavedTemplateHistory;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -45,6 +48,7 @@ public class TestDatabase {
     private final CreditLedgerRepository creditLedgerRepository;
     private final HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository;
     private final SavedTemplateRepository savedTemplateRepository;
+    private final SavedTemplateHistoryRepository savedTemplateHistoryRepository;
     private final JdbcClient jdbcClient;
 
     TestDatabase(MemberRepository memberRepository, MemberTermRepository memberTermRepository,
@@ -53,7 +57,8 @@ public class TestDatabase {
         ContentChannelHistoryRepository contentChannelHistoryRepository, GenerationRepository generationRepository,
         GenerationResultRepository generationResultRepository, CreditLedgerRepository creditLedgerRepository,
         HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository,
-        SavedTemplateRepository savedTemplateRepository, JdbcClient jdbcClient) {
+        SavedTemplateRepository savedTemplateRepository,
+        SavedTemplateHistoryRepository savedTemplateHistoryRepository, JdbcClient jdbcClient) {
         this.memberRepository = memberRepository;
         this.memberTermRepository = memberTermRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -66,6 +71,7 @@ public class TestDatabase {
         this.creditLedgerRepository = creditLedgerRepository;
         this.hashtagBundleBookmarkRepository = hashtagBundleBookmarkRepository;
         this.savedTemplateRepository = savedTemplateRepository;
+        this.savedTemplateHistoryRepository = savedTemplateHistoryRepository;
         this.jdbcClient = jdbcClient;
     }
 
@@ -147,5 +153,12 @@ public class TestDatabase {
 
     public SavedTemplate savedTemplateOf(Long savedTemplateId) {
         return savedTemplateRepository.findById(savedTemplateId).orElseThrow();
+    }
+
+    public List<SavedTemplateHistory> savedTemplateHistoriesOf(Long savedTemplateId) {
+        return savedTemplateHistoryRepository.findAll().stream()
+            .filter(history -> history.getSavedTemplateId().equals(savedTemplateId))
+            .sorted(Comparator.comparing(SavedTemplateHistory::getId))
+            .toList();
     }
 }

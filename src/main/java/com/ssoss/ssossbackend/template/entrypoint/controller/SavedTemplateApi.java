@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.template.entrypoint.controller;
 
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
+import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateEditRequest;
 import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateListRequest;
 import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateSaveRequest;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateDetailResponse;
@@ -171,4 +172,60 @@ interface SavedTemplateApi {
                     """)))
     })
     SavedTemplateDetailResponse getById(Long memberId, Long savedTemplateId);
+
+    @Operation(
+        summary = "저장한 템플릿 편집",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            저장한 글의 제목과 본문을 고칩니다. 내가 저장한 글만 고칠 수 있습니다.
+
+            - title 과 body 를 모두 보내는 덮어쓰기입니다. 한쪽만 고칠 때는 나머지는 지금 값을 그대로 실어 보내세요.
+            - 제목을 고칠 수 있는 것은 같은 템플릿에서 저장한 글끼리 목록에서 구분하기 위해서입니다.
+            - 분류·설명·추천 채널은 저장 시점에 복사한 값 그대로 두고 편집 대상이 아닙니다.
+            - 응답은 상세 조회와 같은 모양이고 savedAt 은 저장 시각이라 편집해도 움직이지 않습니다.
+            - title 은 100자, body 는 2000자까지이며 둘 다 비어 있거나 공백만 있으면 400(C0001)입니다.
+            - 값이 지금과 같으면 아무것도 바꾸지 않고 200 으로 지금 값을 그대로 돌려줍니다.
+            - 원본 템플릿은 이 API 로 바뀌지 않습니다. 저장한 글은 복사본이라 원본과 따로 움직입니다.
+            - 남의 글과 없는 id 는 똑같이 404 입니다. 존재 여부를 알려주지 않습니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "고친 뒤의 저장한 글을 반환합니다",
+            content = @Content(schema = @Schema(implementation = SavedTemplateDetailResponse.class),
+                examples = @ExampleObject(value = """
+                    {
+                      "savedTemplateId": 1,
+                      "category": "NEW_MENU",
+                      "title": "9월 신메뉴 안내",
+                      "description": "새로 나온 메뉴의 특징과 매력을 소개하는 글",
+                      "body": "보니스커피에 흑임자 라떼가 새로 나왔습니다!",
+                      "recommendedChannels": ["INSTAGRAM", "BLOG", "THREADS"],
+                      "savedAt": "2026-09-01T09:41:00Z"
+                    }
+                    """))),
+        @ApiResponse(responseCode = "400", description = "제목이나 본문이 비었거나 길이 상한을 넘었습니다 (C0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = {
+                    @ExampleObject(name = "제목 상한 초과", value = """
+                        {"code":"C0001","message":"제목은 100자 이내로 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "본문 상한 초과", value = """
+                        {"code":"C0001","message":"본문은 2000자 이내로 입력해 주세요"}
+                        """)})),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404", description = "저장한 템플릿을 찾을 수 없습니다 (TP0002) — 없는 id 이거나 남의 글입니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"TP0002","message":"저장한 템플릿을 찾을 수 없습니다"}
+                    """)))
+    })
+    SavedTemplateDetailResponse edit(Long memberId, Long savedTemplateId, SavedTemplateEditRequest request);
 }

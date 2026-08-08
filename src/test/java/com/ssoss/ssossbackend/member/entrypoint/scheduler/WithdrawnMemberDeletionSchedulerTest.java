@@ -27,8 +27,10 @@ import com.ssoss.ssossbackend.member.domain.model.MemberStatus;
 import com.ssoss.ssossbackend.member.domain.model.WithdrawalReason;
 import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.support.IntegrationTest;
+import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateHistoryRepository;
 import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateRepository;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
+import com.ssoss.ssossbackend.template.domain.model.SavedTemplateHistory;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -99,6 +101,9 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     private SavedTemplateRepository savedTemplateRepository;
 
     @Autowired
+    private SavedTemplateHistoryRepository savedTemplateHistoryRepository;
+
+    @Autowired
     private JdbcClient jdbcClient;
 
     @BeforeEach
@@ -112,6 +117,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         creditRepository.deleteAll();
         storeRepository.deleteAll();
         hashtagBundleBookmarkRepository.deleteAll();
+        savedTemplateHistoryRepository.deleteAll();
         savedTemplateRepository.deleteAll();
         contentChannelHistoryRepository.deleteAll();
         contentChannelRepository.deleteAll();
@@ -281,6 +287,49 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
                 .extracting(SavedTemplate::getBody)
                 .isEqualTo("남는 회원의 본문");
             assertThat(fixture.templateDetail(kept.accessToken(), templateId).id()).isEqualTo(templateId);
+        }
+
+        @Test
+        @DisplayName("탈퇴 회원의 저장한 템플릿 편집 히스토리도 함께 삭제된다")
+        void deletesSavedTemplateHistories_whenGracePeriodHasPassed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-saved-template-history");
+            Long memberId = database.memberIdOf("naver-delete-saved-template-history");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long savedTemplateId =
+                fixture.savedTemplate(signup.accessToken(), templateId, "탈퇴하면 사라질 본문").savedTemplateId();
+            fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, "고친 제목", "고친 본문");
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(memberRepository.findById(memberId)).isEmpty();
+            assertThat(database.savedTemplatesOf(memberId)).isEmpty();
+            assertThat(database.savedTemplateHistoriesOf(savedTemplateId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("탈퇴 회원의 편집 히스토리가 삭제돼도 다른 회원의 히스토리는 남는다")
+        void keepsOtherMembersSavedTemplateHistory_whenMemberIsDeleted() {
+            SignupResponse due = fixture.signupActiveMember("naver-delete-history-due");
+            SignupResponse kept = fixture.signupActiveMember("naver-delete-history-kept");
+            Long templateId = fixture.firstTemplate(due.accessToken()).id();
+            Long dueSavedTemplateId =
+                fixture.savedTemplate(due.accessToken(), templateId, "탈퇴 회원의 본문").savedTemplateId();
+            Long keptSavedTemplateId =
+                fixture.savedTemplate(kept.accessToken(), templateId, "남는 회원의 본문").savedTemplateId();
+            fixture.editedSavedTemplate(due.accessToken(), dueSavedTemplateId, "고친 제목", "탈퇴 회원이 고친 본문");
+            fixture.editedSavedTemplate(kept.accessToken(), keptSavedTemplateId, "고친 제목", "남는 회원이 고친 본문");
+            fixture.withdraw(due.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(database.savedTemplateHistoriesOf(dueSavedTemplateId)).isEmpty();
+            assertThat(database.savedTemplateHistoriesOf(keptSavedTemplateId))
+                .singleElement()
+                .extracting(SavedTemplateHistory::getBody)
+                .isEqualTo("남는 회원의 본문");
         }
 
         @Test

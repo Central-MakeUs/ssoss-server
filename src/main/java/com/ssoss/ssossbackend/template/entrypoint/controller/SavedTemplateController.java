@@ -5,6 +5,7 @@ import com.ssoss.ssossbackend.template.application.result.SavedTemplateDetailRes
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateSaveResult;
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateSummaryResult;
 import com.ssoss.ssossbackend.template.application.service.SavedTemplateService;
+import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateEditRequest;
 import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateListRequest;
 import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateSaveRequest;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateDetailResponse;
@@ -23,6 +24,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -64,6 +66,18 @@ class SavedTemplateController implements SavedTemplateApi {
         @PathVariable Long savedTemplateId
     ) {
         SavedTemplateDetailResult result = savedTemplateService.getById(savedTemplateId, memberId);
+        return new SavedTemplateDetailResponse(result.savedTemplateId(), result.category(), result.title(),
+            result.description(), result.body(), result.recommendedChannels(), result.savedAt());
+    }
+
+    @Override
+    @PutMapping("/v1/saved-templates/{savedTemplateId}")
+    public SavedTemplateDetailResponse edit(
+        @AuthenticationPrincipal Long memberId,
+        @PathVariable Long savedTemplateId,
+        @Valid @RequestBody SavedTemplateEditRequest request
+    ) {
+        SavedTemplateDetailResult result = savedTemplateService.edit(request.toCommand(memberId, savedTemplateId));
         return new SavedTemplateDetailResponse(result.savedTemplateId(), result.category(), result.title(),
             result.description(), result.body(), result.recommendedChannels(), result.savedAt());
     }

@@ -1,11 +1,13 @@
 package com.ssoss.ssossbackend.template.application.service;
 
 import com.ssoss.ssossbackend.shared.paging.PagedResult;
+import com.ssoss.ssossbackend.template.application.command.SavedTemplateEditCommand;
 import com.ssoss.ssossbackend.template.application.command.SavedTemplateListCommand;
 import com.ssoss.ssossbackend.template.application.command.SavedTemplateSaveCommand;
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateDetailResult;
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateSaveResult;
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateSummaryResult;
+import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
 import com.ssoss.ssossbackend.template.domain.model.Template;
 import com.ssoss.ssossbackend.template.domain.service.SavedTemplateFinder;
 import com.ssoss.ssossbackend.template.domain.service.SavedTemplateWriter;
@@ -37,6 +39,12 @@ public class SavedTemplateService {
 
     public SavedTemplateDetailResult getById(Long savedTemplateId, Long memberId) {
         return SavedTemplateDetailResult.from(savedTemplateFinder.get(savedTemplateId, memberId));
+    }
+
+    public SavedTemplateDetailResult edit(SavedTemplateEditCommand command) {
+        SavedTemplate savedTemplate = savedTemplateFinder.get(command.savedTemplateId(), command.memberId());
+        return SavedTemplateDetailResult.from(
+            savedTemplateWriter.edit(savedTemplate, command.title(), command.body()));
     }
 
     public void deleteAllByMemberId(Long memberId) {
