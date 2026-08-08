@@ -91,8 +91,8 @@ class TemplateApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("카드마다 북마크 여부가 거짓으로 담긴다")
-        void marksEveryTemplateUnbookmarked_whenActiveMemberQueries() {
+        @DisplayName("아무것도 북마크하지 않은 회원은 카드마다 북마크 여부가 거짓으로 담긴다")
+        void marksEveryTemplateUnbookmarked_whenNothingBookmarked() {
             SignupResponse signup = fixture.signupActiveMember("naver-template-bookmark");
 
             TemplateListResponse body = fixture.templateList(signup.accessToken(), EVERY_TEMPLATE);

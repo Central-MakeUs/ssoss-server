@@ -32,7 +32,7 @@ public record TemplateListRequest(
         size = size == null ? DEFAULT_SIZE : size;
     }
 
-    public TemplateListCommand toCommand() {
-        return TemplateListCommand.of(category, page, size);
+    public TemplateListCommand toCommand(Long memberId) {
+        return TemplateListCommand.of(memberId, category, page, size);
     }
 }

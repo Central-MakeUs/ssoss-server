@@ -148,7 +148,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             assertThat(database.termsOf(memberId)).isEmpty();
             assertThat(refreshTokenRepository.findAllByMemberId(memberId)).isEmpty();
             assertThat(storeRepository.findByMemberId(memberId)).isEmpty();
-            assertThat(database.bookmarksOf(memberId)).isEmpty();
+            assertThat(database.hashtagBundleBookmarksOf(memberId)).isEmpty();
         }
 
         @Test
@@ -234,7 +234,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
-            assertThat(database.bookmarksOf(memberId)).isEmpty();
+            assertThat(database.hashtagBundleBookmarksOf(memberId)).isEmpty();
         }
 
         @Test
@@ -248,7 +248,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
             assertThat(memberRepository.findById(memberId)).isEmpty();
-            assertThat(database.bookmarksOf(memberId)).isEmpty();
+            assertThat(database.hashtagBundleBookmarksOf(memberId)).isEmpty();
         }
 
         @Test
@@ -361,8 +361,8 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             clock.advanceBy(PAST_GRACE_PERIOD);
             withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
 
-            assertThat(database.bookmarksOf(dueId)).isEmpty();
-            assertThat(database.bookmarksOf(keptId)).singleElement()
+            assertThat(database.hashtagBundleBookmarksOf(dueId)).isEmpty();
+            assertThat(database.hashtagBundleBookmarksOf(keptId)).singleElement()
                 .satisfies(bookmark -> assertThat(bookmark.getBundleId()).isEqualTo(bundleId));
         }
 

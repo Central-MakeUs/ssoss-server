@@ -27,8 +27,10 @@ import com.ssoss.ssossbackend.member.domain.contract.MemberTermRepository;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateHistoryRepository;
 import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateRepository;
+import com.ssoss.ssossbackend.template.domain.contract.TemplateBookmarkRepository;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplateHistory;
+import com.ssoss.ssossbackend.template.domain.model.TemplateBookmark;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -49,6 +51,7 @@ public class TestDatabase {
     private final HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository;
     private final SavedTemplateRepository savedTemplateRepository;
     private final SavedTemplateHistoryRepository savedTemplateHistoryRepository;
+    private final TemplateBookmarkRepository templateBookmarkRepository;
     private final JdbcClient jdbcClient;
 
     TestDatabase(MemberRepository memberRepository, MemberTermRepository memberTermRepository,
@@ -58,7 +61,8 @@ public class TestDatabase {
         GenerationResultRepository generationResultRepository, CreditLedgerRepository creditLedgerRepository,
         HashtagBundleBookmarkRepository hashtagBundleBookmarkRepository,
         SavedTemplateRepository savedTemplateRepository,
-        SavedTemplateHistoryRepository savedTemplateHistoryRepository, JdbcClient jdbcClient) {
+        SavedTemplateHistoryRepository savedTemplateHistoryRepository,
+        TemplateBookmarkRepository templateBookmarkRepository, JdbcClient jdbcClient) {
         this.memberRepository = memberRepository;
         this.memberTermRepository = memberTermRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -72,6 +76,7 @@ public class TestDatabase {
         this.hashtagBundleBookmarkRepository = hashtagBundleBookmarkRepository;
         this.savedTemplateRepository = savedTemplateRepository;
         this.savedTemplateHistoryRepository = savedTemplateHistoryRepository;
+        this.templateBookmarkRepository = templateBookmarkRepository;
         this.jdbcClient = jdbcClient;
     }
 
@@ -139,8 +144,14 @@ public class TestDatabase {
             .toList();
     }
 
-    public List<HashtagBundleBookmark> bookmarksOf(Long memberId) {
+    public List<HashtagBundleBookmark> hashtagBundleBookmarksOf(Long memberId) {
         return hashtagBundleBookmarkRepository.findAll().stream()
+            .filter(bookmark -> bookmark.getMemberId().equals(memberId))
+            .toList();
+    }
+
+    public List<TemplateBookmark> templateBookmarksOf(Long memberId) {
+        return templateBookmarkRepository.findAll().stream()
             .filter(bookmark -> bookmark.getMemberId().equals(memberId))
             .toList();
     }

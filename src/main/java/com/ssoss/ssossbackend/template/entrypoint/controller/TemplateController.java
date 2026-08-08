@@ -29,8 +29,11 @@ class TemplateController implements TemplateApi {
 
     @Override
     @GetMapping("/v1/templates")
-    public TemplateListResponse list(@Valid @ParameterObject TemplateListRequest request) {
-        PagedResult<TemplateResult> result = templateService.list(request.toCommand());
+    public TemplateListResponse list(
+        @AuthenticationPrincipal Long memberId,
+        @Valid @ParameterObject TemplateListRequest request
+    ) {
+        PagedResult<TemplateResult> result = templateService.list(request.toCommand(memberId));
         return new TemplateListResponse(result.totalCount(), result.page(), result.size(), result.hasNext(),
             result.items().stream()
                 .map(template -> new TemplateResponse(template.id(), template.category(), template.title(),
@@ -40,8 +43,11 @@ class TemplateController implements TemplateApi {
 
     @Override
     @GetMapping("/v1/templates/{templateId}")
-    public TemplateDetailResponse getById(@PathVariable Long templateId) {
-        TemplateDetailResult result = templateService.getById(templateId);
+    public TemplateDetailResponse getById(
+        @AuthenticationPrincipal Long memberId,
+        @PathVariable Long templateId
+    ) {
+        TemplateDetailResult result = templateService.getById(templateId, memberId);
         return new TemplateDetailResponse(result.id(), result.category(), result.title(), result.description(),
             result.body(), result.exampleBody(), result.recommendedChannels(), result.bookmarked());
     }
