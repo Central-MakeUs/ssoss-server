@@ -826,4 +826,190 @@ class SavedTemplateApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
         }
     }
+
+    @Nested
+    @DisplayName("DELETE /v1/saved-templates/{savedTemplateId}")
+    class DeleteSavedTemplate {
+
+        @Test
+        @DisplayName("삭제하면 목록에서 빠지고 전체 건수도 줄어든다")
+        void removesFromListAndTotalCount_whenDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-delete");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long deletedId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+            Long keptId = fixture.savedTemplateId(signup.accessToken(), card.id(), "남겨 둘 본문");
+
+            fixture.deletedSavedTemplate(signup.accessToken(), deletedId);
+
+            SavedTemplateListResponse list = fixture.savedTemplateList(signup.accessToken(), "");
+            assertThat(list.totalCount()).isEqualTo(1);
+            assertThat(list.savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(keptId);
+        }
+
+        @Test
+        @DisplayName("삭제해도 행은 남고 삭제 시각이 찍힌다")
+        void stampsDeletedAtKeepingRow_whenDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-delete-stamp");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.deletedSavedTemplate(signup.accessToken(), savedTemplateId);
+
+            assertThat(database.savedTemplateOf(savedTemplateId).getDeletedAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("삭제한 글의 상세를 조회하면 404 와 TP0002 를 반환한다")
+        void returns404FromDetail_whenSavedTemplateDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-delete-detail");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+            fixture.deletedSavedTemplate(signup.accessToken(), savedTemplateId);
+
+            fixture.getSavedTemplate(signup.accessToken(), savedTemplateId)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("삭제한 글을 편집하면 404 와 TP0002 를 반환한다")
+        void returns404FromEdit_whenSavedTemplateDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-delete-edit");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+            fixture.deletedSavedTemplate(signup.accessToken(), savedTemplateId);
+
+            fixture.editSavedTemplate(signup.accessToken(), savedTemplateId,
+                    Map.of("title", EDITED_TITLE, "body", EDITED_BODY))
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("이미 삭제한 글을 다시 삭제하면 404 와 TP0002 를 반환하고 삭제 시각은 그대로다")
+        void returns404_whenDeletingAgain() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-delete-twice");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+            fixture.deletedSavedTemplate(signup.accessToken(), savedTemplateId);
+            Instant deletedAt = database.savedTemplateOf(savedTemplateId).getDeletedAt();
+            clock.advanceBy(Duration.ofMinutes(10));
+
+            fixture.deleteSavedTemplate(signup.accessToken(), savedTemplateId)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+
+            assertThat(database.savedTemplateOf(savedTemplateId).getDeletedAt()).isEqualTo(deletedAt);
+        }
+
+        @Test
+        @DisplayName("다른 회원이 저장한 글을 삭제하면 404 와 TP0002 를 반환하고 그 글은 그대로다")
+        void returns404_whenSavedTemplateBelongsToAnotherMember() {
+            SignupResponse mine = fixture.signupActiveMember("naver-saved-template-delete-mine");
+            SignupResponse other = fixture.signupActiveMember("naver-saved-template-delete-other");
+            TemplateResponse card = fixture.firstTemplate(other.accessToken());
+            Long othersSavedTemplateId = fixture.savedTemplateId(other.accessToken(), card.id(), "다른 회원의 본문");
+
+            fixture.deleteSavedTemplate(mine.accessToken(), othersSavedTemplateId)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+
+            assertThat(fixture.savedTemplateDetail(other.accessToken(), othersSavedTemplateId).body())
+                .isEqualTo("다른 회원의 본문");
+            assertThat(database.savedTemplateOf(othersSavedTemplateId).getDeletedAt()).isNull();
+        }
+
+        @Test
+        @DisplayName("없는 id 를 삭제하면 404 와 TP0002 를 반환한다")
+        void returns404_whenSavedTemplateIsMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-delete-missing");
+
+            fixture.deleteSavedTemplate(signup.accessToken(), MISSING_SAVED_TEMPLATE_ID)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("삭제한 뒤 같은 템플릿을 다시 저장하면 새 글이 생겨 목록에 나온다")
+        void savesNewRow_whenSameTemplateSavedAfterDelete() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-delete-resave");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long deletedId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+            fixture.deletedSavedTemplate(signup.accessToken(), deletedId);
+
+            Long resavedId = fixture.savedTemplateId(signup.accessToken(), card.id(), "다시 저장한 본문");
+
+            assertThat(resavedId).isNotEqualTo(deletedId);
+            SavedTemplateListResponse list = fixture.savedTemplateList(signup.accessToken(), "");
+            assertThat(list.totalCount()).isEqualTo(1);
+            assertThat(list.savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(resavedId);
+            assertThat(fixture.savedTemplateDetail(signup.accessToken(), resavedId).body())
+                .isEqualTo("다시 저장한 본문");
+        }
+
+        @Test
+        @DisplayName("삭제해도 원본 템플릿은 목록에 그대로 있다")
+        void keepsOriginTemplate_whenDeleted() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-delete-origin");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            TemplateDetailResponse origin = fixture.templateDetail(signup.accessToken(), card.id());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.deletedSavedTemplate(signup.accessToken(), savedTemplateId);
+
+            assertThat(fixture.templateList(signup.accessToken(), "").templates()).contains(card);
+            assertThat(fixture.templateDetail(signup.accessToken(), card.id())).isEqualTo(origin);
+        }
+
+        @Test
+        @DisplayName("다른 회원이 저장한 글은 내 삭제에 영향받지 않는다")
+        void keepsSavedTemplatesOfOtherMembers_whenDeleted() {
+            SignupResponse mine = fixture.signupActiveMember("naver-saved-template-delete-keep-mine");
+            SignupResponse other = fixture.signupActiveMember("naver-saved-template-delete-keep-other");
+            TemplateResponse card = fixture.firstTemplate(mine.accessToken());
+            Long mineId = fixture.savedTemplateId(mine.accessToken(), card.id(), EDITED_BODY);
+            Long othersId = fixture.savedTemplateId(other.accessToken(), card.id(), "다른 회원의 본문");
+
+            fixture.deletedSavedTemplate(mine.accessToken(), mineId);
+
+            assertThat(fixture.savedTemplateList(other.accessToken(), "").savedTemplates())
+                .extracting(SavedTemplateSummaryResponse::savedTemplateId)
+                .containsExactly(othersId);
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 삭제하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenDeletes() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-saved-template-delete-pending");
+
+            fixture.deleteSavedTemplate(login.accessToken(), MISSING_SAVED_TEMPLATE_ID)
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 삭제하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().delete().uri("/v1/saved-templates/" + MISSING_SAVED_TEMPLATE_ID)
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
 }

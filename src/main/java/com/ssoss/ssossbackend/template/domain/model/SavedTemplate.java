@@ -55,6 +55,10 @@ public class SavedTemplate {
         return true;
     }
 
+    public void delete(Instant deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
     public List<Channel> recommendedChannelList() {
         return recommendedChannels == null ? List.of() : recommendedChannels.values();
     }

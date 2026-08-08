@@ -559,6 +559,16 @@ public class TestFixture {
             .getResponseBody();
     }
 
+    public RestTestClient.ResponseSpec deleteSavedTemplate(String accessToken, Long savedTemplateId) {
+        return client.delete().uri("/v1/saved-templates/" + savedTemplateId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public void deletedSavedTemplate(String accessToken, Long savedTemplateId) {
+        deleteSavedTemplate(accessToken, savedTemplateId).expectStatus().isNoContent();
+    }
+
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
         return client.post().uri("/v1/tokens")
             .contentType(MediaType.APPLICATION_JSON)

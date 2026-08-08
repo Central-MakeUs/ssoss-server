@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.template.domain.service;
 
+import java.time.Clock;
 import java.util.List;
 
 import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateHistoryRepository;
@@ -19,6 +20,7 @@ public class SavedTemplateWriter {
 
     private final SavedTemplateRepository savedTemplateRepository;
     private final SavedTemplateHistoryRepository savedTemplateHistoryRepository;
+    private final Clock clock;
 
     public SavedTemplate save(Template template, Long memberId, String body) {
         return savedTemplateRepository.save(SavedTemplate.copyOf(template, memberId, body));
@@ -32,6 +34,11 @@ public class SavedTemplateWriter {
         }
         savedTemplateHistoryRepository.save(previous);
         return savedTemplateRepository.save(savedTemplate);
+    }
+
+    public void delete(SavedTemplate savedTemplate) {
+        savedTemplate.delete(clock.instant());
+        savedTemplateRepository.save(savedTemplate);
     }
 
     @Transactional
