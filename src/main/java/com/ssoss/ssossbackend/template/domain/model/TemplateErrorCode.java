@@ -11,7 +11,8 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum TemplateErrorCode implements ErrorCode {
 
-    TEMPLATE_NOT_FOUND("TP0001", HttpStatus.NOT_FOUND, "템플릿을 찾을 수 없습니다");
+    TEMPLATE_NOT_FOUND("TP0001", HttpStatus.NOT_FOUND, "템플릿을 찾을 수 없습니다"),
+    SAVED_TEMPLATE_NOT_FOUND("TP0002", HttpStatus.NOT_FOUND, "저장한 템플릿을 찾을 수 없습니다");
 
     private final String code;
     private final HttpStatus status;

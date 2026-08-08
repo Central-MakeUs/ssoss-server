@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.template.entrypoint.controller;
 
 import java.time.Duration;
+import java.util.List;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
@@ -11,6 +12,7 @@ import com.ssoss.ssossbackend.support.IntegrationTest;
 import com.ssoss.ssossbackend.template.domain.model.Channel;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
 import com.ssoss.ssossbackend.template.domain.model.TemplateErrorCode;
+import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateListResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSaveResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSummaryResponse;
@@ -26,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SavedTemplateApiTest extends IntegrationTest {
 
     private static final long MISSING_TEMPLATE_ID = 999_999L;
+    private static final long MISSING_SAVED_TEMPLATE_ID = 999_999L;
     private static final String EDITED_BODY = """
         보니스커피에 새 메뉴가 출시되었습니다!
 
@@ -424,6 +427,104 @@ class SavedTemplateApiTest extends IntegrationTest {
         @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
         void returns401_whenAccessTokenMissing() {
             client().get().uri("/v1/saved-templates")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /v1/saved-templates/{savedTemplateId}")
+    class GetSavedTemplate {
+
+        @Test
+        @DisplayName("저장한 본문과 분류와 제목과 설명과 추천 채널과 저장 시각을 반환한다")
+        void returnsSavedBodyWithCategoryTitleDescriptionRecommendedChannelsAndSavedAt() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-detail");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            SavedTemplateDetailResponse body =
+                fixture.savedTemplateDetail(signup.accessToken(), savedTemplateId);
+
+            assertThat(body.savedTemplateId()).isEqualTo(savedTemplateId);
+            assertThat(body.body()).isEqualTo(EDITED_BODY);
+            assertThat(body.category()).isEqualTo(card.category());
+            assertThat(body.title()).isEqualTo(card.title());
+            assertThat(body.description()).isEqualTo(card.description());
+            assertThat(body.recommendedChannels()).isEqualTo(card.recommendedChannels());
+            assertThat(body.savedAt()).isEqualTo(database.savedTemplateOf(savedTemplateId).getCreatedAt());
+        }
+
+        @Test
+        @DisplayName("저장한 글이 여러 건이면 요청한 id 의 글을 반환한다")
+        void returnsRequestedSavedTemplate_whenMemberHasSeveralSavedTemplates() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-detail-many");
+            List<TemplateResponse> cards = fixture.templateList(signup.accessToken(), "").templates();
+            TemplateResponse firstCard = cards.getFirst();
+            TemplateResponse secondCard = cards.get(1);
+            Long firstSavedTemplateId =
+                fixture.savedTemplateId(signup.accessToken(), firstCard.id(), EDITED_BODY);
+            Long secondSavedTemplateId =
+                fixture.savedTemplateId(signup.accessToken(), secondCard.id(), "두 번째로 저장한 본문");
+
+            SavedTemplateDetailResponse first =
+                fixture.savedTemplateDetail(signup.accessToken(), firstSavedTemplateId);
+            SavedTemplateDetailResponse second =
+                fixture.savedTemplateDetail(signup.accessToken(), secondSavedTemplateId);
+
+            assertThat(first.savedTemplateId()).isEqualTo(firstSavedTemplateId);
+            assertThat(first.body()).isEqualTo(EDITED_BODY);
+            assertThat(first.title()).isEqualTo(firstCard.title());
+            assertThat(second.savedTemplateId()).isEqualTo(secondSavedTemplateId);
+            assertThat(second.body()).isEqualTo("두 번째로 저장한 본문");
+            assertThat(second.title()).isEqualTo(secondCard.title());
+        }
+
+        @Test
+        @DisplayName("다른 회원이 저장한 글의 상세를 조회하면 404 와 TP0002 를 반환한다")
+        void returns404_whenSavedTemplateBelongsToAnotherMember() {
+            SignupResponse mine = fixture.signupActiveMember("naver-saved-template-detail-mine");
+            SignupResponse other = fixture.signupActiveMember("naver-saved-template-detail-other");
+            Long templateId = fixture.firstTemplate(other.accessToken()).id();
+            Long othersSavedTemplateId =
+                fixture.savedTemplateId(other.accessToken(), templateId, "다른 회원의 본문");
+
+            fixture.getSavedTemplate(mine.accessToken(), othersSavedTemplateId)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("없는 id 로 조회하면 404 와 TP0002 를 반환한다")
+        void returns404_whenSavedTemplateIsMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-detail-missing");
+
+            fixture.getSavedTemplate(signup.accessToken(), MISSING_SAVED_TEMPLATE_ID)
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 조회하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenGets() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-saved-template-detail-pending");
+
+            fixture.getSavedTemplate(login.accessToken(), MISSING_SAVED_TEMPLATE_ID)
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().get().uri("/v1/saved-templates/" + MISSING_SAVED_TEMPLATE_ID)
                 .exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)
