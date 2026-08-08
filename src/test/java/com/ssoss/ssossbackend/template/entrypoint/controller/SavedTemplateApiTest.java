@@ -1,7 +1,9 @@
 package com.ssoss.ssossbackend.template.entrypoint.controller;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
 import com.ssoss.ssossbackend.auth.entrypoint.response.SignupResponse;
@@ -11,11 +13,13 @@ import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 import com.ssoss.ssossbackend.template.domain.model.Channel;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
+import com.ssoss.ssossbackend.template.domain.model.SavedTemplateHistory;
 import com.ssoss.ssossbackend.template.domain.model.TemplateErrorCode;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateListResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSaveResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSummaryResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateResponse;
 
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +40,9 @@ class SavedTemplateApiTest extends IntegrationTest {
         💰가격: 6,500원""";
     private static final String LONGEST_BODY = "가".repeat(2000);
     private static final String TOO_LONG_BODY = "가".repeat(2001);
+    private static final String EDITED_TITLE = "9월 신메뉴 안내";
+    private static final String LONGEST_TITLE = "가".repeat(100);
+    private static final String TOO_LONG_TITLE = "가".repeat(101);
 
     @Nested
     @DisplayName("POST /v1/saved-templates")
@@ -525,6 +532,294 @@ class SavedTemplateApiTest extends IntegrationTest {
         @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
         void returns401_whenAccessTokenMissing() {
             client().get().uri("/v1/saved-templates/" + MISSING_SAVED_TEMPLATE_ID)
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT /v1/saved-templates/{savedTemplateId}")
+    class EditSavedTemplate {
+
+        @Test
+        @DisplayName("제목만 고치면 목록과 상세에 새 제목이 나오고 본문은 그대로다")
+        void returnsEditedTitleInListAndDetail_whenOnlyTitleEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-title");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            SavedTemplateDetailResponse edited =
+                fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, EDITED_TITLE, EDITED_BODY);
+
+            assertThat(edited.title()).isEqualTo(EDITED_TITLE);
+            assertThat(edited.body()).isEqualTo(EDITED_BODY);
+            assertThat(fixture.savedTemplateDetail(signup.accessToken(), savedTemplateId).title())
+                .isEqualTo(EDITED_TITLE);
+            assertThat(fixture.savedTemplateList(signup.accessToken(), "").savedTemplates())
+                .singleElement()
+                .satisfies(saved -> assertThat(saved.title()).isEqualTo(EDITED_TITLE));
+        }
+
+        @Test
+        @DisplayName("본문만 고치면 상세에 새 본문이 나오고 제목은 그대로다")
+        void returnsEditedBodyInDetail_whenOnlyBodyEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-body");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            SavedTemplateDetailResponse edited =
+                fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, card.title(), "다시 고친 본문");
+
+            assertThat(edited.body()).isEqualTo("다시 고친 본문");
+            assertThat(edited.title()).isEqualTo(card.title());
+            assertThat(fixture.savedTemplateDetail(signup.accessToken(), savedTemplateId).body())
+                .isEqualTo("다시 고친 본문");
+        }
+
+        @Test
+        @DisplayName("같은 템플릿에서 저장한 두 건의 제목을 각각 다르게 고칠 수 있다")
+        void editsEachSavedTemplateSeparately_whenBothCameFromSameTemplate() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-siblings");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long firstId = fixture.savedTemplateId(signup.accessToken(), card.id(), "8월에 쓴 본문");
+            Long secondId = fixture.savedTemplateId(signup.accessToken(), card.id(), "9월에 쓴 본문");
+
+            fixture.editedSavedTemplate(signup.accessToken(), firstId, "8월 신메뉴 안내", "8월에 쓴 본문");
+            fixture.editedSavedTemplate(signup.accessToken(), secondId, "9월 신메뉴 안내", "9월에 쓴 본문");
+
+            assertThat(fixture.savedTemplateDetail(signup.accessToken(), firstId).title())
+                .isEqualTo("8월 신메뉴 안내");
+            assertThat(fixture.savedTemplateDetail(signup.accessToken(), secondId).title())
+                .isEqualTo("9월 신메뉴 안내");
+        }
+
+        @Test
+        @DisplayName("편집하면 이전 제목과 본문이 히스토리에 남는다")
+        void writesPreviousValuesToHistory_whenEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-history");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, EDITED_TITLE, "다시 고친 본문");
+
+            assertThat(database.savedTemplateHistoriesOf(savedTemplateId))
+                .singleElement()
+                .satisfies(history -> {
+                    assertThat(history.getTitle()).isEqualTo(card.title());
+                    assertThat(history.getBody()).isEqualTo(EDITED_BODY);
+                    assertThat(history.getCreatedAt()).isNotNull();
+                });
+        }
+
+        @Test
+        @DisplayName("두 번 편집하면 히스토리가 두 건 쌓인다")
+        void writesHistoryPerEdit_whenEditedTwice() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-history-twice");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, EDITED_TITLE, "처음 고친 본문");
+            fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, EDITED_TITLE, "다시 고친 본문");
+
+            assertThat(database.savedTemplateHistoriesOf(savedTemplateId))
+                .extracting(SavedTemplateHistory::getBody)
+                .containsExactly(EDITED_BODY, "처음 고친 본문");
+        }
+
+        @Test
+        @DisplayName("값이 그대로인 편집은 히스토리를 남기지 않고 수정 시각도 움직이지 않는다")
+        void writesNoHistory_whenValuesUnchanged() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-unchanged");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+            Instant updatedAt = database.savedTemplateOf(savedTemplateId).getUpdatedAt();
+            clock.advanceBy(Duration.ofMinutes(10));
+
+            fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, card.title(), EDITED_BODY);
+
+            assertThat(database.savedTemplateHistoriesOf(savedTemplateId)).isEmpty();
+            assertThat(database.savedTemplateOf(savedTemplateId).getUpdatedAt()).isEqualTo(updatedAt);
+        }
+
+        @Test
+        @DisplayName("편집해도 저장 시각은 그대로고 수정 시각만 움직인다")
+        void keepsSavedAtAndMovesUpdatedAt_whenEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-saved-at");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+            Instant savedAt = database.savedTemplateOf(savedTemplateId).getCreatedAt();
+            Instant updatedAt = database.savedTemplateOf(savedTemplateId).getUpdatedAt();
+            clock.advanceBy(Duration.ofMinutes(10));
+
+            SavedTemplateDetailResponse edited =
+                fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, EDITED_TITLE, "다시 고친 본문");
+
+            assertThat(edited.savedAt()).isEqualTo(savedAt);
+            assertThat(database.savedTemplateOf(savedTemplateId).getCreatedAt()).isEqualTo(savedAt);
+            assertThat(database.savedTemplateOf(savedTemplateId).getUpdatedAt()).isAfter(updatedAt);
+        }
+
+        @Test
+        @DisplayName("편집해도 원본 템플릿의 제목과 본문은 그대로다")
+        void keepsOriginTemplate_whenEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-origin");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            TemplateDetailResponse origin = fixture.templateDetail(signup.accessToken(), card.id());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, EDITED_TITLE, "다시 고친 본문");
+
+            assertThat(fixture.templateDetail(signup.accessToken(), card.id())).isEqualTo(origin);
+        }
+
+        @Test
+        @DisplayName("다른 회원이 같은 템플릿에서 저장한 글은 편집에 영향받지 않는다")
+        void keepsSavedTemplatesOfOtherMembers_whenEdited() {
+            SignupResponse mine = fixture.signupActiveMember("naver-saved-template-edit-mine");
+            SignupResponse other = fixture.signupActiveMember("naver-saved-template-edit-other");
+            TemplateResponse card = fixture.firstTemplate(mine.accessToken());
+            Long mineId = fixture.savedTemplateId(mine.accessToken(), card.id(), EDITED_BODY);
+            Long othersId = fixture.savedTemplateId(other.accessToken(), card.id(), "다른 회원의 본문");
+
+            fixture.editedSavedTemplate(mine.accessToken(), mineId, EDITED_TITLE, "다시 고친 본문");
+
+            SavedTemplateDetailResponse others = fixture.savedTemplateDetail(other.accessToken(), othersId);
+            assertThat(others.title()).isEqualTo(card.title());
+            assertThat(others.body()).isEqualTo("다른 회원의 본문");
+        }
+
+        @Test
+        @DisplayName("제목이 100자면 편집된다")
+        void editsTitle_whenTitleIsAtLengthLimit() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-longest-title");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            SavedTemplateDetailResponse edited =
+                fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, LONGEST_TITLE, EDITED_BODY);
+
+            assertThat(edited.title()).isEqualTo(LONGEST_TITLE);
+        }
+
+        @Test
+        @DisplayName("제목이 100자를 넘으면 400 과 C0001 을 반환하고 원래 값이 그대로다")
+        void returns400_whenTitleExceedsLengthLimit() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-long-title");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.editSavedTemplate(signup.accessToken(), savedTemplateId,
+                    Map.of("title", TOO_LONG_TITLE, "body", EDITED_BODY))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+            assertThat(database.savedTemplateOf(savedTemplateId).getTitle()).isEqualTo(card.title());
+        }
+
+        @Test
+        @DisplayName("본문이 2000자를 넘으면 400 과 C0001 을 반환하고 원래 값이 그대로다")
+        void returns400_whenBodyExceedsLengthLimit() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-long-body");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.editSavedTemplate(signup.accessToken(), savedTemplateId,
+                    Map.of("title", EDITED_TITLE, "body", TOO_LONG_BODY))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+            assertThat(database.savedTemplateOf(savedTemplateId).getBody()).isEqualTo(EDITED_BODY);
+        }
+
+        @Test
+        @DisplayName("본문이 2000자면 편집된다")
+        void editsBody_whenBodyIsAtLengthLimit() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-longest-body");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            SavedTemplateDetailResponse edited =
+                fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, EDITED_TITLE, LONGEST_BODY);
+
+            assertThat(edited.body()).isEqualTo(LONGEST_BODY);
+        }
+
+        @Test
+        @DisplayName("제목이 비면 400 과 C0001 을 반환한다")
+        void returns400_whenTitleIsBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-blank-title");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.editSavedTemplate(signup.accessToken(), savedTemplateId,
+                    Map.of("title", " ", "body", EDITED_BODY))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("본문이 비면 400 과 C0001 을 반환한다")
+        void returns400_whenBodyIsBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-blank-body");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            Long savedTemplateId = fixture.savedTemplateId(signup.accessToken(), card.id(), EDITED_BODY);
+
+            fixture.editSavedTemplate(signup.accessToken(), savedTemplateId,
+                    Map.of("title", EDITED_TITLE, "body", ""))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("다른 회원이 저장한 글을 편집하면 404 와 TP0002 를 반환한다")
+        void returns404_whenSavedTemplateBelongsToAnotherMember() {
+            SignupResponse mine = fixture.signupActiveMember("naver-saved-template-edit-404-mine");
+            SignupResponse other = fixture.signupActiveMember("naver-saved-template-edit-404-other");
+            Long templateId = fixture.firstTemplate(other.accessToken()).id();
+            Long othersSavedTemplateId =
+                fixture.savedTemplateId(other.accessToken(), templateId, "다른 회원의 본문");
+
+            fixture.editSavedTemplate(mine.accessToken(), othersSavedTemplateId,
+                    Map.of("title", EDITED_TITLE, "body", EDITED_BODY))
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("없는 id 를 편집하면 404 와 TP0002 를 반환한다")
+        void returns404_whenSavedTemplateIsMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-saved-template-edit-missing");
+
+            fixture.editSavedTemplate(signup.accessToken(), MISSING_SAVED_TEMPLATE_ID,
+                    Map.of("title", EDITED_TITLE, "body", EDITED_BODY))
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code())
+                    .isEqualTo(TemplateErrorCode.SAVED_TEMPLATE_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 편집하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenEdits() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-saved-template-edit-pending");
+
+            fixture.editSavedTemplate(login.accessToken(), MISSING_SAVED_TEMPLATE_ID,
+                    Map.of("title", EDITED_TITLE, "body", EDITED_BODY))
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 편집하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().put().uri("/v1/saved-templates/" + MISSING_SAVED_TEMPLATE_ID)
                 .exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody(ErrorResponse.class)

@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.template.domain.contract;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
@@ -13,6 +14,8 @@ public interface SavedTemplateRepository extends ListCrudRepository<SavedTemplat
     Optional<SavedTemplate> findByIdAndMemberIdAndDeletedAtIsNull(Long id, Long memberId);
 
     Page<SavedTemplate> findAllByMemberIdAndDeletedAtIsNull(Long memberId, Pageable pageable);
+
+    List<SavedTemplate> findAllByMemberId(Long memberId);
 
     void deleteAllByMemberId(Long memberId);
 }

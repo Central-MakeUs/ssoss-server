@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.template.domain.model;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 import lombok.Getter;
 
@@ -43,6 +44,15 @@ public class SavedTemplate {
         this.body = body;
         this.recommendedChannels = recommendedChannels;
         this.deletedAt = deletedAt;
+    }
+
+    public boolean edit(String title, String body) {
+        if (Objects.equals(this.title, title) && Objects.equals(this.body, body)) {
+            return false;
+        }
+        this.title = title;
+        this.body = body;
+        return true;
     }
 
     public List<Channel> recommendedChannelList() {

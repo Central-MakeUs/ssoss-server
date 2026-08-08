@@ -541,6 +541,24 @@ public class TestFixture {
             .getResponseBody();
     }
 
+    public RestTestClient.ResponseSpec editSavedTemplate(String accessToken, Long savedTemplateId,
+        Map<String, Object> body) {
+        return client.put().uri("/v1/saved-templates/" + savedTemplateId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public SavedTemplateDetailResponse editedSavedTemplate(String accessToken, Long savedTemplateId, String title,
+        String body) {
+        return editSavedTemplate(accessToken, savedTemplateId, Map.of("title", title, "body", body))
+            .expectStatus().isOk()
+            .expectBody(SavedTemplateDetailResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
     public RestTestClient.ResponseSpec refreshTokens(String refreshToken) {
         return client.post().uri("/v1/tokens")
             .contentType(MediaType.APPLICATION_JSON)
