@@ -26,4 +26,13 @@ public class TemplateBookmarkWriter {
         }
         templateBookmarkRepository.save(bookmark);
     }
+
+    public void unbookmark(Long memberId, Long templateId) {
+        templateBookmarkRepository.findByMemberIdAndTemplateId(memberId, templateId)
+            .ifPresent(bookmark -> {
+                if (bookmark.unbookmark()) {
+                    templateBookmarkRepository.save(bookmark);
+                }
+            });
+    }
 }

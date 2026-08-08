@@ -498,6 +498,16 @@ public class TestFixture {
         bookmarkTemplate(accessToken, templateId).expectStatus().isNoContent();
     }
 
+    public RestTestClient.ResponseSpec unbookmarkTemplate(String accessToken, Long templateId) {
+        return client.delete().uri("/v1/members/me/templates/" + templateId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public void unbookmarkedTemplate(String accessToken, Long templateId) {
+        unbookmarkTemplate(accessToken, templateId).expectStatus().isNoContent();
+    }
+
     public RestTestClient.ResponseSpec saveTemplate(String accessToken, Long templateId, String body) {
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("templateId", templateId);
