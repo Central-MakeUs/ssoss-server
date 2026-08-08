@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.template.application.service;
 import com.ssoss.ssossbackend.shared.paging.PagedResult;
 import com.ssoss.ssossbackend.template.application.command.SavedTemplateListCommand;
 import com.ssoss.ssossbackend.template.application.command.SavedTemplateSaveCommand;
+import com.ssoss.ssossbackend.template.application.result.SavedTemplateDetailResult;
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateSaveResult;
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateSummaryResult;
 import com.ssoss.ssossbackend.template.domain.model.Template;
@@ -32,6 +33,10 @@ public class SavedTemplateService {
         return PagedResult.from(savedTemplateFinder.list(
                 command.memberId(), command.sort(), command.page(), command.size()),
             SavedTemplateSummaryResult::from);
+    }
+
+    public SavedTemplateDetailResult getById(Long savedTemplateId, Long memberId) {
+        return SavedTemplateDetailResult.from(savedTemplateFinder.get(savedTemplateId, memberId));
     }
 
     public void deleteAllByMemberId(Long memberId) {

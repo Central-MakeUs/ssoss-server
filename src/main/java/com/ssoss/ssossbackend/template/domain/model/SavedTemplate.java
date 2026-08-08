@@ -1,6 +1,7 @@
 package com.ssoss.ssossbackend.template.domain.model;
 
 import java.time.Instant;
+import java.util.List;
 
 import lombok.Getter;
 
@@ -42,6 +43,10 @@ public class SavedTemplate {
         this.body = body;
         this.recommendedChannels = recommendedChannels;
         this.deletedAt = deletedAt;
+    }
+
+    public List<Channel> recommendedChannelList() {
+        return recommendedChannels == null ? List.of() : recommendedChannels.values();
     }
 
     public static SavedTemplate copyOf(Template template, Long memberId, String body) {
