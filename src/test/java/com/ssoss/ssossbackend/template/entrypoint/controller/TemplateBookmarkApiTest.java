@@ -152,4 +152,140 @@ class TemplateBookmarkApiTest extends IntegrationTest {
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
         }
     }
+
+    @Nested
+    @DisplayName("DELETE /v1/members/me/templates/{templateId}")
+    class UnbookmarkTemplate {
+
+        @Test
+        @DisplayName("가입 회원이 북마크를 해제하면 204 를 반환하고 그 카드의 북마크 여부가 거짓이 된다")
+        void marksCardUnbookmarked_whenActiveMemberUnbookmarks() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-unbookmark-off");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            fixture.bookmarkedTemplate(signup.accessToken(), card.id());
+
+            fixture.unbookmarkTemplate(signup.accessToken(), card.id())
+                .expectStatus().isNoContent();
+
+            assertThat(cardOf(signup.accessToken(), card.id()).bookmarked()).isFalse();
+        }
+
+        @Test
+        @DisplayName("북마크를 해제한 템플릿은 상세 조회에도 북마크 여부가 거짓으로 담긴다")
+        void marksDetailUnbookmarked_whenActiveMemberUnbookmarks() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-unbookmark-detail");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            fixture.bookmarkedTemplate(signup.accessToken(), card.id());
+            fixture.unbookmarkedTemplate(signup.accessToken(), card.id());
+
+            TemplateDetailResponse body = fixture.templateDetail(signup.accessToken(), card.id());
+
+            assertThat(body.bookmarked()).isFalse();
+        }
+
+        @Test
+        @DisplayName("담은 적 없는 템플릿을 해제하면 204 를 반환하고 행이 새로 생기지 않는다")
+        void createsNoRow_whenNeverBookmarkedTemplateUnbookmarked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-unbookmark-never");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+
+            fixture.unbookmarkTemplate(signup.accessToken(), card.id())
+                .expectStatus().isNoContent();
+
+            assertThat(database.templateBookmarksOf(database.memberIdOf("naver-template-unbookmark-never")))
+                .isEmpty();
+        }
+
+        @Test
+        @DisplayName("북마크를 해제해도 행은 남고 북마크한 시각만 비워진다")
+        void keepsRowWithClearedBookmarkedAt_whenUnbookmarked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-unbookmark-row");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            fixture.bookmarkedTemplate(signup.accessToken(), card.id());
+
+            fixture.unbookmarkedTemplate(signup.accessToken(), card.id());
+
+            assertThat(database.templateBookmarksOf(database.memberIdOf("naver-template-unbookmark-row")))
+                .singleElement()
+                .satisfies(bookmark -> {
+                    assertThat(bookmark.getTemplateId()).isEqualTo(card.id());
+                    assertThat(bookmark.getBookmarkedAt()).isNull();
+                });
+        }
+
+        @Test
+        @DisplayName("같은 템플릿을 두 번 해제해도 204 를 반환하고 행이 하나만 남는다")
+        void keepsSingleRow_whenUnbookmarkedTwice() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-unbookmark-twice");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            fixture.bookmarkedTemplate(signup.accessToken(), card.id());
+            fixture.unbookmarkedTemplate(signup.accessToken(), card.id());
+
+            fixture.unbookmarkTemplate(signup.accessToken(), card.id())
+                .expectStatus().isNoContent();
+
+            assertThat(database.templateBookmarksOf(database.memberIdOf("naver-template-unbookmark-twice")))
+                .singleElement()
+                .satisfies(bookmark -> assertThat(bookmark.getBookmarkedAt()).isNull());
+        }
+
+        @Test
+        @DisplayName("해제한 템플릿을 다시 북마크하면 그 카드의 북마크 여부가 다시 참이 된다")
+        void marksCardBookmarkedAgain_whenBookmarkedAfterUnbookmark() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-unbookmark-again");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            fixture.bookmarkedTemplate(signup.accessToken(), card.id());
+            fixture.unbookmarkedTemplate(signup.accessToken(), card.id());
+
+            fixture.bookmarkTemplate(signup.accessToken(), card.id())
+                .expectStatus().isNoContent();
+
+            assertThat(cardOf(signup.accessToken(), card.id()).bookmarked()).isTrue();
+        }
+
+        @Test
+        @DisplayName("내가 북마크를 해제해도 다른 회원의 같은 템플릿 북마크는 남는다")
+        void keepsOtherMembersBookmark_whenActiveMemberUnbookmarks() {
+            SignupResponse other = fixture.signupActiveMember("naver-template-unbookmark-other");
+            SignupResponse mine = fixture.signupActiveMember("naver-template-unbookmark-mine");
+            TemplateResponse card = fixture.firstTemplate(mine.accessToken());
+            fixture.bookmarkedTemplate(other.accessToken(), card.id());
+            fixture.bookmarkedTemplate(mine.accessToken(), card.id());
+
+            fixture.unbookmarkedTemplate(mine.accessToken(), card.id());
+
+            assertThat(cardOf(other.accessToken(), card.id()).bookmarked()).isTrue();
+            assertThat(cardOf(mine.accessToken(), card.id()).bookmarked()).isFalse();
+        }
+
+        @Test
+        @DisplayName("없는 템플릿을 해제해도 204 를 반환한다")
+        void returns204_whenTemplateMissing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-unbookmark-missing");
+
+            fixture.unbookmarkTemplate(signup.accessToken(), MISSING_TEMPLATE_ID)
+                .expectStatus().isNoContent();
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 해제하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenUnbookmarks() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-template-unbookmark-pending");
+
+            fixture.unbookmarkTemplate(login.accessToken(), ANY_TEMPLATE_ID)
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 해제하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().delete().uri("/v1/members/me/templates/" + ANY_TEMPLATE_ID)
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+    }
 }

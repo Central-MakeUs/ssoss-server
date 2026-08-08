@@ -45,4 +45,31 @@ interface TemplateBookmarkApi {
                     """)))
     })
     void bookmark(Long memberId, Long templateId);
+
+    @Operation(
+        summary = "추천 템플릿 북마크 해제",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            추천 템플릿을 회원의 북마크 목록에서 뺍니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 이며, 토큰의 회원 기준으로 빠집니다.
+            - 뺀 템플릿은 목록·상세 조회에서 bookmarked 가 false 로 내려갑니다.
+            - 담은 적 없거나 이미 뺀 템플릿, 없는 템플릿을 해제해도 204 입니다. 재시도해도 결과가 같습니다.
+            - 다시 담으면 북마크 목록에 다시 들어갑니다.
+            - 다른 회원이 같은 템플릿을 담아 둔 북마크는 그대로 남습니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "북마크를 해제했습니다"),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """)))
+    })
+    void unbookmark(Long memberId, Long templateId);
 }

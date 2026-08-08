@@ -39,4 +39,28 @@ class TemplateBookmarkTest {
             assertThat(bookmark.getBookmarkedAt()).isEqualTo(BOOKMARKED_AT);
         }
     }
+
+    @Nested
+    @DisplayName("unbookmark")
+    class Unbookmark {
+
+        @Test
+        @DisplayName("북마크한 상태면 참을 돌려주고 북마크한 시각이 비워진다")
+        void clearsBookmarkedAt_whenBookmarked() {
+            TemplateBookmark bookmark = TemplateBookmark.create(MEMBER_ID, TEMPLATE_ID);
+            bookmark.bookmark(BOOKMARKED_AT);
+
+            assertThat(bookmark.unbookmark()).isTrue();
+            assertThat(bookmark.getBookmarkedAt()).isNull();
+        }
+
+        @Test
+        @DisplayName("북마크한 적 없으면 거짓을 돌려준다")
+        void returnsFalse_whenNeverBookmarked() {
+            TemplateBookmark bookmark = TemplateBookmark.create(MEMBER_ID, TEMPLATE_ID);
+
+            assertThat(bookmark.unbookmark()).isFalse();
+            assertThat(bookmark.getBookmarkedAt()).isNull();
+        }
+    }
 }

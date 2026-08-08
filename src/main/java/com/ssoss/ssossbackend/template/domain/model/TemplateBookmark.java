@@ -43,4 +43,12 @@ public class TemplateBookmark {
         this.bookmarkedAt = bookmarkedAt;
         return true;
     }
+
+    public boolean unbookmark() {
+        if (this.bookmarkedAt == null) {
+            return false;
+        }
+        this.bookmarkedAt = null;
+        return true;
+    }
 }

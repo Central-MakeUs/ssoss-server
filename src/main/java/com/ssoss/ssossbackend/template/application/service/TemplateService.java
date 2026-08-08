@@ -41,6 +41,10 @@ public class TemplateService {
         templateBookmarkWriter.bookmark(templateFinder.get(templateId), memberId);
     }
 
+    public void unbookmark(Long memberId, Long templateId) {
+        templateBookmarkWriter.unbookmark(memberId, templateId);
+    }
+
     public TemplateDetailResult getById(Long templateId, Long memberId) {
         Template template = templateFinder.get(templateId);
         return TemplateDetailResult.from(template,
