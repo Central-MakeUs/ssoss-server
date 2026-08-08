@@ -24,7 +24,7 @@ interface TemplateApi {
         description = """
             운영자가 심어 둔 추천 템플릿을 카드 목록으로 조회합니다.
 
-            - 가입 회원(ACTIVE) accessToken 전용 API 입니다. 목록 자체는 모든 회원에게 같습니다.
+            - 가입 회원(ACTIVE) accessToken 전용 API 입니다. 템플릿 목록 자체는 모두에게 같고 bookmarked 만 회원마다 다릅니다.
             - 카드 1건이 템플릿 하나이며, title 이 카드 제목이고 description 이 그 아래 한 줄입니다.
               recommendedChannels 는 이 템플릿을 올리기 좋은 채널이라 카드에 배지로 붙이면 됩니다.
             - 최근에 심은 템플릿이 먼저 오는 순서로 고정입니다. 정렬을 고르는 파라미터는 없습니다.
@@ -33,7 +33,7 @@ interface TemplateApi {
             - page 는 0 부터 세고 size 는 기본 20·최대 50 입니다. 아래로 넘길 때는 hasNext 가 true 인 동안 page 를 올려 부르세요.
               category 를 준 결과에도 페이징이 그대로 동작하고, totalCount 는 걸러진 개수입니다.
             - 카드에는 본문이 담기지 않습니다. 본문 미리보기는 별도 API 로 받습니다.
-            - bookmarked 는 지금 항상 false 로 내려갑니다. 북마크 저장 기능이 붙으면 값만 채워지고 응답 모양은 그대로입니다.
+            - bookmarked 는 토큰의 회원이 그 템플릿을 북마크했는지입니다. 북마크 저장은 별도 API 로 합니다.
             """)
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "최근에 심은 템플릿부터 담은 카드 목록과 전체 건수를 반환합니다",
@@ -80,7 +80,7 @@ interface TemplateApi {
                     {"code":"A0007","message":"접근 권한이 없습니다"}
                     """)))
     })
-    TemplateListResponse list(TemplateListRequest request);
+    TemplateListResponse list(Long memberId, TemplateListRequest request);
 
     @Operation(
         summary = "추천 템플릿 상세 조회",
@@ -88,12 +88,12 @@ interface TemplateApi {
         description = """
             목록에서 고른 템플릿 하나의 상세를 조회합니다. 적용하기를 누르기 전에 본문을 보는 자리입니다.
 
-            - 가입 회원(ACTIVE) accessToken 전용 API 입니다. 상세 자체는 모든 회원에게 같습니다.
+            - 가입 회원(ACTIVE) accessToken 전용 API 입니다. 상세 자체는 모두에게 같고 bookmarked 만 회원마다 다릅니다.
             - body 와 exampleBody 는 서로 다른 글입니다. body 는 `[가게명]`·`[주소]` 같은 대괄호 자리표시자가 그대로 남은 틀이고,
               exampleBody 는 다른 매장 정보로 전부 채워진 완성 글이라 "완성되면 이런 모양"을 보여 주는 데 씁니다.
             - 서버는 치환을 하지 않습니다. 내 매장 정보로 채운 본문은 적용 API 로 받습니다.
             - category·title·description·recommendedChannels 는 목록 카드와 같은 값이라 화면 상단을 그대로 그릴 수 있습니다.
-            - bookmarked 는 지금 항상 false 로 내려갑니다. 북마크 저장 기능이 붙으면 값만 채워지고 응답 모양은 그대로입니다.
+            - bookmarked 는 토큰의 회원이 이 템플릿을 북마크했는지이며, 목록 카드의 값과 같습니다.
             """)
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "자리표시자가 남은 원문과 채워진 예시 본문을 함께 반환합니다",
@@ -126,7 +126,7 @@ interface TemplateApi {
                     {"code":"TP0001","message":"템플릿을 찾을 수 없습니다"}
                     """)))
     })
-    TemplateDetailResponse getById(Long templateId);
+    TemplateDetailResponse getById(Long memberId, Long templateId);
 
     @Operation(
         summary = "추천 템플릿 적용",

@@ -488,6 +488,16 @@ public class TestFixture {
         return templateList(accessToken, "").templates().getFirst();
     }
 
+    public RestTestClient.ResponseSpec bookmarkTemplate(String accessToken, Long templateId) {
+        return client.put().uri("/v1/members/me/templates/" + templateId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public void bookmarkedTemplate(String accessToken, Long templateId) {
+        bookmarkTemplate(accessToken, templateId).expectStatus().isNoContent();
+    }
+
     public RestTestClient.ResponseSpec saveTemplate(String accessToken, Long templateId, String body) {
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("templateId", templateId);
