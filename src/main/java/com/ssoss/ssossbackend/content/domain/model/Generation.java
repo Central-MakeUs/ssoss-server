@@ -66,6 +66,13 @@ public class Generation {
             photoGuideChecked, null, null, null);
     }
 
+    public static Generation reuseOf(Content content, ContentChannel origin, String emphasis, String forbidden,
+        List<String> keywords, boolean photoGuideChecked) {
+        return new Generation(null, content.getMemberId(), origin.getChannel().name(), content.getPurpose(),
+            content.getTone(), emphasis, forbidden, new Keywords(keywords), photoGuideChecked, origin.getId(),
+            null, null);
+    }
+
     public List<Channel> channelList() {
         return Arrays.stream(channels.split(CHANNEL_SEPARATOR))
             .map(Channel::valueOf)
@@ -95,9 +102,9 @@ public class Generation {
             .toList();
     }
 
-    public GenerationMaterial materialFor(Channel channel, StoreMaterial store) {
+    public GenerationMaterial materialFor(Channel channel, StoreMaterial store, StyleSource styleSource) {
         return new GenerationMaterial(channel, purpose, tone, emphasis, forbidden, keywordList(), photoGuideChecked,
-            store);
+            store, styleSource);
     }
 
     public Instant deadline() {

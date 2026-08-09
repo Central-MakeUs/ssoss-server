@@ -11,6 +11,7 @@ import com.ssoss.ssossbackend.content.domain.model.GenerationMaterial;
 import com.ssoss.ssossbackend.content.domain.model.LlmCallReply;
 import com.ssoss.ssossbackend.content.domain.model.Purpose;
 import com.ssoss.ssossbackend.content.domain.model.StoreMaterial;
+import com.ssoss.ssossbackend.content.domain.model.StyleSource;
 import com.ssoss.ssossbackend.content.domain.model.Tone;
 
 import org.junit.jupiter.api.DisplayName;
@@ -60,7 +61,8 @@ class GeminiAutoConfiguredClientLiveTest {
             Channel.BLOG, Purpose.NEW_MENU_PROMOTION, Tone.CASUAL,
             "가을 신메뉴 밤라떼 출시", "가격 인상 언급", List.of("동네 카페"), false,
             new StoreMaterial("보니스커피", "카페", "서울 중구 을지로 100", "을지로 크루아상 카페",
-                List.of("월요일", "화요일"), "09:00", "22:00", List.of("크루아상"), List.of("포장 가능"))));
+                List.of("월요일", "화요일"), "09:00", "22:00", List.of("크루아상"), List.of("포장 가능")),
+            StyleSource.none()));
 
         assertThat(reply.content().hasRequiredOutput(Channel.BLOG)).isTrue();
         assertThat(reply.outputTokens()).isPositive();

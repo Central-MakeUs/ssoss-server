@@ -56,9 +56,6 @@ public class ContentFinder {
     }
 
     public ContentChannel channelOf(Long contentId, Long contentChannelId, Long memberId) {
-        return get(contentId, memberId).channels().stream()
-            .filter(channel -> channel.getId().equals(contentChannelId))
-            .findFirst()
-            .orElseThrow(() -> new BusinessException(ContentErrorCode.CONTENT_CHANNEL_NOT_FOUND));
+        return get(contentId, memberId).channelOf(contentChannelId);
     }
 }

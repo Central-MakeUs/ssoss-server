@@ -10,10 +10,12 @@ public record GenerationMaterial(
     String forbidden,
     List<String> keywords,
     boolean photoGuideChecked,
-    StoreMaterial store
+    StoreMaterial store,
+    StyleSource styleSource
 ) {
 
     public GenerationMaterial {
         keywords = keywords == null ? List.of() : List.copyOf(keywords);
+        styleSource = styleSource == null ? StyleSource.none() : styleSource;
     }
 }
