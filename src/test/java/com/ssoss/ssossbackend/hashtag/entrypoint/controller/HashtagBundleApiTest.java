@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("해시태그 묶음 카탈로그 API")
+@DisplayName("해시태그 묶음 목록 API")
 class HashtagBundleApiTest extends IntegrationTest {
 
     @Nested

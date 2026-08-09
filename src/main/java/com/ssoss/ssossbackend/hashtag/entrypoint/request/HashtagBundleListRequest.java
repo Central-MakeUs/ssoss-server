@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
-@Schema(description = "해시태그 묶음 카탈로그 조회 요청")
+@Schema(description = "해시태그 묶음 목록 조회 요청")
 public record HashtagBundleListRequest(
     @Schema(description = "검색어 (선택) — 묶음 이름과 태그 내용을 함께 부분 일치로 거릅니다", example = "콘센트",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
