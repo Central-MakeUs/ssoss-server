@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.hashtag.entrypoint.controller;
 
+import java.time.Duration;
 import java.util.List;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
@@ -100,19 +101,20 @@ class HashtagBundleBookmarkApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("여러 묶음을 북마크하면 내 목록에 모두 담긴다")
-        void addsEveryBookmarkedBundle_whenSeveralBookmarked() {
+        @DisplayName("여러 묶음을 북마크하면 최근에 담은 묶음부터 담긴다")
+        void addsLatestBookmarkedBundleFirst_whenSeveralBookmarked() {
             SignupResponse signup = fixture.signupActiveMember("naver-bookmark-several");
             List<HashtagBundleResponse> bundles = fixture.hashtagBundleList(signup.accessToken(), "").bundles();
-            Long first = bundles.get(0).id();
-            Long second = bundles.get(1).id();
+            Long earlier = bundles.get(0).id();
+            Long later = bundles.get(1).id();
 
-            fixture.bookmarkedHashtagBundle(signup.accessToken(), first);
-            fixture.bookmarkedHashtagBundle(signup.accessToken(), second);
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), earlier);
+            clock.advanceBy(Duration.ofMinutes(1));
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), later);
 
             BookmarkedHashtagBundleListResponse body = fixture.bookmarkedHashtagBundleList(signup.accessToken());
             assertThat(body.bundles()).extracting(BookmarkedHashtagBundleResponse::id)
-                .containsExactly(first, second);
+                .containsExactly(later, earlier);
         }
 
         @Test
@@ -210,6 +212,26 @@ class HashtagBundleBookmarkApiTest extends IntegrationTest {
             BookmarkedHashtagBundleListResponse body = fixture.bookmarkedHashtagBundleList(signup.accessToken());
             assertThat(body.bundles()).singleElement()
                 .satisfies(bookmarked -> assertThat(bookmarked.id()).isEqualTo(bundle.id()));
+        }
+
+        @Test
+        @DisplayName("해제한 묶음을 다시 담으면 목록 맨 앞으로 온다")
+        void movesBundleToFront_whenBookmarkedAgainAfterUnbookmark() {
+            SignupResponse signup = fixture.signupActiveMember("naver-unbookmark-front");
+            List<HashtagBundleResponse> bundles = fixture.hashtagBundleList(signup.accessToken(), "").bundles();
+            Long earlier = bundles.get(1).id();
+            Long later = bundles.get(0).id();
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), earlier);
+            clock.advanceBy(Duration.ofMinutes(1));
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), later);
+
+            fixture.unbookmarkedHashtagBundle(signup.accessToken(), earlier);
+            clock.advanceBy(Duration.ofMinutes(1));
+            fixture.bookmarkedHashtagBundle(signup.accessToken(), earlier);
+
+            BookmarkedHashtagBundleListResponse body = fixture.bookmarkedHashtagBundleList(signup.accessToken());
+            assertThat(body.bundles()).extracting(BookmarkedHashtagBundleResponse::id)
+                .containsExactly(earlier, later);
         }
 
         @Test

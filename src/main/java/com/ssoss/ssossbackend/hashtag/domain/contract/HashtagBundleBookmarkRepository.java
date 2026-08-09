@@ -9,7 +9,7 @@ import org.springframework.data.repository.ListCrudRepository;
 
 public interface HashtagBundleBookmarkRepository extends ListCrudRepository<HashtagBundleBookmark, Long> {
 
-    List<HashtagBundleBookmark> findAllByMemberIdAndBookmarkedAtIsNotNull(Long memberId);
+    List<HashtagBundleBookmark> findAllByMemberIdAndBookmarkedAtIsNotNullOrderByBookmarkedAtDescIdDesc(Long memberId);
 
     List<HashtagBundleBookmark> findAllByMemberIdAndBundleIdInAndBookmarkedAtIsNotNull(
         Long memberId, List<Long> bundleIds);
