@@ -35,4 +35,8 @@ public class TemplateBookmarkWriter {
                 }
             });
     }
+
+    public void deleteAllByMemberId(Long memberId) {
+        templateBookmarkRepository.deleteAllByMemberId(memberId);
+    }
 }
