@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
+import com.ssoss.ssossbackend.content.application.command.ChannelConversionCommand;
 import com.ssoss.ssossbackend.content.application.command.GenerationStartCommand;
 import com.ssoss.ssossbackend.content.application.command.StyleReuseCommand;
 import com.ssoss.ssossbackend.content.application.result.GenerationDetailResult;
@@ -61,6 +62,20 @@ public class GenerationService {
             command.emphasis(), command.forbidden(), command.keywords(), command.photoGuideChecked()));
         generationCoordinator.run(generation, storeMaterialReader.read(command.memberId()),
             StyleSource.of(originChannel));
+        return new GenerationStartResult(generation.getId());
+    }
+
+    @Transactional
+    public GenerationStartResult convert(ChannelConversionCommand command) {
+        ContentWithChannels origin = contentFinder.get(command.contentId(), command.memberId());
+        ContentChannel originChannel = origin.channelOf(command.contentChannelId());
+        originChannel.ensureNotChosen(command.channels());
+        generationValidator.ensureStartable(command.memberId());
+        creditService.checkDeductible(command.memberId(), command.channels().size());
+        Generation originGeneration = generationFinder.get(origin.content().getGenerationId(), command.memberId());
+        Generation generation = generationWriter.create(
+            Generation.conversionOf(originGeneration, originChannel, command.channels()));
+        generationCoordinator.run(generation, storeMaterialReader.read(command.memberId()), StyleSource.none());
         return new GenerationStartResult(generation.getId());
     }
 

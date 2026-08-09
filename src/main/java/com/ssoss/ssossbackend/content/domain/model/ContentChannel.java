@@ -5,6 +5,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+import com.ssoss.ssossbackend.shared.exception.BusinessException;
+
 import lombok.Getter;
 
 import org.springframework.data.annotation.CreatedDate;
@@ -69,6 +71,12 @@ public class ContentChannel {
         this.body = body;
         this.hashtags = new Hashtags(hashtags);
         return true;
+    }
+
+    public void ensureNotChosen(List<Channel> channels) {
+        if (channels.contains(channel)) {
+            throw new BusinessException(ContentErrorCode.SOURCE_CHANNEL_NOT_ALLOWED);
+        }
     }
 
     public void delete(Instant deletedAt) {

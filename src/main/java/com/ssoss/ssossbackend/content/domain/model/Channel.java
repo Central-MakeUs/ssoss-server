@@ -1,6 +1,8 @@
 package com.ssoss.ssossbackend.content.domain.model;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
 import com.ssoss.ssossbackend.shared.exception.CommonErrorCode;
@@ -42,5 +44,13 @@ public enum Channel {
             .filter(channel -> channel.name().equalsIgnoreCase(value))
             .findFirst()
             .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_INPUT));
+    }
+
+    public static List<Channel> listFrom(List<String> values) {
+        List<Channel> channels = values.stream().map(Channel::from).toList();
+        if (Set.copyOf(channels).size() != channels.size()) {
+            throw new BusinessException(CommonErrorCode.INVALID_INPUT);
+        }
+        return channels;
     }
 }

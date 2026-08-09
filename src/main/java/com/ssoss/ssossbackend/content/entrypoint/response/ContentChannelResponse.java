@@ -4,7 +4,7 @@ import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "채널별 콘텐츠 1건 — 편집·삭제·채널 변환은 이 contentChannelId 로 호출합니다")
+@Schema(description = "채널별 콘텐츠 1건 — 편집·삭제·다른 채널용으로 만들기·스타일 재사용은 이 contentChannelId 로 호출합니다")
 public record ContentChannelResponse(
     @Schema(description = "채널별 콘텐츠 id", example = "10")
     Long contentChannelId,

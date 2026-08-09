@@ -48,7 +48,7 @@ interface ContentApi {
               contentId 와 contentChannelId 를 처음 저장할 때와 같은 값으로 반환합니다. 저장한 값을 고칠 때는 편집 API 를 쓰세요.
             - 저장한 뒤 삭제한 작업은 다시 저장할 수 없습니다. 409(CT0009)로 거부하며 삭제한 콘텐츠는 되살아나지 않습니다.
               삭제 후에는 같은 작업으로 저장하기를 다시 호출하지 말고, 필요하면 새로 생성해 주세요.
-            - 반환된 contentId 로 상세 조회에, contents[].contentChannelId 로 편집·삭제·채널 변환에 들어갑니다.
+            - 반환된 contentId 로 상세 조회에, contents[].contentChannelId 로 편집·삭제·다른 채널용으로 만들기·스타일 재사용에 들어갑니다.
             - contents 는 블로그 → 인스타그램 → 당근 비즈 → 스레드 순으로 담깁니다. 요청한 채널 순서나 저장된 순서와 무관하게 항상 같습니다.
             """)
     @ApiResponses({
@@ -206,7 +206,7 @@ interface ContentApi {
             - purpose·tone·keywords 는 콘텐츠 전체의 생성 조건입니다. 화면 상단의 "정보성 · 일상형"과 활용 키워드가 이 값들이며, 채널이 달라도 같습니다.
               저장할 때 복사해 두므로 원본 생성 작업이 없어도 그대로 옵니다.
             - 편집은 이 콘텐츠의 contentId 와 채널마다 다른 contents[].contentChannelId 를 함께 써서 호출합니다.
-              삭제·채널 변환도 여기서 얻은 id 를 씁니다.
+              삭제·다른 채널용으로 만들기·스타일 재사용도 여기서 얻은 id 를 씁니다.
             - 사진 가이드 태그가 섞인 본문은 생성 작업 조회와 같은 형식이라 같은 파서를 쓸 수 있습니다.
             """)
     @ApiResponses({

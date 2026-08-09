@@ -367,6 +367,29 @@ public class TestFixture {
         return Map.of("emphasis", emphasis);
     }
 
+    public RestTestClient.ResponseSpec convertChannels(String accessToken, Long contentId, Long contentChannelId,
+        Map<String, Object> body) {
+        return client.post().uri("/v1/contents/" + contentId + "/channels/" + contentChannelId + "/conversions")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public Long convertedGenerationId(String accessToken, Long contentId, Long contentChannelId,
+        List<String> channels) {
+        return convertChannels(accessToken, contentId, contentChannelId, channelConversionBody(channels))
+            .expectStatus().isCreated()
+            .expectBody(GenerationStartResponse.class)
+            .returnResult()
+            .getResponseBody()
+            .generationId();
+    }
+
+    public Map<String, Object> channelConversionBody(List<String> channels) {
+        return Map.of("channels", channels);
+    }
+
     public RestTestClient.ResponseSpec getContents(String accessToken, String query) {
         return client.get().uri("/v1/contents" + query)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
