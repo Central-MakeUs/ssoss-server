@@ -9,7 +9,7 @@ import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface HashtagBundleRepository extends PagingAndSortingRepository<HashtagBundle, Long> {
 
-    List<HashtagBundle> findAllByIdInOrderByIdDesc(List<Long> ids);
+    List<HashtagBundle> findAllByIdIn(List<Long> ids);
 
     Optional<HashtagBundle> findById(Long id);
 }

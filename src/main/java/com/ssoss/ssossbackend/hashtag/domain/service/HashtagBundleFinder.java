@@ -1,7 +1,9 @@
 package com.ssoss.ssossbackend.hashtag.domain.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.ssoss.ssossbackend.hashtag.domain.contract.HashtagBundleBookmarkRepository;
@@ -55,12 +57,14 @@ public class HashtagBundleFinder {
 
     public List<HashtagBundle> listBookmarked(Long memberId) {
         List<Long> bookmarkedIds = hashtagBundleBookmarkRepository
-            .findAllByMemberIdAndBookmarkedAtIsNotNull(memberId).stream()
+            .findAllByMemberIdAndBookmarkedAtIsNotNullOrderByBookmarkedAtDescIdDesc(memberId).stream()
             .map(HashtagBundleBookmark::getBundleId)
             .toList();
         if (bookmarkedIds.isEmpty()) {
             return List.of();
         }
-        return hashtagBundleRepository.findAllByIdInOrderByIdDesc(bookmarkedIds);
+        Map<Long, HashtagBundle> byId = hashtagBundleRepository.findAllByIdIn(bookmarkedIds).stream()
+            .collect(Collectors.toMap(HashtagBundle::getId, Function.identity()));
+        return bookmarkedIds.stream().map(byId::get).toList();
     }
 }
