@@ -29,6 +29,7 @@ import com.ssoss.ssossbackend.store.domain.contract.StoreRepository;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateHistoryRepository;
 import com.ssoss.ssossbackend.template.domain.contract.SavedTemplateRepository;
+import com.ssoss.ssossbackend.template.domain.contract.TemplateBookmarkRepository;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplate;
 import com.ssoss.ssossbackend.template.domain.model.SavedTemplateHistory;
 
@@ -104,6 +105,9 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
     private SavedTemplateHistoryRepository savedTemplateHistoryRepository;
 
     @Autowired
+    private TemplateBookmarkRepository templateBookmarkRepository;
+
+    @Autowired
     private JdbcClient jdbcClient;
 
     @BeforeEach
@@ -117,6 +121,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         creditRepository.deleteAll();
         storeRepository.deleteAll();
         hashtagBundleBookmarkRepository.deleteAll();
+        templateBookmarkRepository.deleteAll();
         savedTemplateHistoryRepository.deleteAll();
         savedTemplateRepository.deleteAll();
         contentChannelHistoryRepository.deleteAll();
@@ -333,6 +338,44 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("삭제해 둔 저장한 템플릿도 배치에서 함께 사라진다")
+        void deletesSoftDeletedSavedTemplate_whenGracePeriodHasPassed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-saved-template-soft");
+            Long memberId = database.memberIdOf("naver-delete-saved-template-soft");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long savedTemplateId =
+                fixture.savedTemplateId(signup.accessToken(), templateId, "지웠다가 함께 사라질 본문");
+            fixture.deletedSavedTemplate(signup.accessToken(), savedTemplateId);
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(database.savedTemplatesOf(memberId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("유예 기간 안에 복구한 회원은 저장한 템플릿과 템플릿 북마크가 탈퇴 전 그대로다")
+        void keepsSavedTemplateAndBookmark_whenMemberRecoveredWithinGracePeriod() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-template-recovered");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            Long savedTemplateId =
+                fixture.savedTemplateId(signup.accessToken(), templateId, "복구하면 남을 본문");
+            fixture.bookmarkedTemplate(signup.accessToken(), templateId);
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+            String withdrawnToken = fixture.naverLoginMember("naver-delete-template-recovered").accessToken();
+            String recoveredToken = fixture.recovered(withdrawnToken).accessToken();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(fixture.savedTemplateList(recoveredToken, "").savedTemplates())
+                .singleElement()
+                .satisfies(summary -> assertThat(summary.savedTemplateId()).isEqualTo(savedTemplateId));
+            assertThat(fixture.templateDetail(recoveredToken, templateId).bookmarked()).isTrue();
+        }
+
+        @Test
         @DisplayName("저장한 템플릿이 하나도 없는 회원도 문제 없이 삭제된다")
         void deletesMember_whenMemberHasNoSavedTemplate() {
             SignupResponse signup = fixture.signupActiveMember("naver-delete-saved-template-none");
@@ -364,6 +407,42 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             assertThat(database.hashtagBundleBookmarksOf(dueId)).isEmpty();
             assertThat(database.hashtagBundleBookmarksOf(keptId)).singleElement()
                 .satisfies(bookmark -> assertThat(bookmark.getBundleId()).isEqualTo(bundleId));
+        }
+
+        @Test
+        @DisplayName("복구 유예 기간이 지난 탈퇴 회원은 추천 템플릿 북마크도 삭제된다")
+        void deletesTemplateBookmarks_whenGracePeriodHasPassed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-delete-template-bookmark");
+            Long memberId = database.memberIdOf("naver-delete-template-bookmark");
+            Long templateId = fixture.firstTemplate(signup.accessToken()).id();
+            fixture.bookmarkedTemplate(signup.accessToken(), templateId);
+            fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(memberRepository.findById(memberId)).isEmpty();
+            assertThat(database.templateBookmarksOf(memberId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("탈퇴 회원의 템플릿 북마크가 삭제돼도 다른 회원의 같은 템플릿 북마크는 남는다")
+        void keepsOtherMembersTemplateBookmark_whenMemberIsDeleted() {
+            SignupResponse due = fixture.signupActiveMember("naver-delete-template-bookmark-due");
+            SignupResponse kept = fixture.signupActiveMember("naver-delete-template-bookmark-kept");
+            Long dueId = database.memberIdOf("naver-delete-template-bookmark-due");
+            Long keptId = database.memberIdOf("naver-delete-template-bookmark-kept");
+            Long templateId = fixture.firstTemplate(due.accessToken()).id();
+            fixture.bookmarkedTemplate(due.accessToken(), templateId);
+            fixture.bookmarkedTemplate(kept.accessToken(), templateId);
+            fixture.withdraw(due.accessToken()).expectStatus().isNoContent();
+
+            clock.advanceBy(PAST_GRACE_PERIOD);
+            withdrawnMemberDeletionScheduler.deleteWithdrawnMembers();
+
+            assertThat(database.templateBookmarksOf(dueId)).isEmpty();
+            assertThat(database.templateBookmarksOf(keptId)).singleElement()
+                .satisfies(bookmark -> assertThat(bookmark.getTemplateId()).isEqualTo(templateId));
         }
 
         @Test

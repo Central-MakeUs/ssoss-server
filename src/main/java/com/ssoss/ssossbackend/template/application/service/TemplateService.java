@@ -45,6 +45,10 @@ public class TemplateService {
         templateBookmarkWriter.unbookmark(memberId, templateId);
     }
 
+    public void deleteBookmarksByMemberId(Long memberId) {
+        templateBookmarkWriter.deleteAllByMemberId(memberId);
+    }
+
     public TemplateDetailResult getById(Long templateId, Long memberId) {
         Template template = templateFinder.get(templateId);
         return TemplateDetailResult.from(template,
