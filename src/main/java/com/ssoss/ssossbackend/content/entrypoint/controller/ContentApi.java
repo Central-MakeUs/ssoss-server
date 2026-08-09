@@ -125,6 +125,7 @@ interface ContentApi {
               편집해도 저장 시각은 움직이지 않아 순서가 흔들리지 않습니다.
             - page 는 0 부터 세고 size 는 기본 20·최대 50 입니다. 홈의 "최근 생성된 콘텐츠"는 size=3 으로 부르면 됩니다.
             - title 은 channels 의 첫 채널에서 가져옵니다. 채널마다 제목이 다르지만 카드에는 하나만 보이기 때문입니다.
+            - name 은 저장할 때 같은 규칙으로 뽑아 굳혀 둔 값입니다. 그래서 채널을 편집하면 title 만 따라 바뀌고 name 은 그대로입니다.
             - hashtags 는 channels 에서 해시태그가 있는 첫 채널의 앞 2개입니다. 어느 채널에도 없으면 빈 배열입니다.
               당근 비즈는 해시태그를 만들지 않는 채널이라, 첫 채널에서만 가져오면 당근 비즈가 앞선 카드는 태그가 비어 버리기 때문입니다.
             - title 은 20자까지만 옵니다. 넘으면 서버가 20자에서 자르고 말줄임표(…)를 붙이므로 화면에서 다시 자르지 않아도 됩니다.
@@ -144,6 +145,7 @@ interface ContentApi {
                           "contents": [
                             {
                               "contentId": 2,
+                              "name": "을지로 크루아상 맛집 | 겹겹이 살…",
                               "savedAt": "2026-09-01T09:41:00Z",
                               "channels": ["BLOG", "THREADS"],
                               "purpose": "INFORMATION",
@@ -153,6 +155,7 @@ interface ContentApi {
                             },
                             {
                               "contentId": 1,
+                              "name": "성큼 다가온 가을, 마음까지 녹여 줄 한…",
                               "savedAt": "2026-08-23T02:10:00Z",
                               "channels": ["INSTAGRAM"],
                               "purpose": "NEW_MENU_PROMOTION",

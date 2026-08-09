@@ -182,6 +182,9 @@ class ContentApiTest extends IntegrationTest {
                     assertThat(content.body()).isNotEqualTo("나중 본문");
                     assertThat(content.hashtags()).doesNotContain("#나중태그");
                 });
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.name()).isEqualTo("테스트 제목"));
         }
 
         @Test
@@ -743,7 +746,10 @@ class ContentApiTest extends IntegrationTest {
 
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .singleElement()
-                .satisfies(content -> assertThat(content.title()).isEqualTo("테스트 제목"));
+                .satisfies(content -> {
+                    assertThat(content.title()).isEqualTo("테스트 제목");
+                    assertThat(content.name()).isEqualTo("테스트 제목");
+                });
         }
 
         @Test
@@ -755,9 +761,12 @@ class ContentApiTest extends IntegrationTest {
 
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .singleElement()
-                .satisfies(content -> assertThat(content.title())
-                    .startsWith("테스트 본문 이어지는 본문 1")
-                    .doesNotContain("<photo-guide", "\n"));
+                .satisfies(content -> {
+                    assertThat(content.title())
+                        .startsWith("테스트 본문 이어지는 본문 1")
+                        .doesNotContain("<photo-guide", "\n");
+                    assertThat(content.name()).isEqualTo(content.title());
+                });
         }
 
         @Test
@@ -808,6 +817,62 @@ class ContentApiTest extends IntegrationTest {
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .singleElement()
                 .satisfies(content -> assertThat(content.title()).isEqualTo("나".repeat(20) + "…"));
+        }
+
+        @Test
+        @DisplayName("저장할 이름이 20자를 넘으면 20자까지만 굳고 말줄임표가 붙는다")
+        void cutsNameAtTwentyCharactersWithEllipsis_whenSaved() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-name-long");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("THREADS"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(fixture.channelContent("THREADS", null, "가".repeat(21), List.of()))))
+                .expectStatus().isCreated();
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.name()).isEqualTo("가".repeat(20) + "…"));
+        }
+
+        @Test
+        @DisplayName("요청이 인스타그램을 먼저 담아도 채널 고정 순서의 첫 채널에서 이름을 뽑는다")
+        void picksRepresentativeByChannelOrder_whenRequestOrderDiffers() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-name-order");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "INSTAGRAM"));
+
+            fixture.saveContents(signup.accessToken(), Map.of(
+                    "generationId", generationId,
+                    "contents", List.of(
+                        fixture.channelContent("INSTAGRAM", null, "인스타 본문", List.of()),
+                        fixture.channelContent("BLOG", "블로그 제목", "블로그 본문", List.of()))))
+                .expectStatus().isCreated();
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.name()).isEqualTo("블로그 제목"));
+        }
+
+        @Test
+        @DisplayName("채널을 편집하면 제목만 따라 바뀌고 이름은 저장할 때 값 그대로다")
+        void keepsNameWhileTitleFollowsEdit_whenChannelEdited() {
+            SignupResponse signup = fixture.signupActiveMember("naver-list-name-edited");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.editContentChannel(signup.accessToken(), saved.contentId(),
+                    saved.contents().getFirst().contentChannelId(), Map.of(
+                        "title", "나".repeat(25),
+                        "body", "직접 고친 본문",
+                        "hashtags", List.of()))
+                .expectStatus().isOk();
+
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> {
+                    assertThat(content.name()).isEqualTo("테스트 제목");
+                    assertThat(content.title()).isEqualTo("나".repeat(20) + "…");
+                });
         }
 
         @Test

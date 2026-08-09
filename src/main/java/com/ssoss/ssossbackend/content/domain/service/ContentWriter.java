@@ -17,6 +17,7 @@ import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannelDraft;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannelHistory;
 import com.ssoss.ssossbackend.content.domain.model.ContentErrorCode;
+import com.ssoss.ssossbackend.content.domain.model.ContentName;
 import com.ssoss.ssossbackend.content.domain.model.ContentWithChannels;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
 import com.ssoss.ssossbackend.content.domain.model.GenerationResult;
@@ -80,7 +81,7 @@ public class ContentWriter {
         }
         drafts.forEach(draft -> draft.channel().ensureTitleAllowed(draft.title()));
         Content content = contentRepository.findByGenerationId(generation.getId())
-            .orElseGet(() -> contentRepository.save(Content.copyOf(generation)));
+            .orElseGet(() -> contentRepository.save(Content.copyOf(generation, ContentName.from(drafts))));
         if (content.isDeleted()) {
             throw new BusinessException(ContentErrorCode.CONTENT_DELETED);
         }
