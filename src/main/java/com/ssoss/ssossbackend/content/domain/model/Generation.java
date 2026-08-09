@@ -57,20 +57,30 @@ public class Generation {
         this.finishedAt = finishedAt;
     }
 
-    public static Generation create(Long memberId, List<Channel> channels, Purpose purpose, Tone tone,
-        String emphasis, String forbidden, List<String> keywords, boolean photoGuideChecked) {
+    private static Generation of(Long memberId, List<Channel> channels, Purpose purpose, Tone tone, String emphasis,
+        String forbidden, List<String> keywords, boolean photoGuideChecked, Long sourceContentChannelId) {
         String joined = channels.stream()
             .map(Channel::name)
             .collect(Collectors.joining(CHANNEL_SEPARATOR));
         return new Generation(null, memberId, joined, purpose, tone, emphasis, forbidden, new Keywords(keywords),
-            photoGuideChecked, null, null, null);
+            photoGuideChecked, sourceContentChannelId, null, null);
+    }
+
+    public static Generation create(Long memberId, List<Channel> channels, Purpose purpose, Tone tone,
+        String emphasis, String forbidden, List<String> keywords, boolean photoGuideChecked) {
+        return of(memberId, channels, purpose, tone, emphasis, forbidden, keywords, photoGuideChecked, null);
     }
 
     public static Generation reuseOf(Content content, ContentChannel origin, String emphasis, String forbidden,
         List<String> keywords, boolean photoGuideChecked) {
-        return new Generation(null, content.getMemberId(), origin.getChannel().name(), content.getPurpose(),
-            content.getTone(), emphasis, forbidden, new Keywords(keywords), photoGuideChecked, origin.getId(),
-            null, null);
+        return of(content.getMemberId(), List.of(origin.getChannel()), content.getPurpose(), content.getTone(),
+            emphasis, forbidden, keywords, photoGuideChecked, origin.getId());
+    }
+
+    public static Generation conversionOf(Generation originGeneration, ContentChannel origin, List<Channel> channels) {
+        return of(originGeneration.memberId, channels, originGeneration.purpose, originGeneration.tone,
+            originGeneration.emphasis, originGeneration.forbidden, originGeneration.keywordList(),
+            originGeneration.photoGuideChecked, origin.getId());
     }
 
     public List<Channel> channelList() {

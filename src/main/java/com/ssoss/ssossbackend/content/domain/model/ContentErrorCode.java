@@ -20,7 +20,8 @@ public enum ContentErrorCode implements ErrorCode {
     TITLE_REQUIRED("CT0007", HttpStatus.BAD_REQUEST, "제목을 입력해 주세요"),
     TITLE_NOT_ALLOWED("CT0008", HttpStatus.BAD_REQUEST, "제목을 쓸 수 없는 채널입니다"),
     CONTENT_DELETED("CT0009", HttpStatus.CONFLICT, "이미 삭제한 콘텐츠는 다시 저장할 수 없습니다"),
-    SAVE_CHANNELS_MISMATCHED("CT0010", HttpStatus.BAD_REQUEST, "저장할 채널이 생성 작업의 채널과 다릅니다");
+    SAVE_CHANNELS_MISMATCHED("CT0010", HttpStatus.BAD_REQUEST, "저장할 채널이 생성 작업의 채널과 다릅니다"),
+    SOURCE_CHANNEL_NOT_ALLOWED("CT0011", HttpStatus.BAD_REQUEST, "원본과 같은 채널은 고를 수 없습니다");
 
     private final String code;
     private final HttpStatus status;
