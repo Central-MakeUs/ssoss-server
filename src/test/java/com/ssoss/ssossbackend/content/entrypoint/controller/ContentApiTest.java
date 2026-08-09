@@ -770,8 +770,8 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("목록 제목이 20자를 넘으면 20자까지만 담고 말줄임표를 붙인다")
-        void cutsTitleAtTwentyCharactersWithEllipsis() {
+        @DisplayName("목록 제목이 20자를 넘으면 말줄임표까지 세어 20자로 담는다")
+        void cutsTitleWithinTwentyCharactersIncludingEllipsis() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-long-title");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("THREADS"));
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
@@ -782,7 +782,7 @@ class ContentApiTest extends IntegrationTest {
 
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .singleElement()
-                .satisfies(content -> assertThat(content.title()).isEqualTo("가".repeat(20) + "…"));
+                .satisfies(content -> assertThat(content.title()).isEqualTo("가".repeat(19) + "…"));
         }
 
         @Test
@@ -802,8 +802,8 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("제목 있는 채널의 제목도 20자에서 잘린다")
-        void cutsSavedTitleAtTwentyCharacters_whenRepresentativeChannelHasTitle() {
+        @DisplayName("제목 있는 채널의 제목도 말줄임표까지 세어 20자로 잘린다")
+        void cutsSavedTitleWithinTwentyCharacters_whenRepresentativeChannelHasTitle() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-long-saved-title");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
             ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
@@ -816,12 +816,12 @@ class ContentApiTest extends IntegrationTest {
 
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .singleElement()
-                .satisfies(content -> assertThat(content.title()).isEqualTo("나".repeat(20) + "…"));
+                .satisfies(content -> assertThat(content.title()).isEqualTo("나".repeat(19) + "…"));
         }
 
         @Test
-        @DisplayName("저장할 이름이 20자를 넘으면 20자까지만 굳고 말줄임표가 붙는다")
-        void cutsNameAtTwentyCharactersWithEllipsis_whenSaved() {
+        @DisplayName("저장할 이름이 20자를 넘으면 말줄임표까지 세어 20자로 굳는다")
+        void cutsNameWithinTwentyCharactersIncludingEllipsis_whenSaved() {
             SignupResponse signup = fixture.signupActiveMember("naver-list-name-long");
             Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("THREADS"));
 
@@ -832,7 +832,7 @@ class ContentApiTest extends IntegrationTest {
 
             assertThat(fixture.contentList(signup.accessToken(), "").contents())
                 .singleElement()
-                .satisfies(content -> assertThat(content.name()).isEqualTo("가".repeat(20) + "…"));
+                .satisfies(content -> assertThat(content.name()).isEqualTo("가".repeat(19) + "…"));
         }
 
         @Test
@@ -871,7 +871,7 @@ class ContentApiTest extends IntegrationTest {
                 .singleElement()
                 .satisfies(content -> {
                     assertThat(content.name()).isEqualTo("테스트 제목");
-                    assertThat(content.title()).isEqualTo("나".repeat(20) + "…");
+                    assertThat(content.title()).isEqualTo("나".repeat(19) + "…");
                 });
         }
 
