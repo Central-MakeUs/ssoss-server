@@ -2,6 +2,7 @@ package com.ssoss.ssossbackend.content.entrypoint.controller;
 
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentChannelEditRequest;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentListRequest;
+import com.ssoss.ssossbackend.content.entrypoint.request.ContentRenameRequest;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentSaveRequest;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentDetailResponse;
@@ -201,6 +202,7 @@ interface ContentApi {
             - 저장된 최신본이 옵니다. 편집했다면 편집한 내용이, 편집하지 않았다면 저장할 때 복사해 둔 내용이 그대로 옵니다.
             - 제목은 저장된 값을 그대로 돌려줍니다. 제목 없는 채널(인스타그램·당근 비즈·스레드)은 title 이 null 입니다.
               목록처럼 서버가 본문에서 제목을 만들어 채우거나 20자에서 자르지 않습니다.
+            - name 은 목록 카드에서 본 이름과 같은 값입니다. 카드에서 상세로 들어와도 부르던 이름이 그대로 이어집니다.
             - purpose·tone·keywords 는 콘텐츠 전체의 생성 조건입니다. 화면 상단의 "정보성 · 일상형"과 활용 키워드가 이 값들이며, 채널이 달라도 같습니다.
               저장할 때 복사해 두므로 원본 생성 작업이 없어도 그대로 옵니다.
             - 편집은 이 콘텐츠의 contentId 와 채널마다 다른 contents[].contentChannelId 를 함께 써서 호출합니다.
@@ -208,12 +210,13 @@ interface ContentApi {
             - 사진 가이드 태그가 섞인 본문은 생성 작업 조회와 같은 형식이라 같은 파서를 쓸 수 있습니다.
             """)
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "콘텐츠의 목적·톤·키워드와 채널별 제목·본문·해시태그를 반환합니다",
+        @ApiResponse(responseCode = "200", description = "콘텐츠의 이름·목적·톤·키워드와 채널별 제목·본문·해시태그를 반환합니다",
             content = @Content(schema = @Schema(implementation = ContentDetailResponse.class),
                 examples = {
                     @ExampleObject(name = "2채널 저장", description = "블로그는 제목이 있고 스레드는 없습니다", value = """
                         {
                           "contentId": 1,
+                          "name": "을지로 크루아상 맛집 | 겹겹이 살…",
                           "purpose": "INFORMATION",
                           "tone": "CASUAL",
                           "keywords": ["디저트", "크루아상", "을지로베이커리"],
@@ -238,6 +241,7 @@ interface ContentApi {
                     @ExampleObject(name = "1채널 저장 — 키워드 없음", value = """
                         {
                           "contentId": 2,
+                          "name": "가을 신메뉴 안내",
                           "purpose": "NEW_MENU_PROMOTION",
                           "tone": "EMOTIONAL",
                           "keywords": [],
@@ -340,6 +344,69 @@ interface ContentApi {
     })
     ContentChannelResponse edit(Long memberId, Long contentId, Long contentChannelId,
         ContentChannelEditRequest request);
+
+    @Operation(
+        summary = "콘텐츠 이름 수정",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        description = """
+            저장한 콘텐츠의 이름을 바꿉니다.
+
+            - 가입 회원(ACTIVE) accessToken 전용 API 이며, 본인의 콘텐츠만 바꿀 수 있습니다.
+            - 이름은 콘텐츠 단위라 채널마다 다르지 않습니다. 채널별 제목을 바꾸는 편집과 대상이 다릅니다.
+            - 저장할 때는 서버가 대표 채널에서 이름을 뽑아 두고, 이 API 로 회원이 원하는 이름으로 바꿉니다.
+              바꾼 이름은 목록 카드와 상세에 함께 반영되며, 그 뒤에 채널을 편집해도 이름은 그대로입니다.
+            - 상한은 20자입니다. 목록 카드 한 줄에 들어갈 길이라, 서버가 뽑아 두는 이름도 말줄임표까지 세어 20자를 넘지 않습니다.
+              넘기거나 빈 이름을 보내면 400(C0001)이며 이름은 바뀌지 않습니다.
+            - 이름을 바꿔도 저장 시각은 움직이지 않아 생성 기록 목록의 정렬 순서가 흔들리지 않습니다.
+            - 응답은 상세 조회와 같은 형식입니다.
+            """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "이름을 바꾼 콘텐츠를 상세 조회와 같은 형식으로 반환합니다",
+            content = @Content(schema = @Schema(implementation = ContentDetailResponse.class),
+                examples = @ExampleObject(name = "이름 수정", value = """
+                    {
+                      "contentId": 1,
+                      "name": "9월 신메뉴 안내",
+                      "purpose": "INFORMATION",
+                      "tone": "CASUAL",
+                      "keywords": ["디저트", "크루아상", "을지로베이커리"],
+                      "contents": [
+                        {
+                          "contentChannelId": 10,
+                          "channel": "BLOG",
+                          "title": "을지로 크루아상 맛집 | 겹겹이 살아있는 결, 보니스커피",
+                          "body": "을지로에서 크루아상 하나를 제대로 먹고 싶다면, 보니스커피를 추천드려요...",
+                          "hashtags": ["#을지로카페", "#을지로크루아상", "#보니스커피"]
+                        }
+                      ]
+                    }
+                    """))),
+        @ApiResponse(responseCode = "400", description = "이름이 비었거나 상한을 넘었습니다 (C0001)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = {
+                    @ExampleObject(name = "빈 이름", value = """
+                        {"code":"C0001","message":"이름을 입력해 주세요"}
+                        """),
+                    @ExampleObject(name = "상한 초과", value = """
+                        {"code":"C0001","message":"이름은 20자 이내로 입력해 주세요"}
+                        """)})),
+        @ApiResponse(responseCode = "401", description = "accessToken 이 없거나 유효하지 않습니다 (A0006) — 다시 로그인해 주세요",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0006","message":"유효하지 않은 인증 정보입니다. 다시 로그인해 주세요"}
+                    """))),
+        @ApiResponse(responseCode = "403", description = "가입 회원(ACTIVE) 토큰이 아닙니다 (A0007) — 가입 대기·탈퇴 대기 상태에서는 호출할 수 없습니다",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"A0007","message":"접근 권한이 없습니다"}
+                    """))),
+        @ApiResponse(responseCode = "404", description = "콘텐츠가 없거나 본인의 콘텐츠가 아닙니다 (CT0005)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(value = """
+                    {"code":"CT0005","message":"콘텐츠를 찾을 수 없습니다"}
+                    """)))
+    })
+    ContentDetailResponse rename(Long memberId, Long contentId, ContentRenameRequest request);
 
     @Operation(
         summary = "저장 콘텐츠 삭제",

@@ -8,6 +8,7 @@ import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
 import com.ssoss.ssossbackend.content.application.service.ContentService;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentChannelEditRequest;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentListRequest;
+import com.ssoss.ssossbackend.content.entrypoint.request.ContentRenameRequest;
 import com.ssoss.ssossbackend.content.entrypoint.request.ContentSaveRequest;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelResponse;
 import com.ssoss.ssossbackend.content.entrypoint.response.ContentChannelSummaryResponse;
@@ -75,6 +76,27 @@ class ContentController implements ContentApi {
         ContentDetailResult result = contentService.getById(contentId, memberId);
         return new ContentDetailResponse(
             result.contentId(),
+            result.name(),
+            result.purpose(),
+            result.tone(),
+            result.keywords(),
+            result.contents().stream()
+                .map(content -> new ContentChannelResponse(content.contentChannelId(), content.channel(),
+                    content.title(), content.body(), content.hashtags()))
+                .toList());
+    }
+
+    @Override
+    @PutMapping("/v1/contents/{contentId}/name")
+    public ContentDetailResponse rename(
+        @AuthenticationPrincipal Long memberId,
+        @PathVariable Long contentId,
+        @Valid @RequestBody ContentRenameRequest request
+    ) {
+        ContentDetailResult result = contentService.rename(request.toCommand(memberId, contentId));
+        return new ContentDetailResponse(
+            result.contentId(),
+            result.name(),
             result.purpose(),
             result.tone(),
             result.keywords(),

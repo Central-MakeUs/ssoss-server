@@ -47,6 +47,11 @@ public class ContentWriter {
         return contentChannelRepository.save(channel);
     }
 
+    public ContentWithChannels rename(ContentWithChannels found, String name) {
+        found.content().rename(name);
+        return new ContentWithChannels(contentRepository.save(found.content()), found.channels());
+    }
+
     @Transactional
     public void delete(ContentWithChannels content) {
         Instant deletedAt = clock.instant();

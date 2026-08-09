@@ -8,6 +8,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ContentDetailResponse(
     @Schema(description = "콘텐츠 id", example = "1")
     Long contentId,
+    @Schema(description = """
+        콘텐츠 이름. 저장할 때 서버가 채널 목록의 첫 채널에서 뽑아 두며, 회원이 이름 수정으로 바꿀 수 있습니다.
+        목록 카드의 name 과 같은 값입니다.""",
+        example = "을지로 크루아상 맛집 | 겹겹이 살…")
+    String name,
     @Schema(description = "목적 — INFORMATION: 정보성, EVENT_DISCOUNT: 이벤트/할인, NEW_MENU_PROMOTION: 신메뉴/홍보",
         allowableValues = {"INFORMATION", "EVENT_DISCOUNT", "NEW_MENU_PROMOTION"}, example = "INFORMATION")
     String purpose,
