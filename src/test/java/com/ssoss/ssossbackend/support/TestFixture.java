@@ -381,6 +381,14 @@ public class TestFixture {
             .exchange();
     }
 
+    public RestTestClient.ResponseSpec renameContent(String accessToken, Long contentId, Map<String, Object> body) {
+        return client.put().uri("/v1/contents/" + contentId + "/name")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
     public RestTestClient.ResponseSpec deleteContent(String accessToken, Long contentId) {
         return client.delete().uri("/v1/contents/" + contentId)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)

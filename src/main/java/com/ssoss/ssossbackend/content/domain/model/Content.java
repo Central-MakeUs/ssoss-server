@@ -45,6 +45,10 @@ public class Content {
             generation.getPurpose(), generation.getTone(), generation.getKeywords(), null, null);
     }
 
+    public void rename(String name) {
+        this.name = name;
+    }
+
     public void delete(Instant deletedAt) {
         this.deletedAt = deletedAt;
     }

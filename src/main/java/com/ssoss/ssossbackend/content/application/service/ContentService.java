@@ -4,12 +4,12 @@ import java.util.List;
 
 import com.ssoss.ssossbackend.content.application.command.ContentChannelEditCommand;
 import com.ssoss.ssossbackend.content.application.command.ContentListCommand;
+import com.ssoss.ssossbackend.content.application.command.ContentRenameCommand;
 import com.ssoss.ssossbackend.content.application.command.ContentSaveCommand;
 import com.ssoss.ssossbackend.content.application.result.ContentChannelResult;
 import com.ssoss.ssossbackend.content.application.result.ContentDetailResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSaveResult;
 import com.ssoss.ssossbackend.content.application.result.ContentSummaryResult;
-import com.ssoss.ssossbackend.content.domain.model.Content;
 import com.ssoss.ssossbackend.content.domain.model.ContentChannel;
 import com.ssoss.ssossbackend.content.domain.model.ContentWithChannels;
 import com.ssoss.ssossbackend.content.domain.model.Generation;
@@ -68,15 +68,11 @@ public class ContentService {
     }
 
     public ContentDetailResult getById(Long contentId, Long memberId) {
-        ContentWithChannels found = contentFinder.get(contentId, memberId);
-        Content content = found.content();
-        return new ContentDetailResult(
-            content.getId(),
-            content.getPurpose().name(),
-            content.getTone().name(),
-            content.keywordList(),
-            found.channels().stream()
-                .map(ContentChannelResult::from)
-                .toList());
+        return ContentDetailResult.from(contentFinder.get(contentId, memberId));
+    }
+
+    public ContentDetailResult rename(ContentRenameCommand command) {
+        ContentWithChannels found = contentFinder.get(command.contentId(), command.memberId());
+        return ContentDetailResult.from(contentWriter.rename(found, command.name()));
     }
 }

@@ -1246,6 +1246,28 @@ class ContentApiTest extends IntegrationTest {
         }
 
         @Test
+        @DisplayName("상세에 저장할 때 굳힌 이름이 함께 온다")
+        void returnsNameFrozenAtSave_whenContentRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-detail-name");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            assertThat(fixture.contentDetail(signup.accessToken(), contentId).name())
+                .isEqualTo("테스트 제목");
+        }
+
+        @Test
+        @DisplayName("목록 카드의 이름과 상세의 이름이 같다")
+        void returnsSameNameAsListCard_whenContentRequested() {
+            SignupResponse signup = fixture.signupActiveMember("naver-detail-name-same");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            assertThat(fixture.contentDetail(signup.accessToken(), contentId).name())
+                .isEqualTo(fixture.contentList(signup.accessToken(), "").contents().getFirst().name());
+        }
+
+        @Test
         @DisplayName("없는 콘텐츠를 조회하면 404 와 CT0005 를 반환한다")
         void returns404_whenContentDoesNotExist() {
             SignupResponse signup = fixture.signupActiveMember("naver-detail-not-found");
@@ -1623,6 +1645,171 @@ class ContentApiTest extends IntegrationTest {
             SocialLoginResponse login = fixture.naverLoginMember("naver-edit-pending");
 
             fixture.editContentChannel(login.accessToken(), 1L, 1L, TITLED_EDIT)
+                .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT /v1/contents/{contentId}/name")
+    class Rename {
+
+        @Test
+        @DisplayName("이름을 바꾸면 목록과 상세에 함께 반영된다")
+        void appliesNewNameToListAndDetail_whenRenamed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-rename");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            fixture.renameContent(signup.accessToken(), contentId, Map.of("name", "9월 신메뉴 안내"))
+                .expectStatus().isOk()
+                .expectBody(ContentDetailResponse.class)
+                .value(body -> assertThat(body.name()).isEqualTo("9월 신메뉴 안내"));
+
+            assertThat(fixture.contentDetail(signup.accessToken(), contentId).name())
+                .isEqualTo("9월 신메뉴 안내");
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.name()).isEqualTo("9월 신메뉴 안내"));
+        }
+
+        @Test
+        @DisplayName("응답에 상세 조회와 같은 채널별 본문이 함께 온다")
+        void returnsDetailWithChannels_whenRenamed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-rename-detail");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG", "THREADS"));
+            ContentSaveResponse saved = fixture.contentsOfGeneration(signup.accessToken(), generationId);
+
+            fixture.renameContent(signup.accessToken(), saved.contentId(), Map.of("name", "가을 안내"))
+                .expectStatus().isOk()
+                .expectBody(ContentDetailResponse.class)
+                .value(body -> {
+                    assertThat(body.contentId()).isEqualTo(saved.contentId());
+                    assertThat(body.contents())
+                        .extracting(ContentChannelResponse::channel)
+                        .containsExactly("BLOG", "THREADS");
+                });
+        }
+
+        @Test
+        @DisplayName("이름을 바꿔도 채널별 제목과 목록 제목은 그대로다")
+        void keepsChannelTitleAndListTitle_whenRenamed() {
+            SignupResponse signup = fixture.signupActiveMember("naver-rename-keeps-title");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            fixture.renameContent(signup.accessToken(), contentId, Map.of("name", "9월 신메뉴 안내"))
+                .expectStatus().isOk();
+
+            assertThat(fixture.contentDetail(signup.accessToken(), contentId).contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.title()).isEqualTo("테스트 제목"));
+            assertThat(fixture.contentList(signup.accessToken(), "").contents())
+                .singleElement()
+                .satisfies(content -> assertThat(content.title()).isEqualTo("테스트 제목"));
+        }
+
+        @Test
+        @DisplayName("이름을 20자까지 보내면 그대로 저장된다")
+        void savesName_whenExactlyTwentyCharacters() {
+            SignupResponse signup = fixture.signupActiveMember("naver-rename-limit");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            fixture.renameContent(signup.accessToken(), contentId, Map.of("name", "가".repeat(20)))
+                .expectStatus().isOk()
+                .expectBody(ContentDetailResponse.class)
+                .value(body -> assertThat(body.name()).isEqualTo("가".repeat(20)));
+        }
+
+        @Test
+        @DisplayName("이름이 20자를 넘으면 400 과 C0001 을 반환하고 이름이 바뀌지 않는다")
+        void returns400_whenNameLongerThanTwentyCharacters() {
+            SignupResponse signup = fixture.signupActiveMember("naver-rename-too-long");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            fixture.renameContent(signup.accessToken(), contentId, Map.of("name", "가".repeat(21)))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(fixture.contentDetail(signup.accessToken(), contentId).name()).isEqualTo("테스트 제목");
+        }
+
+        @Test
+        @DisplayName("빈 이름을 보내면 400 과 C0001 을 반환하고 이름이 바뀌지 않는다")
+        void returns400_whenNameBlank() {
+            SignupResponse signup = fixture.signupActiveMember("naver-rename-blank");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+
+            fixture.renameContent(signup.accessToken(), contentId, Map.of("name", "   "))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+
+            assertThat(fixture.contentDetail(signup.accessToken(), contentId).name()).isEqualTo("테스트 제목");
+        }
+
+        @Test
+        @DisplayName("없는 콘텐츠의 이름을 바꾸면 404 와 CT0005 를 반환한다")
+        void returns404_whenContentDoesNotExist() {
+            SignupResponse signup = fixture.signupActiveMember("naver-rename-not-found");
+
+            fixture.renameContent(signup.accessToken(), 999_999L, Map.of("name", "9월 신메뉴 안내"))
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("다른 회원의 콘텐츠 이름을 바꾸면 404 와 CT0005 를 반환한다")
+        void returns404_whenRenamingOtherMembersContent() {
+            SignupResponse owner = fixture.signupActiveMember("naver-rename-owner");
+            Long generationId = fixture.startedGenerationId(owner.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(owner.accessToken(), generationId);
+            SignupResponse other = fixture.signupActiveMember("naver-rename-other");
+
+            fixture.renameContent(other.accessToken(), contentId, Map.of("name", "9월 신메뉴 안내"))
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+
+            assertThat(fixture.contentDetail(owner.accessToken(), contentId).name()).isEqualTo("테스트 제목");
+        }
+
+        @Test
+        @DisplayName("삭제한 콘텐츠의 이름을 바꾸면 404 와 CT0005 를 반환한다")
+        void returns404_whenRenamingDeletedContent() {
+            SignupResponse signup = fixture.signupActiveMember("naver-rename-deleted");
+            Long generationId = fixture.startedGenerationId(signup.accessToken(), List.of("BLOG"));
+            Long contentId = fixture.savedContentId(signup.accessToken(), generationId);
+            fixture.deletedContent(signup.accessToken(), contentId);
+
+            fixture.renameContent(signup.accessToken(), contentId, Map.of("name", "9월 신메뉴 안내"))
+                .expectStatus().isNotFound()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 이름을 바꾸면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            fixture.client().put().uri("/v1/contents/1/name")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 이름을 바꾸면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenRequests() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-rename-pending");
+
+            fixture.renameContent(login.accessToken(), 1L, Map.of("name", "9월 신메뉴 안내"))
                 .expectStatus().isEqualTo(HttpStatus.FORBIDDEN)
                 .expectBody(ErrorResponse.class)
                 .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
