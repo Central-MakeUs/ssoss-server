@@ -30,8 +30,10 @@ interface TemplateApi {
             - 최근에 심은 템플릿이 먼저 오는 순서로 고정입니다. 정렬을 고르는 파라미터는 없습니다.
             - 분류 탭은 category 로 붙이세요. "전체" 탭은 분류값이 아니라 category 를 아예 보내지 않는 상태입니다.
               홈의 분류 바로가기도 이 API 를 category 와 함께 부르면 됩니다.
+            - 검색창은 keyword 로 붙이세요. 제목·설명·본문을 함께 부분 일치로 거르므로 회원이 카드에 보이지 않는 본문 속 말을 쳐도 걸립니다.
+              앞뒤 공백은 서버가 떼고, 비워 보내면 검색하지 않은 목록과 같습니다. category 와 함께 주면 둘 다 적용됩니다.
             - page 는 0 부터 세고 size 는 기본 20·최대 50 입니다. 아래로 넘길 때는 hasNext 가 true 인 동안 page 를 올려 부르세요.
-              category 를 준 결과에도 페이징이 그대로 동작하고, totalCount 는 걸러진 개수입니다.
+              category·keyword 를 준 결과에도 페이징이 그대로 동작하고, totalCount 는 걸러진 개수입니다.
             - 카드에는 본문이 담기지 않습니다. 본문 미리보기는 별도 API 로 받습니다.
             - bookmarked 는 토큰의 회원이 그 템플릿을 북마크했는지입니다. 북마크 저장은 별도 API 로 합니다.
             """)
@@ -64,7 +66,7 @@ interface TemplateApi {
                       ]
                     }
                     """))),
-        @ApiResponse(responseCode = "400", description = "category 가 분류값이 아니거나 page·size 가 허용 범위를 벗어났습니다 (C0001)",
+        @ApiResponse(responseCode = "400", description = "category 가 분류값이 아니거나 keyword·page·size 가 허용 범위를 벗어났습니다 (C0001)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class),
                 examples = @ExampleObject(value = """
                     {"code":"C0001","message":"한 번에 최대 50건까지 조회할 수 있습니다"}

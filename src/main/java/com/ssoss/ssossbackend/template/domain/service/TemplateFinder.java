@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
 import com.ssoss.ssossbackend.template.domain.contract.TemplateBookmarkRepository;
 import com.ssoss.ssossbackend.template.domain.contract.TemplateRepository;
+import com.ssoss.ssossbackend.template.domain.contract.TemplateSearchRepository;
 import com.ssoss.ssossbackend.template.domain.model.Template;
 import com.ssoss.ssossbackend.template.domain.model.TemplateBookmark;
 import com.ssoss.ssossbackend.template.domain.model.TemplateCategory;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -28,10 +30,14 @@ public class TemplateFinder {
     private static final Sort LATEST_FIRST = Sort.by(Sort.Direction.DESC, "id");
 
     private final TemplateRepository templateRepository;
+    private final TemplateSearchRepository templateSearchRepository;
     private final TemplateBookmarkRepository templateBookmarkRepository;
 
-    public Page<Template> list(TemplateCategory category, int page, int size) {
+    public Page<Template> list(TemplateCategory category, String keyword, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, LATEST_FIRST);
+        if (StringUtils.hasText(keyword)) {
+            return templateSearchRepository.searchByKeyword(keyword, category, pageRequest);
+        }
         if (category == null) {
             return templateRepository.findAll(pageRequest);
         }
