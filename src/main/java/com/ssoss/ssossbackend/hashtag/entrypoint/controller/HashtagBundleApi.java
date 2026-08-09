@@ -17,7 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 interface HashtagBundleApi {
 
     @Operation(
-        summary = "해시태그 묶음 카탈로그 조회",
+        summary = "해시태그 묶음 목록 조회",
         security = @SecurityRequirement(name = "bearerAuth"),
         description = """
             운영자가 심어 둔 해시태그 묶음을 카드 목록으로 조회합니다.

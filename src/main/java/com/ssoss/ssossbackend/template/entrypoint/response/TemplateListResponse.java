@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "추천 템플릿 목록 응답")
 public record TemplateListResponse(
-    @Schema(description = "조건에 걸린 템플릿 전체 건수", example = "8")
+    @Schema(description = "조건에 해당하는 템플릿 개수", example = "8")
     long totalCount,
     @Schema(description = "현재 페이지 번호 — 0 부터 셉니다", example = "0")
     int page,

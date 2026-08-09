@@ -4,9 +4,9 @@ import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "해시태그 묶음 카탈로그 응답")
+@Schema(description = "해시태그 묶음 목록 응답")
 public record HashtagBundleListResponse(
-    @Schema(description = "심어 둔 묶음 전체 건수", example = "3")
+    @Schema(description = "조건에 해당하는 묶음 개수", example = "3")
     long totalCount,
     @Schema(description = "현재 페이지 번호 — 0 부터 셉니다", example = "0")
     int page,
