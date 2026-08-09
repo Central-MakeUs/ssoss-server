@@ -20,6 +20,7 @@ import com.ssoss.ssossbackend.credit.entrypoint.response.CreditLedgerListRespons
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.BookmarkedHashtagBundleListResponse;
 import com.ssoss.ssossbackend.hashtag.entrypoint.response.HashtagBundleListResponse;
 import com.ssoss.ssossbackend.store.entrypoint.response.StoreInfoResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.BookmarkedTemplateListResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateListResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateSaveResponse;
@@ -486,6 +487,20 @@ public class TestFixture {
 
     public TemplateResponse firstTemplate(String accessToken) {
         return templateList(accessToken, "").templates().getFirst();
+    }
+
+    public RestTestClient.ResponseSpec getBookmarkedTemplates(String accessToken) {
+        return client.get().uri("/v1/members/me/templates")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .exchange();
+    }
+
+    public BookmarkedTemplateListResponse bookmarkedTemplateList(String accessToken) {
+        return getBookmarkedTemplates(accessToken)
+            .expectStatus().isOk()
+            .expectBody(BookmarkedTemplateListResponse.class)
+            .returnResult()
+            .getResponseBody();
     }
 
     public RestTestClient.ResponseSpec bookmarkTemplate(String accessToken, Long templateId) {

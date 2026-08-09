@@ -1,5 +1,6 @@
 package com.ssoss.ssossbackend.template.entrypoint.controller;
 
+import java.time.Duration;
 import java.util.List;
 
 import com.ssoss.ssossbackend.auth.domain.model.AuthErrorCode;
@@ -8,6 +9,8 @@ import com.ssoss.ssossbackend.auth.entrypoint.response.SocialLoginResponse;
 import com.ssoss.ssossbackend.shared.exception.ErrorResponse;
 import com.ssoss.ssossbackend.support.IntegrationTest;
 import com.ssoss.ssossbackend.template.domain.model.TemplateErrorCode;
+import com.ssoss.ssossbackend.template.entrypoint.response.BookmarkedTemplateListResponse;
+import com.ssoss.ssossbackend.template.entrypoint.response.BookmarkedTemplateResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.TemplateResponse;
 
@@ -29,6 +32,121 @@ class TemplateBookmarkApiTest extends IntegrationTest {
             .filter(template -> template.id().equals(templateId))
             .findFirst()
             .orElseThrow();
+    }
+
+    @Nested
+    @DisplayName("GET /v1/members/me/templates")
+    class ListBookmarkedTemplates {
+
+        @Test
+        @DisplayName("북마크한 템플릿이 없으면 빈 목록이 담긴다")
+        void returnsEmptyTemplates_whenNothingBookmarked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-bookmarked-empty");
+
+            BookmarkedTemplateListResponse body = fixture.bookmarkedTemplateList(signup.accessToken());
+
+            assertThat(body.templates()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("북마크한 템플릿은 분류·제목·설명·추천 채널과 함께 내 목록에 담긴다")
+        void addsTemplateToMyList_whenBookmarked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-bookmarked-one");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+
+            fixture.bookmarkedTemplate(signup.accessToken(), card.id());
+
+            assertThat(fixture.bookmarkedTemplateList(signup.accessToken()).templates())
+                .singleElement()
+                .satisfies(bookmarked -> {
+                    assertThat(bookmarked.id()).isEqualTo(card.id());
+                    assertThat(bookmarked.category()).isEqualTo(card.category());
+                    assertThat(bookmarked.title()).isEqualTo(card.title());
+                    assertThat(bookmarked.description()).isEqualTo(card.description());
+                    assertThat(bookmarked.recommendedChannels()).isEqualTo(card.recommendedChannels());
+                });
+        }
+
+        @Test
+        @DisplayName("여러 템플릿을 북마크하면 최근에 담은 템플릿부터 담긴다")
+        void addsLatestBookmarkedTemplateFirst_whenSeveralBookmarked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-bookmarked-several");
+            List<TemplateResponse> templates = fixture.templateList(signup.accessToken(), EVERY_TEMPLATE).templates();
+            Long earlier = templates.get(0).id();
+            Long later = templates.get(1).id();
+
+            fixture.bookmarkedTemplate(signup.accessToken(), earlier);
+            clock.advanceBy(Duration.ofMinutes(1));
+            fixture.bookmarkedTemplate(signup.accessToken(), later);
+
+            assertThat(fixture.bookmarkedTemplateList(signup.accessToken()).templates())
+                .extracting(BookmarkedTemplateResponse::id)
+                .containsExactly(later, earlier);
+        }
+
+        @Test
+        @DisplayName("해제한 템플릿을 다시 담으면 목록 맨 앞으로 온다")
+        void movesTemplateToFront_whenBookmarkedAgainAfterUnbookmark() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-bookmarked-again");
+            List<TemplateResponse> templates = fixture.templateList(signup.accessToken(), EVERY_TEMPLATE).templates();
+            Long earlier = templates.get(0).id();
+            Long later = templates.get(1).id();
+            fixture.bookmarkedTemplate(signup.accessToken(), earlier);
+            clock.advanceBy(Duration.ofMinutes(1));
+            fixture.bookmarkedTemplate(signup.accessToken(), later);
+
+            fixture.unbookmarkedTemplate(signup.accessToken(), earlier);
+            clock.advanceBy(Duration.ofMinutes(1));
+            fixture.bookmarkedTemplate(signup.accessToken(), earlier);
+
+            assertThat(fixture.bookmarkedTemplateList(signup.accessToken()).templates())
+                .extracting(BookmarkedTemplateResponse::id)
+                .containsExactly(earlier, later);
+        }
+
+        @Test
+        @DisplayName("북마크를 해제한 템플릿은 내 목록에서 빠진다")
+        void removesTemplateFromMyList_whenUnbookmarked() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-bookmarked-off");
+            TemplateResponse card = fixture.firstTemplate(signup.accessToken());
+            fixture.bookmarkedTemplate(signup.accessToken(), card.id());
+
+            fixture.unbookmarkedTemplate(signup.accessToken(), card.id());
+
+            assertThat(fixture.bookmarkedTemplateList(signup.accessToken()).templates()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("다른 회원이 북마크한 템플릿은 내 목록에 담기지 않는다")
+        void excludesOtherMembersBookmark_whenActiveMemberQueries() {
+            SignupResponse other = fixture.signupActiveMember("naver-template-bookmarked-other");
+            SignupResponse mine = fixture.signupActiveMember("naver-template-bookmarked-mine");
+            TemplateResponse card = fixture.firstTemplate(other.accessToken());
+            fixture.bookmarkedTemplate(other.accessToken(), card.id());
+
+            assertThat(fixture.bookmarkedTemplateList(mine.accessToken()).templates()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("가입 대기(PENDING) 토큰으로 조회하면 403 과 A0007 을 반환한다")
+        void returns403_whenPendingTokenQueries() {
+            SocialLoginResponse login = fixture.naverLoginMember("naver-template-bookmarked-pending");
+
+            fixture.getBookmarkedTemplates(login.accessToken())
+                .expectStatus().isForbidden()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.ACCESS_DENIED.getCode()));
+        }
+
+        @Test
+        @DisplayName("액세스 토큰 없이 조회하면 401 과 A0006 을 반환한다")
+        void returns401_whenAccessTokenMissing() {
+            client().get().uri("/v1/members/me/templates")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(AuthErrorCode.INVALID_ACCESS_TOKEN.getCode()));
+        }
     }
 
     @Nested

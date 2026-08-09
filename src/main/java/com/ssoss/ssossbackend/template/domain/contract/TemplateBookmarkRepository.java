@@ -9,6 +9,8 @@ import org.springframework.data.repository.ListCrudRepository;
 
 public interface TemplateBookmarkRepository extends ListCrudRepository<TemplateBookmark, Long> {
 
+    List<TemplateBookmark> findAllByMemberIdAndBookmarkedAtIsNotNullOrderByBookmarkedAtDescIdDesc(Long memberId);
+
     List<TemplateBookmark> findAllByMemberIdAndTemplateIdInAndBookmarkedAtIsNotNull(
         Long memberId, List<Long> templateIds);
 
