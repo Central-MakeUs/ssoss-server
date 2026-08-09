@@ -61,7 +61,7 @@ class ContentController implements ContentApi {
         PagedResult<ContentSummaryResult> result = contentService.list(request.toCommand(memberId));
         return new ContentListResponse(result.totalCount(), result.page(), result.size(), result.hasNext(),
             result.items().stream()
-                .map(content -> new ContentSummaryResponse(content.contentId(), content.savedAt(),
+                .map(content -> new ContentSummaryResponse(content.contentId(), content.name(), content.savedAt(),
                     content.channels(), content.purpose(), content.tone(), content.title(), content.hashtags()))
                 .toList());
     }
