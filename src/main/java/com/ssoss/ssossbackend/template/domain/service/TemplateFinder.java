@@ -1,7 +1,9 @@
 package com.ssoss.ssossbackend.template.domain.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.ssoss.ssossbackend.shared.exception.BusinessException;
@@ -39,6 +41,19 @@ public class TemplateFinder {
     public Template get(Long templateId) {
         return templateRepository.findById(templateId)
             .orElseThrow(() -> new BusinessException(TemplateErrorCode.TEMPLATE_NOT_FOUND));
+    }
+
+    public List<Template> listBookmarked(Long memberId) {
+        List<Long> bookmarkedIds = templateBookmarkRepository
+            .findAllByMemberIdAndBookmarkedAtIsNotNullOrderByBookmarkedAtDescIdDesc(memberId).stream()
+            .map(TemplateBookmark::getTemplateId)
+            .toList();
+        if (bookmarkedIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Template> byId = templateRepository.findAllByIdIn(bookmarkedIds).stream()
+            .collect(Collectors.toMap(Template::getId, Function.identity()));
+        return bookmarkedIds.stream().map(byId::get).toList();
     }
 
     public Set<Long> findBookmarkedIds(Long memberId, List<Long> templateIds) {

@@ -37,6 +37,12 @@ public class TemplateService {
             template -> TemplateResult.from(template, bookmarkedIds.contains(template.getId())));
     }
 
+    public List<TemplateResult> listBookmarked(Long memberId) {
+        return templateFinder.listBookmarked(memberId).stream()
+            .map(template -> TemplateResult.from(template, true))
+            .toList();
+    }
+
     public void bookmark(Long memberId, Long templateId) {
         templateBookmarkWriter.bookmark(templateFinder.get(templateId), memberId);
     }
