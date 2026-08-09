@@ -27,9 +27,19 @@ public class SavedTemplateWriter {
     }
 
     @Transactional
-    public SavedTemplate edit(SavedTemplate savedTemplate, String title, String body) {
+    public SavedTemplate edit(SavedTemplate savedTemplate, String body) {
         SavedTemplateHistory previous = SavedTemplateHistory.previousOf(savedTemplate);
-        if (!savedTemplate.edit(title, body)) {
+        if (!savedTemplate.edit(body)) {
+            return savedTemplate;
+        }
+        savedTemplateHistoryRepository.save(previous);
+        return savedTemplateRepository.save(savedTemplate);
+    }
+
+    @Transactional
+    public SavedTemplate rename(SavedTemplate savedTemplate, String title) {
+        SavedTemplateHistory previous = SavedTemplateHistory.previousOf(savedTemplate);
+        if (!savedTemplate.rename(title)) {
             return savedTemplate;
         }
         savedTemplateHistoryRepository.save(previous);

@@ -297,7 +297,7 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
             Long templateId = fixture.firstTemplate(signup.accessToken()).id();
             Long savedTemplateId =
                 fixture.savedTemplate(signup.accessToken(), templateId, "탈퇴하면 사라질 본문").savedTemplateId();
-            fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, "고친 제목", "고친 본문");
+            fixture.editedSavedTemplate(signup.accessToken(), savedTemplateId, "고친 본문");
             fixture.withdraw(signup.accessToken()).expectStatus().isNoContent();
 
             clock.advanceBy(PAST_GRACE_PERIOD);
@@ -318,8 +318,8 @@ class WithdrawnMemberDeletionSchedulerTest extends IntegrationTest {
                 fixture.savedTemplate(due.accessToken(), templateId, "탈퇴 회원의 본문").savedTemplateId();
             Long keptSavedTemplateId =
                 fixture.savedTemplate(kept.accessToken(), templateId, "남는 회원의 본문").savedTemplateId();
-            fixture.editedSavedTemplate(due.accessToken(), dueSavedTemplateId, "고친 제목", "탈퇴 회원이 고친 본문");
-            fixture.editedSavedTemplate(kept.accessToken(), keptSavedTemplateId, "고친 제목", "남는 회원이 고친 본문");
+            fixture.editedSavedTemplate(due.accessToken(), dueSavedTemplateId, "탈퇴 회원이 고친 본문");
+            fixture.editedSavedTemplate(kept.accessToken(), keptSavedTemplateId, "남는 회원이 고친 본문");
             fixture.withdraw(due.accessToken()).expectStatus().isNoContent();
 
             clock.advanceBy(PAST_GRACE_PERIOD);

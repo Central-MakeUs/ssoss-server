@@ -46,12 +46,19 @@ public class SavedTemplate {
         this.deletedAt = deletedAt;
     }
 
-    public boolean edit(String title, String body) {
-        if (Objects.equals(this.title, title) && Objects.equals(this.body, body)) {
+    public boolean edit(String body) {
+        if (Objects.equals(this.body, body)) {
+            return false;
+        }
+        this.body = body;
+        return true;
+    }
+
+    public boolean rename(String title) {
+        if (Objects.equals(this.title, title)) {
             return false;
         }
         this.title = title;
-        this.body = body;
         return true;
     }
 
