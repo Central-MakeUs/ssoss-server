@@ -86,6 +86,7 @@ class GenerationPromptComposer {
         해시태그를 만들지 않는다. 본문에도 #으로 시작하는 태그를 쓰지 않는다.""";
 
     private final StoreSectionComposer storeSectionComposer;
+    private final StyleSourceSectionComposer styleSourceSectionComposer;
 
     String compose(GenerationMaterial material) {
         String channelInstruction = switch (material.channel()) {
@@ -119,6 +120,9 @@ class GenerationPromptComposer {
             sections.add(KEYWORDS_SECTION.formatted(String.join(", ", material.keywords())));
         }
         sections.add(storeSectionComposer.compose(material.store()));
+        if (!material.styleSource().isEmpty()) {
+            sections.addAll(styleSourceSectionComposer.compose(material.styleSource()));
+        }
         if (material.photoGuideChecked()) {
             String places = switch (material.channel()) {
                 case BLOG -> "2~4곳";

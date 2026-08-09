@@ -13,6 +13,7 @@ import com.ssoss.ssossbackend.content.domain.model.GenerationMaterial;
 import com.ssoss.ssossbackend.content.domain.model.LlmCallReply;
 import com.ssoss.ssossbackend.content.domain.model.Purpose;
 import com.ssoss.ssossbackend.content.domain.model.StoreMaterial;
+import com.ssoss.ssossbackend.content.domain.model.StyleSource;
 import com.ssoss.ssossbackend.content.domain.model.Tone;
 
 import org.junit.jupiter.api.DisplayName;
@@ -39,9 +40,10 @@ class GeminiContentGeneratorLiveTest {
             channel, Purpose.NEW_MENU_PROMOTION, Tone.CASUAL,
             "가을 신메뉴 밤라떼 출시", "가격 인상 언급", List.of("동네 카페"), true,
             new StoreMaterial("보니스커피", "카페", "서울 중구 을지로 100", "을지로 크루아상 카페",
-                List.of("월요일", "화요일"), "09:00", "22:00", List.of("크루아상"), List.of("포장 가능"))));
+                List.of("월요일", "화요일"), "09:00", "22:00", List.of("크루아상"), List.of("포장 가능")),
+            StyleSource.none()));
 
-        print(reply);
+        print(channel, reply);
         assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
         assertThat(reply.content().body())
             .contains("<photo-guide title=")
@@ -54,6 +56,27 @@ class GeminiContentGeneratorLiveTest {
         assertThat(reply.responseTimeMillis()).isPositive();
     }
 
+    @Test
+    @DisplayName("참고 글을 넣어 실호출하면 소재가 새 강조 내용으로 갈리고 참고 글의 소재는 따라오지 않는다")
+    void replacesSubjectWithNewEmphasis_whenStyleSourceGiven() {
+        LlmCallReply reply = generator().generate(new GenerationMaterial(
+            Channel.BLOG, Purpose.NEW_MENU_PROMOTION, Tone.CASUAL,
+            "이번 주 새로 나온 파니니 출시", null, List.of(), false,
+            new StoreMaterial("보니스커피", "카페", "서울 중구 을지로 100", "을지로 베이커리 카페",
+                List.of("월요일", "화요일"), "09:00", "22:00", List.of("파니니"), List.of("포장 가능")),
+            new StyleSource("을지로 크루아상 맛집 | 겹겹이 살아있는 결, 보니스커피", """
+                을지로에서 크루아상 하나를 제대로 먹고 싶다면, 보니스커피를 추천드려요.
+
+                매일 아침 6시부터 반죽을 밀어 겹겹이 결을 살린 크루아상은 겉은 바삭하고 속은 촉촉합니다.
+                버터 향이 은은하게 올라와서 커피 한 잔과 곁들이면 아침이 달라집니다.
+
+                을지로 나들이 길에 크루아상 한 봉지 들고 가 보세요.""")));
+
+        print(Channel.BLOG, reply);
+        assertThat(reply.content().hasRequiredOutput(Channel.BLOG)).isTrue();
+        assertThat(reply.content().body()).contains("파니니").doesNotContain("크루아상");
+    }
+
     private GeminiContentGenerator generator() {
         Client client = Client.builder()
             .apiKey(geminiApiKey())
@@ -63,7 +86,8 @@ class GeminiContentGeneratorLiveTest {
             .genAiClient(client)
             .options(GoogleGenAiChatOptions.builder().model("gemini-3.1-flash-lite").build())
             .build();
-        return new GeminiContentGenerator(chatModel, new GenerationPromptComposer(new StoreSectionComposer()),
+        return new GeminiContentGenerator(chatModel,
+            new GenerationPromptComposer(new StoreSectionComposer(), new StyleSourceSectionComposer()),
             new GeminiCallOutcomeClassifier(), new PhotoGuideAssembler());
     }
 
@@ -83,7 +107,7 @@ class GeminiContentGeneratorLiveTest {
         }
     }
 
-    private void print(LlmCallReply reply) {
+    private void print(Channel channel, LlmCallReply reply) {
         String body = reply.content().body();
         String stripped = PHOTO_GUIDE_TAG.matcher(body).replaceAll("").strip();
         String title = reply.content().title();

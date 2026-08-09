@@ -9,6 +9,7 @@ import com.ssoss.ssossbackend.content.domain.model.GenerationResultStatus;
 import com.ssoss.ssossbackend.content.domain.model.LlmCallFailedException;
 import com.ssoss.ssossbackend.content.domain.model.LlmCallReply;
 import com.ssoss.ssossbackend.content.domain.model.StoreMaterial;
+import com.ssoss.ssossbackend.content.domain.model.StyleSource;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,10 +24,10 @@ public class ChannelGenerationRunner {
     private final ContentGenerator contentGenerator;
     private final GenerationWriter generationWriter;
 
-    public boolean run(Generation generation, Channel channel, StoreMaterial store) {
+    public boolean run(Generation generation, Channel channel, StoreMaterial store, StyleSource styleSource) {
         long startedAtNanos = System.nanoTime();
         try {
-            LlmCallReply reply = contentGenerator.generate(generation.materialFor(channel, store));
+            LlmCallReply reply = contentGenerator.generate(generation.materialFor(channel, store, styleSource));
             GenerationResultStatus status = reply.content().hasRequiredOutput(channel)
                 ? GenerationResultStatus.SUCCEEDED
                 : GenerationResultStatus.EMPTY_OUTPUT;

@@ -344,6 +344,29 @@ public class TestFixture {
         return contentId;
     }
 
+    public RestTestClient.ResponseSpec reuseStyle(String accessToken, Long contentId, Long contentChannelId,
+        Map<String, Object> body) {
+        return client.post().uri("/v1/contents/" + contentId + "/channels/" + contentChannelId + "/reuses")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public Long reusedGenerationId(String accessToken, Long contentId, Long contentChannelId,
+        Map<String, Object> body) {
+        return reuseStyle(accessToken, contentId, contentChannelId, body)
+            .expectStatus().isCreated()
+            .expectBody(GenerationStartResponse.class)
+            .returnResult()
+            .getResponseBody()
+            .generationId();
+    }
+
+    public Map<String, Object> styleReuseBody(String emphasis) {
+        return Map.of("emphasis", emphasis);
+    }
+
     public RestTestClient.ResponseSpec getContents(String accessToken, String query) {
         return client.get().uri("/v1/contents" + query)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
