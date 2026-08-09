@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 
 @Schema(description = "추천 템플릿 목록 조회 요청")
 public record TemplateListRequest(
@@ -13,6 +14,10 @@ public record TemplateListRequest(
         allowableValues = {"NEW_MENU", "EVENT", "STORE_INTRO", "NOTICE"}, example = "NEW_MENU",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     String category,
+    @Schema(description = "검색어 (선택) — 제목과 설명과 본문을 함께 부분 일치로 거릅니다", example = "휴무",
+        requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    @Size(max = 100, message = "검색어는 100자 이내로 입력해 주세요")
+    String keyword,
     @Schema(description = "페이지 번호 (선택) — 0 부터 셉니다", example = "0", defaultValue = "0",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     @Min(value = 0, message = "페이지 번호는 0 부터 시작합니다")
@@ -33,6 +38,6 @@ public record TemplateListRequest(
     }
 
     public TemplateListCommand toCommand(Long memberId) {
-        return TemplateListCommand.of(memberId, category, page, size);
+        return TemplateListCommand.of(memberId, category, keyword, page, size);
     }
 }

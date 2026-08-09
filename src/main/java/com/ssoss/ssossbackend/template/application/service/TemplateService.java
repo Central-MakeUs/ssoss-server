@@ -30,7 +30,8 @@ public class TemplateService {
     private final StoreService storeService;
 
     public PagedResult<TemplateResult> list(TemplateListCommand command) {
-        Page<Template> found = templateFinder.list(command.category(), command.page(), command.size());
+        Page<Template> found =
+            templateFinder.list(command.category(), command.keyword(), command.page(), command.size());
         Set<Long> bookmarkedIds = templateFinder.findBookmarkedIds(command.memberId(),
             found.getContent().stream().map(Template::getId).toList());
         return PagedResult.from(found,

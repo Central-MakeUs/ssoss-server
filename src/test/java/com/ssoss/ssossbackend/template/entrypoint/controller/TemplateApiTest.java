@@ -269,6 +269,194 @@ class TemplateApiTest extends IntegrationTest {
     }
 
     @Nested
+    @DisplayName("GET /v1/templates?keyword=")
+    class SearchTemplates {
+
+        private static final String BY_KEYWORD = "?keyword={keyword}";
+        private static final String EVERY_SEARCHED_TEMPLATE = BY_KEYWORD + "&size=50";
+        private static final String EVERY_SEARCHED_IN_CATEGORY = BY_KEYWORD + "&category={category}&size=50";
+        private static final String TITLE_ONLY_WORD = "첫인사";
+        private static final String DESCRIPTION_ONLY_WORD = "동네";
+        private static final String BODY_ONLY_WORD = "양해";
+        private static final String SHARED_WORD = "안내";
+        private static final String STORE_INTRO_TITLE = "가게 첫인사";
+        private static final String CLOSED_DAY_TITLE = "휴무 안내";
+
+        @Test
+        @DisplayName("제목에만 있는 말로 검색하면 그 템플릿이 걸린다")
+        void keepsTemplateMatchedByTitle_whenKeywordHitsTitleOnly() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-title");
+
+            TemplateListResponse body =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, TITLE_ONLY_WORD);
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.templates()).singleElement().satisfies(template -> {
+                assertThat(template.title()).isEqualTo(STORE_INTRO_TITLE);
+                assertThat(template.description()).doesNotContain(TITLE_ONLY_WORD);
+            });
+        }
+
+        @Test
+        @DisplayName("설명에만 있는 말로 검색하면 그 템플릿이 걸린다")
+        void keepsTemplateMatchedByDescription_whenKeywordHitsDescriptionOnly() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-description");
+
+            TemplateListResponse body =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, DESCRIPTION_ONLY_WORD);
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.templates()).singleElement().satisfies(template -> {
+                assertThat(template.title()).isEqualTo(STORE_INTRO_TITLE).doesNotContain(DESCRIPTION_ONLY_WORD);
+                assertThat(template.description()).contains(DESCRIPTION_ONLY_WORD);
+            });
+        }
+
+        @Test
+        @DisplayName("본문에만 있는 말로 검색하면 그 템플릿이 걸린다")
+        void keepsTemplateMatchedByBody_whenKeywordHitsBodyOnly() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-body");
+
+            TemplateListResponse body =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, BODY_ONLY_WORD);
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.templates()).singleElement().satisfies(template -> {
+                assertThat(template.title()).isEqualTo(CLOSED_DAY_TITLE).doesNotContain(BODY_ONLY_WORD);
+                assertThat(template.description()).doesNotContain(BODY_ONLY_WORD);
+                assertThat(fixture.templateDetail(signup.accessToken(), template.id()).body())
+                    .contains(BODY_ONLY_WORD);
+            });
+        }
+
+        @Test
+        @DisplayName("분류와 검색어를 함께 주면 둘 다 적용된 결과가 걸린다")
+        void appliesBothCategoryAndKeyword_whenGivenTogether() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-category");
+            long matchedInEveryCategory =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, SHARED_WORD).totalCount();
+
+            TemplateListResponse body = fixture.templateList(signup.accessToken(),
+                EVERY_SEARCHED_IN_CATEGORY, SHARED_WORD, "NOTICE");
+
+            assertThat(body.templates()).isNotEmpty();
+            assertThat(body.templates()).extracting(TemplateResponse::category).containsOnly("NOTICE");
+            assertThat(body.templates()).extracting(TemplateResponse::title)
+                .contains(CLOSED_DAY_TITLE)
+                .doesNotContain(NEW_MENU_TITLE);
+            assertThat(body.totalCount()).isEqualTo(body.templates().size()).isLessThan(matchedInEveryCategory);
+        }
+
+        @Test
+        @DisplayName("검색 결과에도 페이징이 그대로 동작하고 totalCount 는 걸린 개수다")
+        void pagesThroughMatchedTemplates_whenKeywordGiven() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-paged");
+            List<Long> matchedIds =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, SHARED_WORD).templates().stream()
+                    .map(TemplateResponse::id)
+                    .toList();
+
+            TemplateListResponse first =
+                fixture.templateList(signup.accessToken(), BY_KEYWORD + "&size=1", SHARED_WORD);
+            TemplateListResponse second =
+                fixture.templateList(signup.accessToken(), BY_KEYWORD + "&size=1&page=1", SHARED_WORD);
+
+            assertThat(matchedIds).hasSizeGreaterThan(1);
+            assertThat(first.totalCount()).isEqualTo(matchedIds.size())
+                .isLessThan(fixture.templateList(signup.accessToken(), EVERY_TEMPLATE).totalCount());
+            assertThat(first.hasNext()).isTrue();
+            assertThat(first.templates()).singleElement()
+                .satisfies(template -> assertThat(template.id()).isEqualTo(matchedIds.getFirst()));
+            assertThat(second.page()).isEqualTo(1);
+            assertThat(second.totalCount()).isEqualTo(matchedIds.size());
+            assertThat(second.templates()).singleElement()
+                .satisfies(template -> assertThat(template.id()).isEqualTo(matchedIds.get(1)));
+        }
+
+        @Test
+        @DisplayName("여러 템플릿이 걸리면 걸린 것만 id 역순으로 담긴다")
+        void ordersMatchedTemplatesByIdDescending_whenKeywordHitsSeveral() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-order");
+
+            TemplateListResponse body =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, SHARED_WORD);
+
+            assertThat(body.templates()).hasSizeGreaterThan(1);
+            assertThat(body.hasNext()).isFalse();
+            assertThat(body.totalCount()).isEqualTo(body.templates().size());
+            assertThat(body.templates()).extracting(TemplateResponse::id)
+                .isSortedAccordingTo(Comparator.reverseOrder());
+        }
+
+        @Test
+        @DisplayName("LIKE 와일드카드를 쳐도 글자 그대로 찾는다")
+        void treatsWildcardAsPlainText_whenKeywordHasWildcard() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-wildcard");
+
+            TemplateListResponse percent =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, "%");
+            TemplateListResponse underscore =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, "_");
+
+            assertThat(percent.totalCount()).isZero();
+            assertThat(percent.templates()).isEmpty();
+            assertThat(underscore.totalCount()).isZero();
+            assertThat(underscore.templates()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("아무것도 걸리지 않는 말로 검색하면 빈 목록과 totalCount 0 이 온다")
+        void returnsEmptyList_whenKeywordMatchesNothing() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-none");
+
+            TemplateListResponse body =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, "없는말없는말");
+
+            assertThat(body.totalCount()).isZero();
+            assertThat(body.templates()).isEmpty();
+            assertThat(body.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("검색어를 비워 보내면 검색어를 생략한 목록과 같다")
+        void returnsSameAsPlainList_whenKeywordIsEmpty() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-empty");
+            TemplateListResponse omitted = fixture.templateList(signup.accessToken(), EVERY_TEMPLATE);
+
+            TemplateListResponse body =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, "");
+
+            assertThat(body.totalCount()).isEqualTo(omitted.totalCount());
+            assertThat(body.templates()).extracting(TemplateResponse::id)
+                .isEqualTo(omitted.templates().stream().map(TemplateResponse::id).toList());
+        }
+
+        @Test
+        @DisplayName("검색어가 100자를 넘으면 400 과 C0001 을 반환한다")
+        void returns400_whenKeywordExceedsLimit() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-too-long");
+
+            fixture.getTemplates(signup.accessToken(), BY_KEYWORD, "가".repeat(101))
+                .expectStatus().isBadRequest()
+                .expectBody(ErrorResponse.class)
+                .value(body -> assertThat(body.code()).isEqualTo(CommonErrorCode.INVALID_INPUT.getCode()));
+        }
+
+        @Test
+        @DisplayName("검색어 앞뒤 공백은 무시하고 거른다")
+        void ignoresSurroundingSpaces_whenKeywordIsPadded() {
+            SignupResponse signup = fixture.signupActiveMember("naver-template-search-padded");
+
+            TemplateListResponse body =
+                fixture.templateList(signup.accessToken(), EVERY_SEARCHED_TEMPLATE, " " + TITLE_ONLY_WORD + " ");
+
+            assertThat(body.totalCount()).isEqualTo(1);
+            assertThat(body.templates()).singleElement()
+                .satisfies(template -> assertThat(template.title()).isEqualTo(STORE_INTRO_TITLE));
+        }
+    }
+
+    @Nested
     @DisplayName("GET /v1/templates/{templateId}")
     class GetTemplate {
 
