@@ -7,6 +7,7 @@ import com.ssoss.ssossbackend.template.application.result.SavedTemplateSummaryRe
 import com.ssoss.ssossbackend.template.application.service.SavedTemplateService;
 import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateEditRequest;
 import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateListRequest;
+import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateRenameRequest;
 import com.ssoss.ssossbackend.template.entrypoint.request.SavedTemplateSaveRequest;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateDetailResponse;
 import com.ssoss.ssossbackend.template.entrypoint.response.SavedTemplateListResponse;
@@ -80,6 +81,18 @@ class SavedTemplateController implements SavedTemplateApi {
         @Valid @RequestBody SavedTemplateEditRequest request
     ) {
         SavedTemplateDetailResult result = savedTemplateService.edit(request.toCommand(memberId, savedTemplateId));
+        return new SavedTemplateDetailResponse(result.savedTemplateId(), result.category(), result.title(),
+            result.description(), result.body(), result.recommendedChannels(), result.savedAt());
+    }
+
+    @Override
+    @PutMapping("/v1/saved-templates/{savedTemplateId}/title")
+    public SavedTemplateDetailResponse rename(
+        @AuthenticationPrincipal Long memberId,
+        @PathVariable Long savedTemplateId,
+        @Valid @RequestBody SavedTemplateRenameRequest request
+    ) {
+        SavedTemplateDetailResult result = savedTemplateService.rename(request.toCommand(memberId, savedTemplateId));
         return new SavedTemplateDetailResponse(result.savedTemplateId(), result.category(), result.title(),
             result.description(), result.body(), result.recommendedChannels(), result.savedAt());
     }

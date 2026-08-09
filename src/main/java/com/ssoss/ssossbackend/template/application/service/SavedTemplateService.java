@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.template.application.service;
 import com.ssoss.ssossbackend.shared.paging.PagedResult;
 import com.ssoss.ssossbackend.template.application.command.SavedTemplateEditCommand;
 import com.ssoss.ssossbackend.template.application.command.SavedTemplateListCommand;
+import com.ssoss.ssossbackend.template.application.command.SavedTemplateRenameCommand;
 import com.ssoss.ssossbackend.template.application.command.SavedTemplateSaveCommand;
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateDetailResult;
 import com.ssoss.ssossbackend.template.application.result.SavedTemplateSaveResult;
@@ -44,7 +45,12 @@ public class SavedTemplateService {
     public SavedTemplateDetailResult edit(SavedTemplateEditCommand command) {
         SavedTemplate savedTemplate = savedTemplateFinder.get(command.savedTemplateId(), command.memberId());
         return SavedTemplateDetailResult.from(
-            savedTemplateWriter.edit(savedTemplate, command.title(), command.body()));
+            savedTemplateWriter.edit(savedTemplate, command.body()));
+    }
+
+    public SavedTemplateDetailResult rename(SavedTemplateRenameCommand command) {
+        SavedTemplate savedTemplate = savedTemplateFinder.get(command.savedTemplateId(), command.memberId());
+        return SavedTemplateDetailResult.from(savedTemplateWriter.rename(savedTemplate, command.title()));
     }
 
     public void delete(Long savedTemplateId, Long memberId) {

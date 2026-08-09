@@ -570,9 +570,25 @@ public class TestFixture {
             .exchange();
     }
 
-    public SavedTemplateDetailResponse editedSavedTemplate(String accessToken, Long savedTemplateId, String title,
-        String body) {
-        return editSavedTemplate(accessToken, savedTemplateId, Map.of("title", title, "body", body))
+    public SavedTemplateDetailResponse editedSavedTemplate(String accessToken, Long savedTemplateId, String body) {
+        return editSavedTemplate(accessToken, savedTemplateId, Map.of("body", body))
+            .expectStatus().isOk()
+            .expectBody(SavedTemplateDetailResponse.class)
+            .returnResult()
+            .getResponseBody();
+    }
+
+    public RestTestClient.ResponseSpec renameSavedTemplate(String accessToken, Long savedTemplateId,
+        Map<String, Object> body) {
+        return client.put().uri("/v1/saved-templates/" + savedTemplateId + "/title")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(body)
+            .exchange();
+    }
+
+    public SavedTemplateDetailResponse renamedSavedTemplate(String accessToken, Long savedTemplateId, String title) {
+        return renameSavedTemplate(accessToken, savedTemplateId, Map.of("title", title))
             .expectStatus().isOk()
             .expectBody(SavedTemplateDetailResponse.class)
             .returnResult()
