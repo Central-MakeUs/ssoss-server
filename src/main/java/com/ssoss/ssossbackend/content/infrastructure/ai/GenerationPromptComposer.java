@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 class GenerationPromptComposer {
 
     private static final String ROLE_INSTRUCTION = """
-        너는 소상공인 매장의 홍보 콘텐츠를 대신 써 주는 전문 카피라이터다.
+        너는 카페·베이커리 매장의 홍보 콘텐츠를 대신 써 주는 전문 카피라이터다.
         아래 지시를 모두 지켜 콘텐츠를 한국어로 작성한다.""";
 
     private static final String BLOG_INSTRUCTION = """
@@ -53,7 +53,7 @@ class GenerationPromptComposer {
     private static final String EMPHASIS_SECTION = """
         [강조 내용]
         아래 내용이 콘텐츠의 중심이 되도록 반드시 반영한다.
-        매장과 무관해 보이는 내용이라도 [매장 정보]에 적힌 사실 안에서만 매장을 알리는 이야기로 연결해 풀어낸다.
+        매장과 무관해 보이는 내용이라도 이 매장을 알리는 이야기로 연결해 풀어내되, [매장 정보]에 없는 사실은 지어내지 않는다.
         %s""";
 
     private static final String FORBIDDEN_SECTION = """

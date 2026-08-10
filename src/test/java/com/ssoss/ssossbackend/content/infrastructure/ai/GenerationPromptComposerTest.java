@@ -35,6 +35,19 @@ class GenerationPromptComposerTest {
     }
 
     @Nested
+    @DisplayName("역할 지시")
+    class RoleInstruction {
+
+        @Test
+        @DisplayName("매장 정보가 비어도 업종을 카페·베이커리로 못박는다")
+        void carriesStoreType_whenStoreEmpty() {
+            String prompt = composer.compose(materialWithStore(NO_STORE));
+
+            assertThat(prompt).contains("너는 카페·베이커리 매장의 홍보 콘텐츠를 대신 써 주는 전문 카피라이터다.");
+        }
+    }
+
+    @Nested
     @DisplayName("강조 내용 절")
     class EmphasisSection {
 
@@ -44,9 +57,7 @@ class GenerationPromptComposerTest {
             String prompt = composer.compose(materialWithStore(NO_STORE));
 
             assertThat(prompt).contains("""
-                [강조 내용]
-                아래 내용이 콘텐츠의 중심이 되도록 반드시 반영한다.
-                매장과 무관해 보이는 내용이라도 [매장 정보]에 적힌 사실 안에서만 매장을 알리는 이야기로 연결해 풀어낸다.
+                매장과 무관해 보이는 내용이라도 이 매장을 알리는 이야기로 연결해 풀어내되, [매장 정보]에 없는 사실은 지어내지 않는다.
                 주말 이벤트""");
         }
     }
