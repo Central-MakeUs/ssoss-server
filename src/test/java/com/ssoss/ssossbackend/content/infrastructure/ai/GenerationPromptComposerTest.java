@@ -24,14 +24,26 @@ class GenerationPromptComposerTest {
     private final GenerationPromptComposer composer = new GenerationPromptComposer(new StoreSectionComposer(),
         new StyleSourceSectionComposer());
 
+    private static GenerationMaterial material(Channel channel, boolean photoGuideChecked, StoreMaterial store,
+        StyleSource styleSource) {
+        return new GenerationMaterial(channel, Purpose.INFORMATION, Tone.CASUAL, "주말 이벤트", null, List.of(),
+            photoGuideChecked, store, styleSource);
+    }
+
     private static GenerationMaterial materialWithStore(StoreMaterial store) {
-        return new GenerationMaterial(Channel.BLOG, Purpose.INFORMATION, Tone.CASUAL, "주말 이벤트", null, List.of(),
-            false, store, StyleSource.none());
+        return material(Channel.BLOG, false, store, StyleSource.none());
     }
 
     private static GenerationMaterial materialWithStyleSource(StyleSource styleSource) {
-        return new GenerationMaterial(Channel.BLOG, Purpose.INFORMATION, Tone.CASUAL, "주말 이벤트", null, List.of(),
-            false, NO_STORE, styleSource);
+        return material(Channel.BLOG, false, NO_STORE, styleSource);
+    }
+
+    private static GenerationMaterial materialWithPhotoGuide(Channel channel) {
+        return material(channel, true, NO_STORE, StyleSource.none());
+    }
+
+    private static GenerationMaterial materialWithoutPhotoGuide(Channel channel) {
+        return material(channel, false, NO_STORE, StyleSource.none());
     }
 
     @Nested
@@ -171,6 +183,81 @@ class GenerationPromptComposerTest {
                 .contains("[참고 글]")
                 .contains("겹겹이 살아있는 결을 만나 보세요.")
                 .doesNotContain("제목:");
+        }
+    }
+
+    @Nested
+    @DisplayName("채널별 정책")
+    class ChannelPolicy {
+
+        @Test
+        @DisplayName("블로그면 블로그 지시문과 사진 가이드 2~4곳, 해시태그 10개 지시가 실린다")
+        void carriesBlogPolicy_whenChannelBlog() {
+            String prompt = composer.compose(materialWithPhotoGuide(Channel.BLOG));
+
+            assertThat(prompt)
+                .contains("네이버 블로그에 올릴 글을 쓴다.")
+                .contains("사진이 들어가면 좋을 자리를 2~4곳 골라")
+                .contains("해시태그는 10개 만들고");
+        }
+
+        @Test
+        @DisplayName("인스타그램이면 인스타그램 지시문과 사진 가이드 1~2곳, 해시태그 10개 지시가 실린다")
+        void carriesInstagramPolicy_whenChannelInstagram() {
+            String prompt = composer.compose(materialWithPhotoGuide(Channel.INSTAGRAM));
+
+            assertThat(prompt)
+                .contains("인스타그램 피드에 올릴 캡션을 쓴다.")
+                .contains("사진이 들어가면 좋을 자리를 1~2곳 골라")
+                .contains("해시태그는 10개 만들고");
+        }
+
+        @Test
+        @DisplayName("당근 비즈면 당근 비즈 지시문과 사진 가이드 1곳이 실리고 해시태그를 만들지 않는다")
+        void carriesDaangnBizPolicy_whenChannelDaangnBiz() {
+            String prompt = composer.compose(materialWithPhotoGuide(Channel.DAANGN_BIZ));
+
+            assertThat(prompt)
+                .contains("당근 비즈프로필 소식에 올릴 글을 쓴다.")
+                .contains("사진이 들어가면 좋을 자리를 1곳 골라")
+                .contains("해시태그를 만들지 않는다");
+        }
+
+        @Test
+        @DisplayName("스레드면 스레드 지시문과 사진 가이드 1곳, 해시태그 최대 3개 지시가 실린다")
+        void carriesThreadsPolicy_whenChannelThreads() {
+            String prompt = composer.compose(materialWithPhotoGuide(Channel.THREADS));
+
+            assertThat(prompt)
+                .contains("스레드에 올릴 게시물을 쓴다.")
+                .contains("사진이 들어가면 좋을 자리를 1곳 골라")
+                .contains("해시태그는 어울릴 때만 최대 3개까지 만들고");
+        }
+    }
+
+    @Nested
+    @DisplayName("절 구분")
+    class SectionSeparator {
+
+        @Test
+        @DisplayName("절과 절 사이는 빈 줄 없이 줄바꿈 하나로 이어진다")
+        void joinsSectionsWithSingleLineBreak() {
+            String prompt = composer.compose(materialWithoutPhotoGuide(Channel.BLOG));
+
+            assertThat(prompt).contains("문단은 4~6개로 나누고 각 문단을 200자 이상으로 쓴다.\n[본문 형식]");
+        }
+    }
+
+    @Nested
+    @DisplayName("사진 가이드 절")
+    class PhotoGuideSection {
+
+        @Test
+        @DisplayName("사진 가이드를 체크하지 않으면 절이 통째로 빠진다")
+        void omitsSection_whenPhotoGuideUnchecked() {
+            String prompt = composer.compose(materialWithoutPhotoGuide(Channel.BLOG));
+
+            assertThat(prompt).doesNotContain("[사진 가이드]", "<photo-guide/>");
         }
     }
 }

@@ -17,34 +17,6 @@ class GenerationPromptComposer {
         너는 소상공인 매장의 홍보 콘텐츠를 대신 써 주는 전문 카피라이터다.
         아래 지시를 모두 지켜 콘텐츠를 한국어로 작성한다.""";
 
-    private static final String BLOG_INSTRUCTION = """
-        [채널]
-        네이버 블로그에 올릴 글을 쓴다.
-        검색 노출을 고려한 40자 이내의 제목을 함께 쓴다.
-        본문은 1,000자 이상 2,000자 이하로 쓴다. 1,000자에 못 미치는 본문은 지시를 어긴 것이다.
-        문단은 4~6개로 나누고 각 문단을 200자 이상으로 쓴다.""";
-
-    private static final String INSTAGRAM_INSTRUCTION = """
-        [채널]
-        인스타그램 피드에 올릴 캡션을 쓴다.
-        제목 없이 본문만 쓰고, 첫 문장으로 시선을 끈다.
-        본문은 300자 이상 700자 이하로 쓴다.
-        문단은 2~4개로 나누고 이모지를 적절히 섞는다.""";
-
-    private static final String DAANGN_BIZ_INSTRUCTION = """
-        [채널]
-        당근 비즈프로필 소식에 올릴 글을 쓴다.
-        제목 없이 본문만 쓰고, 동네 이웃에게 말을 거는 친근한 문장으로 쓴다.
-        본문은 150자 이상 400자 이하로 쓴다.
-        문단은 2~3개로 나눈다.""";
-
-    private static final String THREADS_INSTRUCTION = """
-        [채널]
-        스레드에 올릴 게시물을 쓴다.
-        제목 없이 본문만 쓰고, 대화하듯 짧고 편한 문장으로 쓴다.
-        본문은 100자 이상 500자 이하로 쓴다.
-        문단은 2~3개로 나눈다.""";
-
     private static final String BODY_FORMAT_SECTION = """
         [본문 형식]
         본문은 paragraphs 배열에 담고, 원소 하나가 문단 하나다.
@@ -67,34 +39,18 @@ class GenerationPromptComposer {
 
     private static final String PHOTO_GUIDE_SECTION = """
         [사진 가이드]
-        사진이 들어가면 좋을 자리를 %s 골라, 그 자리에 <photo-guide/> 마커만 담은 원소를 문단 사이에 끼운다.
+        사진이 들어가면 좋을 자리를 %s곳 골라, 그 자리에 <photo-guide/> 마커만 담은 원소를 문단 사이에 끼운다.
         마커와 같은 순서로 photoGuides 배열을 채우고 개수를 정확히 맞춘다.
         title 은 어떤 사진인지 15자 이내로, description 은 어떻게 찍으면 좋은지 40자 이내로 쓴다.
         마커와 배열 외의 방법으로 사진을 언급하지 않는다.""";
 
-    private static final String HASHTAG_SECTION = """
-        [해시태그]
-        해시태그는 10개 만들고, 각 태그는 #으로 시작하는 공백 없는 한 단어로 쓴다.""";
-
-    private static final String OPTIONAL_HASHTAG_SECTION = """
-        [해시태그]
-        해시태그는 어울릴 때만 최대 3개까지 만들고, 어울리지 않으면 만들지 않는다.
-        만들 때는 #으로 시작하는 공백 없는 한 단어로 쓴다.""";
-
-    private static final String NO_HASHTAG_SECTION = """
-        [해시태그]
-        해시태그를 만들지 않는다. 본문에도 #으로 시작하는 태그를 쓰지 않는다.""";
+    private static final String SECTION_SEPARATOR = "\n";
 
     private final StoreSectionComposer storeSectionComposer;
     private final StyleSourceSectionComposer styleSourceSectionComposer;
 
     String compose(GenerationMaterial material) {
-        String channelInstruction = switch (material.channel()) {
-            case BLOG -> BLOG_INSTRUCTION;
-            case INSTAGRAM -> INSTAGRAM_INSTRUCTION;
-            case DAANGN_BIZ -> DAANGN_BIZ_INSTRUCTION;
-            case THREADS -> THREADS_INSTRUCTION;
-        };
+        ChannelPromptPolicy channelPolicy = ChannelPromptPolicy.of(material.channel());
         String purposeInstruction = switch (material.purpose()) {
             case INFORMATION -> "정보성 — 매장과 관련된 유용한 정보를 알려 주는 글을 쓴다.";
             case EVENT_DISCOUNT -> "이벤트/할인 — 이벤트·할인 소식을 알려 방문을 이끄는 글을 쓴다.";
@@ -108,7 +64,7 @@ class GenerationPromptComposer {
         };
         List<String> sections = new ArrayList<>();
         sections.add(ROLE_INSTRUCTION);
-        sections.add(channelInstruction);
+        sections.add(channelPolicy.instruction());
         sections.add(BODY_FORMAT_SECTION);
         sections.add("[목적]\n" + purposeInstruction);
         sections.add("[톤]\n" + toneInstruction);
@@ -124,18 +80,9 @@ class GenerationPromptComposer {
             sections.addAll(styleSourceSectionComposer.compose(material.styleSource()));
         }
         if (material.photoGuideChecked()) {
-            String places = switch (material.channel()) {
-                case BLOG -> "2~4곳";
-                case INSTAGRAM -> "1~2곳";
-                case DAANGN_BIZ, THREADS -> "1곳";
-            };
-            sections.add(PHOTO_GUIDE_SECTION.formatted(places));
+            sections.add(PHOTO_GUIDE_SECTION.formatted(channelPolicy.photoGuidePlaceCount()));
         }
-        sections.add(switch (material.channel()) {
-            case BLOG, INSTAGRAM -> HASHTAG_SECTION;
-            case THREADS -> OPTIONAL_HASHTAG_SECTION;
-            case DAANGN_BIZ -> NO_HASHTAG_SECTION;
-        });
-        return String.join("\n\n", sections);
+        sections.add(channelPolicy.hashtagSection());
+        return String.join(SECTION_SEPARATOR, sections);
     }
 }
