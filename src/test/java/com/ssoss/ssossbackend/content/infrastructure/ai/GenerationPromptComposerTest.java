@@ -35,6 +35,23 @@ class GenerationPromptComposerTest {
     }
 
     @Nested
+    @DisplayName("강조 내용 절")
+    class EmphasisSection {
+
+        @Test
+        @DisplayName("강조 내용에 매장으로 연결하라는 지시가 함께 실린다")
+        void carriesLinkingInstruction() {
+            String prompt = composer.compose(materialWithStore(NO_STORE));
+
+            assertThat(prompt).contains("""
+                [강조 내용]
+                아래 내용이 콘텐츠의 중심이 되도록 반드시 반영한다.
+                매장과 무관해 보이는 내용이라도 [매장 정보]에 적힌 사실 안에서만 매장을 알리는 이야기로 연결해 풀어낸다.
+                주말 이벤트""");
+        }
+    }
+
+    @Nested
     @DisplayName("매장 정보 절")
     class StoreSection {
 
