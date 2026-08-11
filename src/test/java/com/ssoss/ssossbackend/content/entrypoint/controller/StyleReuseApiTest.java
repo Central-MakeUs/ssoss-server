@@ -278,7 +278,7 @@ class StyleReuseApiTest extends IntegrationTest {
 
             assertThat(llmApi.recordedRequestBodies()).singleElement().satisfies(request -> assertThat(request)
                 .contains("[참고 범위]")
-                .contains("말투·문장 구성·분량뿐이다")
+                .contains("말투와 문장 길이뿐이다")
                 .doesNotContain("[금지 내용]"));
         }
 

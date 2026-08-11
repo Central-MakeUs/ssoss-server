@@ -60,6 +60,27 @@ class GenerationPromptComposerTest {
     }
 
     @Nested
+    @DisplayName("본문 형식 절")
+    class BodyFormatSection {
+
+        @Test
+        @DisplayName("문단 안에서 문장마다 줄을 바꾸라는 지시가 실린다")
+        void carriesLineBreakPerSentence() {
+            String prompt = composer.compose(materialWithStore(NO_STORE));
+
+            assertThat(prompt).contains("문단 안에서는 문장 하나가 끝날 때마다 줄을 바꾼다.");
+        }
+
+        @Test
+        @DisplayName("문단 안 줄바꿈을 막던 지시는 실리지 않는다")
+        void omitsLineBreakBan() {
+            String prompt = composer.compose(materialWithStore(NO_STORE));
+
+            assertThat(prompt).doesNotContain("원소 안에서는 줄바꿈을 쓰지 않고");
+        }
+    }
+
+    @Nested
     @DisplayName("강조 내용 절")
     class EmphasisSection {
 
@@ -199,7 +220,18 @@ class GenerationPromptComposerTest {
                 .contains("제목: 을지로 크루아상 맛집")
                 .contains("겹겹이 살아있는 결을 만나 보세요.")
                 .contains("[참고 범위]")
-                .contains("말투·문장 구성·분량뿐이다");
+                .contains("말투와 문장 길이뿐이다");
+        }
+
+        @Test
+        @DisplayName("참고 글에서 줄과 문단 나누는 방식은 가져오지 않는다")
+        void omitsFormatFromScope_whenStyleSourceGiven() {
+            String prompt = composer.compose(materialWithStyleSource(
+                new StyleSource("을지로 크루아상 맛집", "겹겹이 살아있는 결을 만나 보세요.")));
+
+            assertThat(prompt)
+                .contains("줄과 문단을 나누는 방식은 [본문 형식]과 [채널]을 따르고, 참고 글의 모양은 따르지 않는다.")
+                .doesNotContain("말투·문장 구성·분량뿐이다");
         }
 
         @Test
@@ -261,6 +293,28 @@ class GenerationPromptComposerTest {
                 .contains("사진이 들어가면 좋을 자리를 1곳 골라")
                 .contains("해시태그는 어울릴 때만 최대 3개까지 만들고");
         }
+
+        @Test
+        @DisplayName("채널마다 한 문단으로 묶을 문장 수가 실린다")
+        void carriesParagraphBundle_forEveryChannel() {
+            assertThat(composer.compose(materialWithoutPhotoGuide(Channel.BLOG)))
+                .contains("한 문단은 3~4문장으로 묶는다.");
+            assertThat(composer.compose(materialWithoutPhotoGuide(Channel.INSTAGRAM)))
+                .contains("한 문단은 2~3문장으로 묶고 이모지를 적절히 섞는다.");
+            assertThat(composer.compose(materialWithoutPhotoGuide(Channel.DAANGN_BIZ)))
+                .contains("한 문단은 2~3문장으로 묶는다.");
+            assertThat(composer.compose(materialWithoutPhotoGuide(Channel.THREADS)))
+                .contains("한 문단은 2~3문장으로 묶는다.");
+        }
+
+        @Test
+        @DisplayName("어느 채널에도 문단 개수를 정하던 지시는 실리지 않는다")
+        void omitsParagraphCount_forEveryChannel() {
+            for (Channel channel : Channel.values()) {
+                assertThat(composer.compose(materialWithoutPhotoGuide(channel)))
+                    .doesNotContain("문단은 4~6개로", "문단은 2~4개로", "문단은 2~3개로", "각 문단을 200자 이상으로");
+            }
+        }
     }
 
     @Nested
@@ -272,7 +326,7 @@ class GenerationPromptComposerTest {
         void joinsSectionsWithSingleLineBreak() {
             String prompt = composer.compose(materialWithoutPhotoGuide(Channel.BLOG));
 
-            assertThat(prompt).contains("문단은 4~6개로 나누고 각 문단을 200자 이상으로 쓴다.\n[본문 형식]");
+            assertThat(prompt).contains("한 문단은 3~4문장으로 묶는다.\n[본문 형식]");
         }
     }
 
