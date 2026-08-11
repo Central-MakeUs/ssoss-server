@@ -341,5 +341,15 @@ class GenerationPromptComposerTest {
 
             assertThat(prompt).doesNotContain("[사진 가이드]", "<photo-guide/>");
         }
+
+        @Test
+        @DisplayName("마커를 문단 사이가 아니라 문단 안의 줄로 끼우라는 지시가 실린다")
+        void carriesMarkerAsLineInsideParagraph_whenPhotoGuideChecked() {
+            String prompt = composer.compose(materialWithPhotoGuide(Channel.BLOG));
+
+            assertThat(prompt)
+                .contains("<photo-guide/> 마커만 담은 줄을 문단 안에 끼운다.")
+                .doesNotContain("원소를 문단 사이에 끼운다");
+        }
     }
 }
