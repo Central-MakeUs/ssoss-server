@@ -9,28 +9,28 @@ record ChannelPromptPolicy(String instruction, String photoGuidePlaceCount, Stri
         네이버 블로그에 올릴 글을 쓴다.
         검색 노출을 고려한 40자 이내의 제목을 함께 쓴다.
         본문은 1,000자 이상 2,000자 이하로 쓴다. 1,000자에 못 미치는 본문은 지시를 어긴 것이다.
-        한 문단은 3~4문장으로 묶는다.""";
+        한 문단은 3~4문장으로 묶고, 문단은 4개 이상으로 나눈다.""";
 
     private static final String INSTAGRAM_INSTRUCTION = """
         [채널]
         인스타그램 피드에 올릴 캡션을 쓴다.
         제목 없이 본문만 쓰고, 첫 문장으로 시선을 끈다.
         본문은 300자 이상 700자 이하로 쓴다.
-        한 문단은 2~3문장으로 묶고 이모지를 적절히 섞는다.""";
+        한 문단은 2~3문장으로 묶고, 문단은 2개 이상으로 나눈다. 이모지를 적절히 섞는다.""";
 
     private static final String DAANGN_BIZ_INSTRUCTION = """
         [채널]
         당근 비즈프로필 소식에 올릴 글을 쓴다.
         제목 없이 본문만 쓰고, 동네 이웃에게 말을 거는 친근한 문장으로 쓴다.
         본문은 150자 이상 400자 이하로 쓴다.
-        한 문단은 2~3문장으로 묶는다.""";
+        한 문단은 2~3문장으로 묶고, 문단은 2개 이상으로 나눈다.""";
 
     private static final String THREADS_INSTRUCTION = """
         [채널]
         스레드에 올릴 게시물을 쓴다.
         제목 없이 본문만 쓰고, 대화하듯 짧고 편한 문장으로 쓴다.
         본문은 100자 이상 500자 이하로 쓴다.
-        한 문단은 2~3문장으로 묶는다.""";
+        한 문단은 2~3문장으로 묶고, 문단은 2개 이상으로 나눈다.""";
 
     private static final String HASHTAG_SECTION = """
         [해시태그]

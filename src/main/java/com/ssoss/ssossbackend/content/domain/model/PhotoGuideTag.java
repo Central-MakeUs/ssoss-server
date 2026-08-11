@@ -17,4 +17,8 @@ public final class PhotoGuideTag {
     public static String removeFrom(String body) {
         return PATTERN.matcher(body).replaceAll("");
     }
+
+    public static boolean holdsOnlyMarkers(String body) {
+        return removeFrom(body).isBlank();
+    }
 }

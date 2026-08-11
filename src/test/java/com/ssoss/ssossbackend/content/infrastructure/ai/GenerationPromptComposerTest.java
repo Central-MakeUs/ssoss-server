@@ -298,21 +298,33 @@ class GenerationPromptComposerTest {
         @DisplayName("채널마다 한 문단으로 묶을 문장 수가 실린다")
         void carriesParagraphBundle_forEveryChannel() {
             assertThat(composer.compose(materialWithoutPhotoGuide(Channel.BLOG)))
-                .contains("한 문단은 3~4문장으로 묶는다.");
+                .contains("한 문단은 3~4문장으로 묶고,");
             assertThat(composer.compose(materialWithoutPhotoGuide(Channel.INSTAGRAM)))
-                .contains("한 문단은 2~3문장으로 묶고 이모지를 적절히 섞는다.");
+                .contains("한 문단은 2~3문장으로 묶고,")
+                .contains("이모지를 적절히 섞는다.");
             assertThat(composer.compose(materialWithoutPhotoGuide(Channel.DAANGN_BIZ)))
-                .contains("한 문단은 2~3문장으로 묶는다.");
+                .contains("한 문단은 2~3문장으로 묶고,");
             assertThat(composer.compose(materialWithoutPhotoGuide(Channel.THREADS)))
-                .contains("한 문단은 2~3문장으로 묶는다.");
+                .contains("한 문단은 2~3문장으로 묶고,");
         }
 
         @Test
-        @DisplayName("어느 채널에도 문단 개수를 정하던 지시는 실리지 않는다")
-        void omitsParagraphCount_forEveryChannel() {
+        @DisplayName("어느 채널에도 문단 개수 상한을 정하던 지시는 실리지 않는다")
+        void omitsParagraphCountCeiling_forEveryChannel() {
             for (Channel channel : Channel.values()) {
                 assertThat(composer.compose(materialWithoutPhotoGuide(channel)))
                     .doesNotContain("문단은 4~6개로", "문단은 2~4개로", "문단은 2~3개로", "각 문단을 200자 이상으로");
+            }
+        }
+
+        @Test
+        @DisplayName("채널마다 문단 개수 하한이 실려 본문이 한 문단으로 오지 않는다")
+        void carriesParagraphCountFloor_forEveryChannel() {
+            assertThat(composer.compose(materialWithoutPhotoGuide(Channel.BLOG)))
+                .contains("문단은 4개 이상으로 나눈다.");
+            for (Channel channel : List.of(Channel.INSTAGRAM, Channel.DAANGN_BIZ, Channel.THREADS)) {
+                assertThat(composer.compose(materialWithoutPhotoGuide(channel)))
+                    .contains("문단은 2개 이상으로 나눈다.");
             }
         }
     }
@@ -326,7 +338,7 @@ class GenerationPromptComposerTest {
         void joinsSectionsWithSingleLineBreak() {
             String prompt = composer.compose(materialWithoutPhotoGuide(Channel.BLOG));
 
-            assertThat(prompt).contains("한 문단은 3~4문장으로 묶는다.\n[본문 형식]");
+            assertThat(prompt).contains("문단은 4개 이상으로 나눈다.\n[본문 형식]");
         }
     }
 
@@ -343,13 +355,13 @@ class GenerationPromptComposerTest {
         }
 
         @Test
-        @DisplayName("마커를 문단 사이가 아니라 문단 안의 줄로 끼우라는 지시가 실린다")
-        void carriesMarkerAsLineInsideParagraph_whenPhotoGuideChecked() {
+        @DisplayName("마커를 문단 사이에 낀 원소로 받으라는 지시가 실린다")
+        void carriesMarkerAsOwnElement_whenPhotoGuideChecked() {
             String prompt = composer.compose(materialWithPhotoGuide(Channel.BLOG));
 
             assertThat(prompt)
-                .contains("<photo-guide/> 마커만 담은 줄을 문단 안에 끼운다.")
-                .doesNotContain("원소를 문단 사이에 끼운다");
+                .contains("<photo-guide/> 마커만 담은 원소를 문단 사이에 끼운다.")
+                .doesNotContain("줄을 문단 안에 끼운다");
         }
     }
 }

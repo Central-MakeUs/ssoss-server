@@ -41,7 +41,7 @@ class GenerationPromptComposer {
 
     private static final String PHOTO_GUIDE_SECTION = """
         [사진 가이드]
-        사진이 들어가면 좋을 자리를 %s곳 골라, 그 자리에 <photo-guide/> 마커만 담은 줄을 문단 안에 끼운다.
+        사진이 들어가면 좋을 자리를 %s곳 골라, 그 자리에 <photo-guide/> 마커만 담은 원소를 문단 사이에 끼운다.
         마커와 같은 순서로 photoGuides 배열을 채우고 개수를 정확히 맞춘다.
         title 은 어떤 사진인지 15자 이내로, description 은 어떻게 찍으면 좋은지 40자 이내로 쓴다.
         마커와 배열 외의 방법으로 사진을 언급하지 않는다.""";
