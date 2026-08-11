@@ -30,6 +30,7 @@ class GeminiContentGeneratorLiveTest {
 
     private static final Pattern PHOTO_GUIDE_TAG = Pattern.compile("<photo-guide(?=[\\s/>])[^>]*>");
     private static final Pattern PARAGRAPH_BREAK = Pattern.compile("\\n\\s*\\n");
+    private static final Pattern LINE_BREAK_IN_PARAGRAPH = Pattern.compile("(?<!\\n)\\n(?!\\n)");
 
     private final Channel channel = Channel.from(System.getProperty("live.channel", "BLOG"));
 
@@ -45,6 +46,7 @@ class GeminiContentGeneratorLiveTest {
 
         print(channel, reply);
         assertThat(reply.content().hasRequiredOutput(channel)).isTrue();
+        assertThat(hasLineBreakInParagraph(reply)).isTrue();
         assertThat(reply.content().body())
             .contains("<photo-guide title=")
             .doesNotContain("<photo-guide/>")
@@ -74,7 +76,12 @@ class GeminiContentGeneratorLiveTest {
 
         print(Channel.BLOG, reply);
         assertThat(reply.content().hasRequiredOutput(Channel.BLOG)).isTrue();
+        assertThat(hasLineBreakInParagraph(reply)).isTrue();
         assertThat(reply.content().body()).contains("파니니").doesNotContain("크루아상");
+    }
+
+    private boolean hasLineBreakInParagraph(LlmCallReply reply) {
+        return LINE_BREAK_IN_PARAGRAPH.matcher(reply.content().body()).find();
     }
 
     private GeminiContentGenerator generator() {
@@ -111,12 +118,15 @@ class GeminiContentGeneratorLiveTest {
         String body = reply.content().body();
         String stripped = PHOTO_GUIDE_TAG.matcher(body).replaceAll("").strip();
         String title = reply.content().title();
+        List<String> lines = stripped.lines().map(String::strip).filter(line -> !line.isEmpty()).toList();
+        int paragraphs = PARAGRAPH_BREAK.split(stripped).length;
         System.out.println("""
 
             ===== %s 실측 =====
             제목: %s (%d자)
             본문: %d자 (사진 가이드 태그 제외) / 태그 포함 %d자
-            문단: %d개
+            문단: %d개 / 줄 %d개 (문단당 %.1f줄)
+            가장 긴 줄: %d자
             사진 가이드: %d장
             해시태그: %d개 — %s
             (입력 %d 토큰 / 출력 %d 토큰 / %d ms)
@@ -125,10 +135,15 @@ class GeminiContentGeneratorLiveTest {
             """.formatted(channel,
             title, title == null ? 0 : title.codePointCount(0, title.length()),
             stripped.codePointCount(0, stripped.length()), body.codePointCount(0, body.length()),
-            PARAGRAPH_BREAK.split(stripped).length,
+            paragraphs, lines.size(), (double) lines.size() / paragraphs,
+            longestLineLength(lines),
             PHOTO_GUIDE_TAG.matcher(body).results().count(),
             reply.content().hashtags().size(), String.join(" ", reply.content().hashtags()),
             reply.inputTokens(), reply.outputTokens(), reply.responseTimeMillis(),
             body));
+    }
+
+    private int longestLineLength(List<String> lines) {
+        return lines.stream().mapToInt(line -> line.codePointCount(0, line.length())).max().orElse(0);
     }
 }

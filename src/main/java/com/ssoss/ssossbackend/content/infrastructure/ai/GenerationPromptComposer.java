@@ -20,7 +20,8 @@ class GenerationPromptComposer {
     private static final String BODY_FORMAT_SECTION = """
         [본문 형식]
         본문은 paragraphs 배열에 담고, 원소 하나가 문단 하나다.
-        원소 안에서는 줄바꿈을 쓰지 않고 빈 원소도 넣지 않는다.""";
+        문단 안에서는 문장 하나가 끝날 때마다 줄을 바꾼다.
+        빈 원소는 넣지 않는다.""";
 
     private static final String EMPHASIS_SECTION = """
         [강조 내용]
