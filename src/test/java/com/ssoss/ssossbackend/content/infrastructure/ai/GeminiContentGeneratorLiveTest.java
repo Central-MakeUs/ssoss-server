@@ -95,7 +95,7 @@ class GeminiContentGeneratorLiveTest {
             .build();
         return new GeminiContentGenerator(chatModel,
             new GenerationPromptComposer(new StoreSectionComposer(), new StyleSourceSectionComposer()),
-            new GeminiCallOutcomeClassifier(), new PhotoGuideAssembler());
+            new GeminiCallOutcomeClassifier(), new PhotoGuideAssembler(new ParagraphJoiner()));
     }
 
     private String geminiApiKey() {

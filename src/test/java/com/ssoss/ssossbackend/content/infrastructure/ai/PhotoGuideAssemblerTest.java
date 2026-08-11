@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("사진 가이드 조립")
 class PhotoGuideAssemblerTest {
 
-    private final PhotoGuideAssembler assembler = new PhotoGuideAssembler();
+    private final PhotoGuideAssembler assembler = new PhotoGuideAssembler(new ParagraphJoiner());
 
     @Nested
     @DisplayName("문단 이어붙이기")
@@ -26,7 +26,7 @@ class PhotoGuideAssemblerTest {
         }
 
         @Test
-        @DisplayName("마커 원소는 자기 줄에 태그로 조립된다")
+        @DisplayName("마커 원소는 앞뒤가 빈 줄 없이 자기 줄에 태그로 조립된다")
         void assemblesMarkerElementOnItsOwnLine() {
             List<String> paragraphs = List.of("첫 문단", "<photo-guide/>", "둘째 문단");
             List<PhotoGuideOutput> guides = List.of(
@@ -36,10 +36,40 @@ class PhotoGuideAssemblerTest {
 
             assertThat(assembled).isEqualTo("""
                 첫 문단
-
                 <photo-guide title="시그니처 메뉴" description="위에서 내려다보며 찍기"/>
-
                 둘째 문단""");
+        }
+
+        @Test
+        @DisplayName("문단끼리는 빈 줄로 이어지고 마커 앞뒤만 줄바꿈 하나로 좁혀진다")
+        void keepsBlankLineBetweenParagraphsOnly() {
+            List<String> paragraphs = List.of("첫 문단", "둘째 문단", "<photo-guide/>", "셋째 문단");
+            List<PhotoGuideOutput> guides = List.of(new PhotoGuideOutput("시그니처 메뉴", "위에서 내려다보며 찍기"));
+
+            String assembled = assembler.assemble(paragraphs, guides);
+
+            assertThat(assembled).isEqualTo("""
+                첫 문단
+
+                둘째 문단
+                <photo-guide title="시그니처 메뉴" description="위에서 내려다보며 찍기"/>
+                셋째 문단""");
+        }
+
+        @Test
+        @DisplayName("마커가 맨 앞이나 맨 뒤에 와도 이웃과 줄바꿈 하나로 이어진다")
+        void joinsMarkerAtBothEndsWithSingleLineBreak() {
+            List<String> paragraphs = List.of("<photo-guide/>", "첫 문단", "<photo-guide/>");
+            List<PhotoGuideOutput> guides = List.of(
+                new PhotoGuideOutput("매장 외관", "간판이 보이게 찍기"),
+                new PhotoGuideOutput("창가 자리", "햇빛이 드는 낮에 찍기"));
+
+            String assembled = assembler.assemble(paragraphs, guides);
+
+            assertThat(assembled).isEqualTo("""
+                <photo-guide title="매장 외관" description="간판이 보이게 찍기"/>
+                첫 문단
+                <photo-guide title="창가 자리" description="햇빛이 드는 낮에 찍기"/>""");
         }
 
         @Test
@@ -83,11 +113,8 @@ class PhotoGuideAssemblerTest {
 
             assertThat(assembled).isEqualTo("""
                 첫 문단
-
                 <photo-guide title="시그니처 메뉴" description="위에서 내려다보며 찍기"/>
-
                 둘째 문단
-
                 <photo-guide title="매장 외관" description="간판이 보이게 찍기"/>""");
         }
 
