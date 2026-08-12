@@ -38,7 +38,7 @@ class AppleIdentityTokenVerifier {
                 .getPayload();
             return new SocialProfile(claims.getSubject(), claims.get("email", String.class));
         } catch (JwtException | IllegalArgumentException e) {
-            throw new BusinessException(AuthErrorCode.INVALID_SOCIAL_TOKEN);
+            throw new BusinessException(AuthErrorCode.INVALID_SOCIAL_TOKEN, e);
         }
     }
 }
