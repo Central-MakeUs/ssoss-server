@@ -1,4 +1,4 @@
-package com.ssoss.ssossbackend.store.application.service;
+package com.ssoss.ssossbackend.store.application.result;
 
 import java.time.DayOfWeek;
 import java.util.List;
@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("StoreProfile")
-class StoreProfileTest {
+@DisplayName("StoreProfileResult")
+class StoreProfileResultTest {
 
     private static Store written() {
         Store store = Store.create(1L);
@@ -33,26 +33,26 @@ class StoreProfileTest {
         @Test
         @DisplayName("매장 유형을 한글 이름으로 낮춘다")
         void lowersType_toKoreanName() {
-            assertThat(StoreProfile.from(written()).type()).isEqualTo("베이커리 카페");
+            assertThat(StoreProfileResult.from(written()).type()).isEqualTo("베이커리 카페");
         }
 
         @Test
         @DisplayName("영업 요일을 표기하지 않은 요일 값 그대로 담는다")
         void carriesBusinessDays_asRawValues() {
-            assertThat(StoreProfile.from(written()).businessDays())
+            assertThat(StoreProfileResult.from(written()).businessDays())
                 .containsExactly(DayOfWeek.MONDAY, DayOfWeek.SUNDAY);
         }
 
         @Test
         @DisplayName("편의 시설은 가능한 것만 담는다")
         void keepsAvailableAmenitiesOnly() {
-            assertThat(StoreProfile.from(written()).amenities()).containsExactly("포장 가능", "주차 가능");
+            assertThat(StoreProfileResult.from(written()).amenities()).containsExactly("포장 가능", "주차 가능");
         }
 
         @Test
         @DisplayName("기본 정보와 운영 정보의 나머지 값을 그대로 담는다")
         void carriesRemainingFields() {
-            StoreProfile profile = StoreProfile.from(written());
+            StoreProfileResult profile = StoreProfileResult.from(written());
 
             assertThat(profile.name()).isEqualTo("보니스커피");
             assertThat(profile.address()).isEqualTo("서울 중구 을지로 100");
@@ -65,7 +65,7 @@ class StoreProfileTest {
         @Test
         @DisplayName("아무것도 입력하지 않은 매장은 값이 비고 목록이 빈다")
         void hasEmptyValues_whenNothingWritten() {
-            StoreProfile profile = StoreProfile.from(Store.create(1L));
+            StoreProfileResult profile = StoreProfileResult.from(Store.create(1L));
 
             assertThat(profile.name()).isNull();
             assertThat(profile.type()).isNull();

@@ -1,4 +1,4 @@
-package com.ssoss.ssossbackend.store.application.service;
+package com.ssoss.ssossbackend.store.application.result;
 
 import java.time.DayOfWeek;
 import java.util.ArrayList;
@@ -8,7 +8,7 @@ import com.ssoss.ssossbackend.store.domain.model.Amenities;
 import com.ssoss.ssossbackend.store.domain.model.Store;
 import com.ssoss.ssossbackend.store.domain.model.StoreType;
 
-public record StoreProfile(
+public record StoreProfileResult(
     String name,
     String type,
     String address,
@@ -24,7 +24,7 @@ public record StoreProfile(
     private static final String RESERVATION_AVAILABLE = "예약 가능";
     private static final String PARKING_AVAILABLE = "주차 가능";
 
-    static StoreProfile from(Store store) {
+    public static StoreProfileResult from(Store store) {
         Amenities amenities = store.getAmenities();
         List<String> availableAmenities = new ArrayList<>();
         if (amenities.takeoutAvailable()) {
@@ -37,7 +37,7 @@ public record StoreProfile(
             availableAmenities.add(PARKING_AVAILABLE);
         }
         StoreType type = store.getType();
-        return new StoreProfile(
+        return new StoreProfileResult(
             store.getName(),
             type == null ? null : type.koreanName(),
             store.getAddress(),

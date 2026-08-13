@@ -3,6 +3,7 @@ package com.ssoss.ssossbackend.member.application.service;
 import java.util.List;
 import java.util.Optional;
 
+import com.ssoss.ssossbackend.member.application.result.MemberIdentityResult;
 import com.ssoss.ssossbackend.member.domain.model.Member;
 import com.ssoss.ssossbackend.member.domain.model.MemberTerm;
 import com.ssoss.ssossbackend.member.domain.model.SocialProvider;
@@ -29,36 +30,36 @@ public class MemberService {
     private final MemberWithdrawalHistoryCleaner memberWithdrawalHistoryCleaner;
     private final ApplicationEventPublisher eventPublisher;
 
-    public Optional<MemberIdentity> find(String provider, String socialId) {
+    public Optional<MemberIdentityResult> find(String provider, String socialId) {
         return memberFinder.find(SocialProvider.valueOf(provider), socialId)
-            .map(MemberIdentity::from);
+            .map(MemberIdentityResult::from);
     }
 
-    public Optional<MemberIdentity> findById(Long memberId) {
+    public Optional<MemberIdentityResult> findById(Long memberId) {
         return memberFinder.findById(memberId)
-            .map(MemberIdentity::from);
+            .map(MemberIdentityResult::from);
     }
 
-    public MemberIdentity register(String provider, String socialId, String email) {
-        return MemberIdentity.from(memberWriter.register(SocialProvider.valueOf(provider), socialId, email));
+    public MemberIdentityResult register(String provider, String socialId, String email) {
+        return MemberIdentityResult.from(memberWriter.register(SocialProvider.valueOf(provider), socialId, email));
     }
 
     @Transactional
-    public MemberIdentity signup(Long memberId, boolean ageOver14Agreed, boolean serviceTermsAgreed,
+    public MemberIdentityResult signup(Long memberId, boolean ageOver14Agreed, boolean serviceTermsAgreed,
         boolean privacyPolicyAgreed) {
         Member member = memberWriter.activate(memberId);
         memberTermWriter.record(MemberTerm.record(
             member.getId(), ageOver14Agreed, serviceTermsAgreed, privacyPolicyAgreed));
         eventPublisher.publishEvent(new MemberActivatedEvent(member.getId()));
-        return MemberIdentity.from(member);
+        return MemberIdentityResult.from(member);
     }
 
     public void withdraw(Long memberId, String reason, String detail) {
         memberWriter.withdraw(memberId, reason == null ? null : WithdrawalReason.from(reason), detail);
     }
 
-    public MemberIdentity recover(Long memberId) {
-        return MemberIdentity.from(memberWriter.recover(memberId));
+    public MemberIdentityResult recover(Long memberId) {
+        return MemberIdentityResult.from(memberWriter.recover(memberId));
     }
 
     public WithdrawnMemberDeletionResult deleteWithdrawnMembers() {
