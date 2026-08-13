@@ -2,11 +2,11 @@ package com.ssoss.ssossbackend.auth.application.service;
 
 import com.ssoss.ssossbackend.auth.application.command.SignupCommand;
 import com.ssoss.ssossbackend.auth.application.result.SignupResult;
+import com.ssoss.ssossbackend.auth.domain.model.Account;
 import com.ssoss.ssossbackend.auth.domain.model.LoginToken;
 import com.ssoss.ssossbackend.auth.domain.model.MemberStatus;
+import com.ssoss.ssossbackend.auth.domain.service.AccountWriter;
 import com.ssoss.ssossbackend.auth.domain.service.TokenIssuer;
-import com.ssoss.ssossbackend.member.application.service.MemberIdentity;
-import com.ssoss.ssossbackend.member.application.service.MemberService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -16,17 +16,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SignupService {
 
-    private final MemberService memberService;
+    private final AccountWriter accountWriter;
     private final TokenIssuer tokenIssuer;
 
     public SignupResult signup(SignupCommand command) {
-        MemberIdentity member = memberService.signup(
+        Account account = accountWriter.signup(
             command.memberId(),
             command.ageOver14Agreed(),
             command.serviceTermsAgreed(),
             command.privacyPolicyAgreed());
-        MemberStatus status = MemberStatus.valueOf(member.status());
-        LoginToken loginToken = tokenIssuer.issue(member.id(), status);
+        MemberStatus status = account.status();
+        LoginToken loginToken = tokenIssuer.issue(account.id(), status);
         return new SignupResult(status.name(), loginToken.accessToken(), loginToken.refreshToken());
     }
 }

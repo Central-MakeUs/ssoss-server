@@ -24,6 +24,9 @@ class NamingRulesTest {
     private static final JavaClasses NAMING_VIOLATION_FIXTURES = new ClassFileImporter()
             .importPackages("com.ssoss.archfixtures.naming");
 
+    private static final JavaClasses GATEWAY_NAMING_FIXTURES = new ClassFileImporter()
+            .importPackages("com.ssoss.archfixtures.gatewaynaming");
+
     @Nested
     @DisplayName("@RestController 클래스 이름은 Controller 로 끝난다")
     class Controllers {
@@ -93,6 +96,58 @@ class NamingRulesTest {
             assertThatThrownBy(() -> rule.check(NAMING_VIOLATION_FIXTURES))
                     .isInstanceOf(AssertionError.class)
                     .hasMessageContaining("MemberError");
+        }
+    }
+
+    @Nested
+    @DisplayName("다른 모듈에 여는 지점은 InternalGateway, 그 지점이 내주는 값은 Reply 로 끝난다")
+    class InternalGateways {
+
+        private final ArchRule rule = classes()
+                .that().resideInAPackage("..entrypoint.gateway..")
+                .and().haveSimpleNameNotStartingWith("package-info")
+                .should().haveSimpleNameEndingWith("InternalGateway")
+                .orShould().haveSimpleNameEndingWith("Reply")
+                .allowEmptyShould(true);
+
+        @Test
+        @DisplayName("프로덕션 코드가 규칙을 지키면 통과한다")
+        void productionCodePasses() {
+            assertThatCode(() -> rule.check(PRODUCTION_CLASSES)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("InternalGateway 도 Reply 도 아닌 이름이 있으면 실패한다")
+        void violatingFixtureFails() {
+            assertThatThrownBy(() -> rule.check(GATEWAY_NAMING_FIXTURES))
+                    .isInstanceOf(AssertionError.class)
+                    .hasMessageContaining("BetaOpening");
+        }
+    }
+
+    @Nested
+    @DisplayName("교차 모듈 어댑터 이름은 Internal 로 시작해 Client 로 끝난다")
+    class InternalClients {
+
+        private final ArchRule rule = classes()
+                .that().resideInAPackage("..infrastructure.gateway..")
+                .and().haveSimpleNameNotStartingWith("package-info")
+                .should().haveSimpleNameStartingWith("Internal")
+                .andShould().haveSimpleNameEndingWith("Client")
+                .allowEmptyShould(true);
+
+        @Test
+        @DisplayName("프로덕션 코드가 규칙을 지키면 통과한다")
+        void productionCodePasses() {
+            assertThatCode(() -> rule.check(PRODUCTION_CLASSES)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Internal 로 시작하지 않는 어댑터가 있으면 실패한다")
+        void violatingFixtureFails() {
+            assertThatThrownBy(() -> rule.check(GATEWAY_NAMING_FIXTURES))
+                    .isInstanceOf(AssertionError.class)
+                    .hasMessageContaining("BetaClientAdapter");
         }
     }
 }

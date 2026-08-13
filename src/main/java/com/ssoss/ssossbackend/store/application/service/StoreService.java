@@ -4,6 +4,7 @@ import com.ssoss.ssossbackend.store.application.command.StoreBasicInfoCommand;
 import com.ssoss.ssossbackend.store.application.command.StoreContentInfoCommand;
 import com.ssoss.ssossbackend.store.application.command.StoreOperationInfoCommand;
 import com.ssoss.ssossbackend.store.application.result.StoreInfoResult;
+import com.ssoss.ssossbackend.store.application.result.StoreProfileResult;
 import com.ssoss.ssossbackend.store.domain.service.StoreFinder;
 import com.ssoss.ssossbackend.store.domain.service.StoreWriter;
 
@@ -22,8 +23,8 @@ public class StoreService {
         return StoreInfoResult.from(storeFinder.get(memberId));
     }
 
-    public StoreProfile getProfile(Long memberId) {
-        return StoreProfile.from(storeFinder.get(memberId));
+    public StoreProfileResult getProfile(Long memberId) {
+        return StoreProfileResult.from(storeFinder.get(memberId));
     }
 
     public void saveBasicInfo(StoreBasicInfoCommand command) {
