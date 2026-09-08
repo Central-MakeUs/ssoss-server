@@ -104,11 +104,7 @@ internal class NamingRulesTest {
     @DisplayName("다른 모듈에 여는 지점은 InternalGateway, 그 지점이 내주는 값은 Reply 로 끝난다")
     inner class InternalGateways {
         private val rule: ArchRule =
-            classes()
-                .that()
-                .resideInAPackage("..entrypoint.gateway..")
-                .and()
-                .haveSimpleNameNotStartingWith("package-info")
+            declaredClassesIn("..entrypoint.gateway..")
                 .should()
                 .haveSimpleNameEndingWith("InternalGateway")
                 .orShould()
@@ -126,17 +122,22 @@ internal class NamingRulesTest {
                 .isInstanceOf(AssertionError::class.java)
                 .hasMessageContaining("BetaOpening")
         }
+
+        @Test
+        fun `companion object 와 최상위 함수 파일과 PackageInfo 클래스는 걸리지 않는다`() {
+            assertThatThrownBy { rule.check(gatewayNamingFixtures) }
+                .isInstanceOf(AssertionError::class.java)
+                .hasMessageNotContaining("Companion")
+                .hasMessageNotContaining("BetaGatewayFunctionsKt")
+                .hasMessageNotContaining("ModuleMetadata")
+        }
     }
 
     @Nested
     @DisplayName("교차 모듈 어댑터 이름은 Internal 로 시작해 Client 로 끝난다")
     inner class InternalClients {
         private val rule: ArchRule =
-            classes()
-                .that()
-                .resideInAPackage("..infrastructure.gateway..")
-                .and()
-                .haveSimpleNameNotStartingWith("package-info")
+            declaredClassesIn("..infrastructure.gateway..")
                 .should()
                 .haveSimpleNameStartingWith("Internal")
                 .andShould()
@@ -153,6 +154,14 @@ internal class NamingRulesTest {
             assertThatThrownBy { rule.check(gatewayNamingFixtures) }
                 .isInstanceOf(AssertionError::class.java)
                 .hasMessageContaining("BetaClientAdapter")
+        }
+
+        @Test
+        fun `companion object 와 최상위 함수 파일은 걸리지 않는다`() {
+            assertThatThrownBy { rule.check(gatewayNamingFixtures) }
+                .isInstanceOf(AssertionError::class.java)
+                .hasMessageNotContaining("Companion")
+                .hasMessageNotContaining("BetaClientFunctionsKt")
         }
     }
 }

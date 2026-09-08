@@ -1,16 +1,45 @@
 package com.ssoss.ssossbackend.architecture
 
+import com.tngtech.archunit.base.DescribedPredicate
+import com.tngtech.archunit.base.DescribedPredicate.not
 import com.tngtech.archunit.core.domain.JavaClass
 import com.tngtech.archunit.core.domain.JavaClasses
+import com.tngtech.archunit.core.domain.JavaModifier
 import com.tngtech.archunit.lang.ArchCondition
 import com.tngtech.archunit.lang.ArchRule
 import com.tngtech.archunit.lang.ConditionEvents
 import com.tngtech.archunit.lang.SimpleConditionEvent
+import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
+import com.tngtech.archunit.lang.syntax.elements.GivenClassesConjunction
 import com.tngtech.archunit.library.Architectures.layeredArchitecture
 import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices
+import org.springframework.modulith.PackageInfo
+
+private const val KOTLIN_FILE_FACADE_KIND = 2
 
 private val layers = setOf("entrypoint", "application", "domain", "infrastructure")
+
+private val kotlinFileClasses: DescribedPredicate<JavaClass> =
+    object : DescribedPredicate<JavaClass>("Kotlin 파일 클래스") {
+        override fun test(input: JavaClass): Boolean =
+            input
+                .tryGetAnnotationOfType(Metadata::class.java.name)
+                .map { it.get("k").orElse(null) == KOTLIN_FILE_FACADE_KIND }
+                .orElse(false)
+    }
+
+internal fun declaredClassesIn(packageIdentifier: String): GivenClassesConjunction =
+    classes()
+        .that()
+        .resideInAPackage(packageIdentifier)
+        .and()
+        .areTopLevelClasses()
+        .and()
+        .doNotHaveModifier(JavaModifier.SYNTHETIC)
+        .and()
+        .areNotAnnotatedWith(PackageInfo::class.java)
+        .and(not(kotlinFileClasses))
 
 internal fun layersOf(modulePackage: String): ArchRule =
     layeredArchitecture()
